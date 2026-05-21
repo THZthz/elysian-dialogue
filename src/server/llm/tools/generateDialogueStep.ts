@@ -39,9 +39,11 @@ Omit when generating fresh.`.trim(),
     .string()
     .max(60)
     .describe(
-      "Name of the speaker (no '_' between words, e.g. 'LOGIC', 'Orin Fell', 'NARRATOR', 'INSTINCT', 'SORCERY').",
+      "Name of the speaker (no '_' between words, e.g. 'Orin Fell' if the speaker has a clear name, 'NARRATOR', 'INSTINCT' or other inner voices if this is happen inside player's head).",
     ),
-  type: z.enum(SPEAKER_TYPES.filter((type) => type !== "YOU") as Exclude<SpeakerType, "YOU">[]),
+  type: z
+    .enum(SPEAKER_TYPES.filter((type) => type !== "YOU" && type !== "ROLL") as Exclude<SpeakerType, "YOU" | "ROLL">[])
+    .describe(""),
   text: z.string().max(MAX_MESSAGE_TEXT_LENGTH).describe("The dialogue text, supports markdown."),
   metadata: z
     .object({
@@ -350,13 +352,13 @@ async function executeAndPersist(
     }
     return (
       (isCorrection ? `Correction applied — ` : `Dialogue successfully streamed — `) +
-      `${persisted} message(s) persisted, ${(args.options ?? []).length} option(s) received.`
+      `${persisted} message(s) persisted, ${(args.options ?? []).length} option(s) received. You should consider persisting world state now.`
     );
   }
 
   return (
     (isCorrection ? "Correction applied — " : "Dialogue successfully streamed — ") +
-    `${(args.messages ?? []).length} message(s) received, ${(args.options ?? []).length} option(s) received.`
+    `${(args.messages ?? []).length} message(s) received, ${(args.options ?? []).length} option(s) received. You should consider persisting world state now.`
   );
 }
 
@@ -376,9 +378,6 @@ During correction (isCorrection: true), you may call this multiple times until
 validation passes — the turn continues.
 
 Messages — The narrative for this step. 1-3 sentences each.
-  Speaker names: NARRATOR for narration (use type: SYSTEM), NPC names for dialogue
-  (type: CHARACTER), skill names like LOGIC/EMPATHY for inner voices (type: INNER_VOICE).
-  Available types: SYSTEM, CHARACTER, INNER_VOICE, ROLL, NOTIFICATION.
 
 Options — 2-5 choices for the player (2-3 standard, 4-5 for pivotal moments).
   All options should be action-oriented (what the player DOES).
@@ -390,6 +389,14 @@ renders). Failure should be interesting, not a dead end.
 isCorrection — ONLY set to true when retrying after a validation error.
   Send ONLY the failing items with their 'index' field from the error message.
   Valid items are preserved automatically — do NOT copy or resend them.
+
+Speaker names and their type:
+  | type         | speaker name                   |
+  |--------------|--------------------------------|
+  | SYSTEM       | NARRATOR                       |
+  | CHARACTER    | NPC's name                     |
+  | INNER_VOICE  | skill names like LOGIC/EMPATHY |
+  | NOTIFICATION | rarely used                    |
 
 Inner voice personalities:
   LOGIC — cold, deductive, spots inconsistencies in arguments and mechanisms
@@ -405,12 +412,11 @@ Inner voice personalities:
   CLOCKWORK — mechanical intuition; understands gears, steam-pressure, alchemical engines
   ALCHEMY — appetite for transmutation; craves alchemical substances, vice, transformation
 
-Message Formatting:
-- Narration
-- "Dialogue"
-- *Thoughts*
-- \`Text messages\`
-- **Emphasis**
+Formatting for each of the message array:
+Message will be displayed as rendered Markdown for player.
+- Narration should be in plain text
+- Dialogue of characters should be wrapped by \`"\` and in italics
+- Any text that is emphasized should be in bold
 `.trim(),
     inputSchema,
     execute: async (args: DialogueArgs) => {

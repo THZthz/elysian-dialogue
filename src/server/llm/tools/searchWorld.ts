@@ -68,12 +68,15 @@ more domains (node labels or relationship types) via 'domains' to scope the sear
 restrict to only nodes or only relationships.
 
 Search your notes at the start of every turn with domains: ["Note"].
+
+Do not combine multiple search attempts into a single call.
+Do not forget to use parameter \`limit\` wisely, if the search should be exact, set it to 1.
 `.trim(),
   inputSchema: z.object({
     query: z
       .string()
       .describe(
-        "Natural language search query. Keep short and focused — a few keywords is enough.",
+        "Natural language search query, usually a few keywords. Keep short and focus on the same topic.",
       ),
     target: z
       .array(z.enum(["node", "relationship"]))

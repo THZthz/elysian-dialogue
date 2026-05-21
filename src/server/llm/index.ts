@@ -157,9 +157,9 @@ export async function generateTurn(
       "## BEGIN FIRST TURN",
       `This is first turn (no need to check, this section will only appear once), you should call \`${TOOL_NAMES.GET_CONTEXT}\` with ["SCHEMA_DUMP", "SCENE_CONTEXT", "CHARACTERS_BRIEF", "LOCATIONS_BRIEF", "OBJECTS_BRIEF", "PLOTS_BRIEF", "RELATIONSHIP_DUMP"] to help you better understand the data in Neo4j database.`,
       "",
-      `You should explore more with \`${TOOL_NAMES.QUERY_WORLD}\`, since \`${TOOL_NAMES.GET_CONTEXT}\` only return property "brief" of nodes and relationships, not long and detailed "description".`,
+      `You should explore more with \`${TOOL_NAMES.QUERY_WORLD}\`, since \`${TOOL_NAMES.GET_CONTEXT}\` only return property "brief" of nodes and relationships, not long and detailed "description". When using \`${TOOL_NAMES.QUERY_WORLD}\`, you should combine multiple structural-similar Cypher query into one.`,
       "",
-      `Also, do not forget to check any notes or plots by \`${TOOL_NAMES.SEARCH_WORLD}\`. Note is linked to Entity and Plot, you can use this.`,
+      `Also, do not forget to check any notes or plots by \`${TOOL_NAMES.SEARCH_WORLD}\`. Note is linked to Entity and Plot, you can use this. Also, search note with "opening scene" is recommended.`,
       "",
       "---",
       "",
@@ -292,7 +292,7 @@ export async function generateTurn(
 
         // ── Phase 1: pre-dialogue — nudge to call generateDialogueStep ──
         // Don't nudge until step 4 — let the GM work without interruption early on
-        if (steps.length < 4) {
+        if ((turnNumber == 1 && steps.length < 6) || (turnNumber > 1 && steps.length < 4)) {
           return undefined;
         }
 

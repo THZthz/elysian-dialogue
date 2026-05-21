@@ -1,0 +1,6 @@
+gpu:
+  indexing: true
+  force_half_precision: true
+  parallel_indexes: 2
+  allow_integrated: false
+  allow_emulated: false
