@@ -25,7 +25,8 @@ export const RELATIONSHIP_PROPERTY_TAGS = [
   "number",
   "number[]",
   "json",
-  "embedded",
+  "embedded_name",
+  "embedded_content",
   "index",
   "composite_index_1",
   "composite_index_2",
@@ -157,7 +158,7 @@ const PREDEFINED_TYPES: {
         name: "brief",
         description:
           "Spatial position detail — how/where exactly the entity is located (e.g., 'hiding behind crates', 'slumped at the bar').",
-        tags: ["string", "embedded"],
+        tags: ["string", "embedded_content"],
       },
     ],
   },
@@ -170,7 +171,7 @@ const PREDEFINED_TYPES: {
       {
         name: "brief",
         description: "How the item is carried (e.g., 'concealed in a boot', 'worn openly on hip').",
-        tags: ["string", "embedded"],
+        tags: ["string", "embedded_content"],
       },
     ],
   },
@@ -184,7 +185,7 @@ const PREDEFINED_TYPES: {
         name: "brief",
         description:
           "Reason or motive for the alliance (e.g., 'shared hatred of the Magistrate', 'family loyalty').",
-        tags: ["string", "embedded"],
+        tags: ["string", "embedded_content"],
       },
     ],
   },
@@ -198,7 +199,7 @@ const PREDEFINED_TYPES: {
         name: "brief",
         description:
           "Reason or motive for the hostility (e.g., 'unpaid debt of 200 coins', 'territorial dispute').",
-        tags: ["string", "embedded"],
+        tags: ["string", "embedded_content"],
       },
     ],
   },
@@ -213,7 +214,7 @@ const PREDEFINED_TYPES: {
         name: "brief",
         description:
           "Access or containment detail (e.g., 'accessed through a trapdoor behind the bar').",
-        tags: ["string", "embedded"],
+        tags: ["string", "embedded_content"],
       },
     ],
   },
@@ -334,12 +335,25 @@ export class RelationshipManager {
     return this.get(name, sourceLabel, targetLabel) !== undefined;
   }
 
-  /** Build embedding text by concatenating all "embedded"-tagged properties from the first matching definition. */
-  getEmbeddingText(name: string, props: Record<string, unknown>): string {
+  /** Build name vector text from structural info: {source} --[{type}]--> {target}. */
+  getEmbeddingNameText(
+    name: string,
+    _props: Record<string, unknown>,
+    sourceName?: string,
+    targetName?: string,
+  ): string {
+    if (sourceName && targetName) {
+      return `${sourceName} --[${name}]--> ${targetName}`;
+    }
+    return `[${name}]`;
+  }
+
+  /** Build content vector text from embedded_content-tagged properties. */
+  getEmbeddingContentText(name: string, props: Record<string, unknown>): string {
     const defs = this.getByName(name);
     const def = defs[0];
     if (!def) return "";
-    const embeddedProps = def.properties.filter((p) => p.tags.includes("embedded"));
+    const embeddedProps = def.properties.filter((p) => p.tags.includes("embedded_content"));
     return embeddedProps
       .map((p) => {
         const val = props[p.name];
@@ -347,6 +361,11 @@ export class RelationshipManager {
       })
       .filter((v) => v.length > 0)
       .join("\n");
+  }
+
+  // Keep getEmbeddingText as convenience
+  getEmbeddingText(name: string, props: Record<string, unknown>): string {
+    return this.getEmbeddingContentText(name, props);
   }
 
   updateDescription(

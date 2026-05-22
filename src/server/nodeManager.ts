@@ -29,10 +29,8 @@ export const NODE_PROPERTY_TAGS = [
    * unfold Neo4j string property to avoid whole string overwritten (which is unwanted in most cases).
    */
   "json",
-  /**
-   * Will be used to compute vector embedding.
-   */
-  "embedded",
+  "embedded_name",   // Used for identity/exact-match vector (name_vec)
+  "embedded_content", // Used for semantic/meaning vector (content_vec)
   /**
    * Will create a unique constraint if specified.
    * `CREATE CONSTRAINT $name IF NOT EXISTS FOR (n:$label) REQUIRE n.$prop IS UNIQUE`
@@ -90,7 +88,7 @@ const ENTITY_PROPS: NodePropertyDef[] = [
   {
     name: "name",
     description: "Unique name of the entity.",
-    tags: ["string", "embedded", "unique"],
+    tags: ["string", "embedded_name", "unique"],
   },
   {
     name: "type", // TODO: Should be removed.
@@ -105,12 +103,12 @@ const ENTITY_PROPS: NodePropertyDef[] = [
   {
     name: "description",
     description: "Full narrative description of the entity.",
-    tags: ["string", "embedded"],
+    tags: ["string", "embedded_content"],
   },
   {
     name: "brief",
     description: "One-line summary for compact display.",
-    tags: ["string", "embedded"],
+    tags: ["string", "embedded_content"],
   },
   {
     name: "metadata",
@@ -249,7 +247,7 @@ const PREDEFINED_TYPES: { name: string; description: string; properties: NodePro
     description: `A conversation message between player and GM. Linked in sequence via NEXT_MESSAGE. Automatically managed by \`${TOOL_NAMES.GENERATE_DIALOGUE}\`.`,
     properties: [
       { name: "id", description: "Message id composed of 4 characters.", tags: ["string", "unique"] },
-      { name: "content", description: "Message text content.", tags: ["string", "embedded"] },
+      { name: "content", description: "Message text content.", tags: ["string", "embedded_content"] },
       // TODO: Replace it by TIMESTAMP_PROPS.
       { name: "timestamp", description: "ISO 8601 timestamp of the message.", tags: ["string"] },
       {
@@ -268,7 +266,7 @@ const PREDEFINED_TYPES: { name: string; description: string; properties: NodePro
       {
         name: "content",
         description: "Full note content (embedded for vector search).",
-        tags: ["string", "embedded"],
+        tags: ["string", "embedded_content"],
       },
       ...TIMESTAMP_PROPS,
       ...INTERNAL_PROPS,
@@ -281,17 +279,17 @@ const PREDEFINED_TYPES: { name: string; description: string; properties: NodePro
       {
         name: "name",
         description: "Unique plot name (used as lookup key).",
-        tags: ["string", "unique", "embedded"],
+        tags: ["string", "unique", "embedded_name"],
       },
       {
         name: "brief",
         description: "One-line plot summary for compact display.",
-        tags: ["string", "embedded"],
+        tags: ["string", "embedded_content"],
       },
       {
         name: "description",
         description: "Full plot description (embedded for vector search).",
-        tags: ["string", "embedded"],
+        tags: ["string", "embedded_content"],
       },
       {
         name: "status",
@@ -427,11 +425,26 @@ export class NodeManager {
     return [...this.registry.values()].filter((r) => r.type === type);
   }
 
-  /** Build embedding text by concatenating all "embedded"-tagged property values. */
-  getEmbeddingText(label: string, props: Record<string, unknown>): string {
+  /** Build text for the identity vector from embedded_name-tagged properties. */
+  getEmbeddingNameText(label: string, props: Record<string, unknown>): string {
     const def = this.registry.get(label);
     if (!def) return "";
-    const embeddedProps = def.properties.filter((p) => p.tags.includes("embedded"));
+    const embeddedProps = def.properties.filter((p) => p.tags.includes("embedded_name"));
+    if (embeddedProps.length === 0) return "";
+    const parts: string[] = [];
+    parts.push(`[${label}]`);
+    for (const p of embeddedProps) {
+      const val = props[p.name];
+      if (val) parts.push(String(val));
+    }
+    return parts.join(" ");
+  }
+
+  /** Build text for the semantic vector from embedded_content-tagged properties. */
+  getEmbeddingContentText(label: string, props: Record<string, unknown>): string {
+    const def = this.registry.get(label);
+    if (!def) return "";
+    const embeddedProps = def.properties.filter((p) => p.tags.includes("embedded_content"));
     return embeddedProps
       .map((p) => {
         const val = props[p.name];
@@ -439,6 +452,11 @@ export class NodeManager {
       })
       .filter((v) => v.length > 0)
       .join("\n");
+  }
+
+  // Keep getEmbeddingText as a convenience that returns content text (for reranker/debug paths)
+  getEmbeddingText(label: string, props: Record<string, unknown>): string {
+    return this.getEmbeddingContentText(label, props);
   }
 
   isAllowedForRead(name: string): boolean {

@@ -37,7 +37,7 @@ function getVectorSearchable(type: "relationship" | "label"): {
     .getAll()
     .filter(
       (def) =>
-        def.properties.some((p) => p.tags.includes("embedded")),
+        def.properties.some((p) => p.tags.includes("embedded_name") || p.tags.includes("embedded_content")),
     );
 
   // Filter out subtype labels: labels whose property definitions (names + tags)
