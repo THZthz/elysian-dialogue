@@ -56,6 +56,11 @@ export function buildPlotTree(plots: PlotRef[]): { tree: string } {
     const brief = plot.brief || (plot.description || "").slice(0, 120);
     treeLines.push(`${prefix}${connector} ${plot.name} (${plot.status}): ${brief}`);
 
+    if (plot.triggerCondition) {
+      const hintPrefix = prefix + (isLast ? "    " : "│   ");
+      treeLines.push(`${hintPrefix}(▸ ${plot.triggerCondition})`);
+    }
+
     const kids = (plot.children || []).filter((c) => c.name && !visited.has(c.name));
     const childPrefix = prefix + (isLast ? "    " : "│   ");
     kids.forEach((child, i) => {

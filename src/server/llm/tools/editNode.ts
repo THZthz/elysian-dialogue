@@ -19,8 +19,8 @@
 import { tool } from "ai";
 import { z } from "zod";
 import { v4 as uuidv4 } from "uuid";
-import { getMemoryClient, MemoryClient } from "@/server/memory/client";
-import { getNodeManager, NodeDef, NodeManager } from "@/server/nodeManager";
+import { getMemoryClient } from "@/server/memory/client";
+import { getNodeManager } from "@/server/nodeManager";
 import { extractInternalAndUnknownKeys, wrapSafe } from "@/server/llm/tools/shared";
 import { getEmbedder } from "@/server/memory/embedder";
 import { getQdrantClient } from "@/server/memory/qdrant";

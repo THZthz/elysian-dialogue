@@ -169,7 +169,7 @@ export async function generateTurn(
     if (turnNumber === 1) {
       firstTurnHelperParts.push(
         "## BEGIN FIRST TURN",
-        `This is first turn, you should call \`${TOOL_NAMES.GET_CONTEXT}\` with ["SCHEMA_DUMP", "SCENE_CONTEXT", "CHARACTERS_BRIEF", "LOCATIONS_BRIEF", "OBJECTS_BRIEF", "PLOTS_BRIEF", "RELATIONSHIP_DUMP"].`,
+        `This is first turn, you should call \`${TOOL_NAMES.GET_CONTEXT}\` with ["SCHEMA_DUMP", "CHARACTERS_BRIEF", "LOCATIONS_BRIEF", "OBJECTS_BRIEF", "PLOTS_BRIEF", "RELATIONSHIP_DUMP"].`,
         "",
         `Explore with \`${TOOL_NAMES.QUERY_WORLD}\ (note: should combine multiple structural-similar Cypher query into one).`,
         "",

@@ -1,6 +1,6 @@
 id = "glass-cage"
 
-toneDescription = "Tense, claustrophobic, elegant menace. The amnesiac player navigates a web of secrets, unable to trust their own innocence or anyone else's."
+toneDescription = "Tense, claustrophobic, elegant menace."
 
 initialDay = 4
 initialSegment = 6
@@ -568,6 +568,14 @@ description = """Player deepens their connection with Crystal — is her pull to
 brief = "Deepen the connection with Crystal — is her pull genuine, magical, or something more dangerous?"
 status = "PENDING"
 triggerCondition = "Player deepens their bond with Crystal and explores the nature of their connection"
+branchesTo = ["The Lyre's Song"]
+
+[[plots]]
+name = "The Lyre's Song"
+description = """Crystal's silver lyre hums whenever the player is near — the resonance intensifies as they grow closer. The player investigates the source of the music: is it ley-line magic, a latent enchantment in the lyre itself, or a bond that predates the amnesia?"""
+brief = "Investigate why Crystal's lyre resonates with the player — magic, ley-lines, or a connection older than memory."
+status = "PENDING"
+triggerCondition = "Player investigates the lyre's resonance and presses Crystal about what it means"
 
 # ═══════════════════════════════════════════════════════════════════
 # NOTES — All backstory, narrative color, secrets, motives, and GM

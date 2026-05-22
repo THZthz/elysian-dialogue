@@ -30,6 +30,7 @@ import {
 } from "@/server/llm/sceneContext";
 import { getNodeManager } from "@/server/nodeManager";
 import { RelationshipManager } from "@/server/relationshipManager";
+import { getMemoryClient } from "@/server/memory/client";
 
 const CONTEXT_TYPES = [
   "SCENE_CONTEXT",
@@ -46,12 +47,39 @@ type ContextType = (typeof CONTEXT_TYPES)[number];
 async function buildSchemaDump(): Promise<string> {
   const nodeManager = getNodeManager();
   const relManager = RelationshipManager.getCachedInstance();
+  const client = getMemoryClient();
+
+  // ── Pre-fetch counts from Neo4j ──
+  const nodeLabelSet = new Set(
+    nodeManager.getAll().filter((n) => n.type !== "INTERNAL").map((n) => n.name),
+  );
+  let nodeCounts: Map<string, number> = new Map();
+  let relCounts: Map<string, number> = new Map();
+  try {
+    const nodeRows = await client.neo4j.executeRead(
+      `MATCH (n) UNWIND labels(n) AS label RETURN label, count(*) AS cnt`,
+    );
+    for (const row of nodeRows) {
+      const label = row.label as string;
+      if (nodeLabelSet.has(label)) {
+        nodeCounts.set(label, Number(row.cnt));
+      }
+    }
+    const relRows = await client.neo4j.executeRead(
+      `MATCH ()-[r]->() RETURN type(r) AS relType, count(*) AS cnt`,
+    );
+    for (const row of relRows) {
+      relCounts.set(row.relType as string, Number(row.cnt));
+    }
+  } catch {
+    // If the DB is unavailable, just show schema without counts.
+  }
 
   const lines: string[] = [];
   lines.push(`## Schema (from registry by \`${TOOL_NAMES.MANAGE_SCHEMA}\`)`);
   lines.push("");
   lines.push(
-    "A list of nodes/relationships, with their list of properties, tags of the property is displayed before its name.",
+    "A list of nodes/relationships, with their counts in database, list of properties. Tags of the property is displayed before its name.",
   );
   lines.push("");
 
@@ -62,9 +90,12 @@ async function buildSchemaDump(): Promise<string> {
     .getAll()
     .filter((n) => n.type !== "INTERNAL")
     .sort((a, b) => a.name.localeCompare(b.name));
-  for (const node of nodes) {
+  for (let idx = 0; idx < nodes.length; idx++) {
+    const node = nodes[idx];
+    const count = nodeCounts.get(node.name);
+    const qty = count !== undefined ? ` (×${count})` : "(×0)";
     const category = node.type === "GM_DEFINED" ? " [GM_DEFINED]" : "";
-    lines.push(`- **${node.name}**${category}: ${node.description}`);
+    lines.push(`${idx + 1}. **${node.name}**${qty}${category}: ${node.description}`);
     if (node.properties.length > 0) {
       const visible = node.properties.filter((p) => !p.name.startsWith("_"));
       for (const prop of visible) {
@@ -88,11 +119,14 @@ async function buildSchemaDump(): Promise<string> {
       if (tgtCmp !== 0) return tgtCmp;
       return a.name.localeCompare(b.name);
     });
-  for (const rel of rels) {
+  for (let idx = 0; idx < rels.length; idx++) {
+    const rel = rels[idx];
+    const count = relCounts.get(rel.name);
+    const qty = count !== undefined ? ` (×${count})` : "";
     const src = rel.sourceLabel || "?";
     const tgt = rel.targetLabel || "?";
     const category = rel.type === "GM_DEFINED" ? " [GM_DEFINED]" : "";
-    lines.push(`- **${rel.name}** (${src}→${tgt})${category}: ${rel.description}`);
+    lines.push(`${idx + 1}. **${rel.name}**${qty} (${src}→${tgt})${category}: ${rel.description}`);
     if (rel.properties.length > 0) {
       const visible = rel.properties.filter((p) => !p.name.startsWith("_"));
       for (const prop of visible) {
@@ -113,12 +147,12 @@ export const getContext = tool({
 Pull pre-built context from the world. Nothing is auto-loaded — you choose what you need.
 
 ## Types
-- SCHEMA_DUMP — All registered node types (with full property schemas: names, tags, descriptions) and relationship types (with endpoint constraints and property schemas) in Neo4j. Managed by \`${TOOL_NAMES.MANAGE_SCHEMA}\`.
-- CHARACTERS_BRIEF — All characters with location and disposition toward player.
+- **SCHEMA_DUMP** — Rather important. All registered node types (with full property schemas: names, counts, tags, descriptions) and relationship types (with endpoint constraints and property schemas) in Neo4j. Managed by \`${TOOL_NAMES.MANAGE_SCHEMA}\`.
+- CHARACTERS_BRIEF — All characters with location.
 - LOCATIONS_BRIEF — All locations with brief descriptions.
 - OBJECTS_BRIEF — All objects with carrier or location.
 - PLOTS_BRIEF — All plots with status, brief, and flags.
-- SCENE_CONTEXT — Time, your location, nearby NPCs/objects, inventory, NPC dispositions, active plots.
+- SCENE_CONTEXT — Time, location, nearby NPCs/objects, inventory and NPC dispositions that is related to player.
 - RELATIONSHIP_DUMP — All active relationships grouped by type. LOCATED_AT/LOCATED_IN are grouped by location showing occupants and access details.
 `.trim(),
   inputSchema: z.object({

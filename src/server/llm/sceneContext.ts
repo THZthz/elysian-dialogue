@@ -23,7 +23,7 @@ import { getNodeManager } from "@/server/nodeManager";
 import type { EntityRef } from "@/server/models/entity";
 import { formatEntityCompact } from "@/server/models/entity";
 import type { PlotRef } from "@/server/models/plot";
-import { buildPlotTree, parseFlags } from "@/server/models/plot";
+import { buildPlotTree } from "@/server/models/plot";
 
 // ── Query result types ──
 
@@ -65,18 +65,6 @@ RETURN d.source_name AS npcName, d.sentiment AS sentiment, d.summary AS summary
 ORDER BY d._updated_at DESC
 `;
 
-const PLOTS_QUERY = `
-MATCH (p:Plot)
-WHERE p.status IN ["ACTIVE"]
-RETURN p.name AS name, p.description AS description, p.brief AS brief,
-       p.status AS status, p.trigger_condition AS triggerCondition,
-       COLLECT { MATCH (p)-[:BRANCHES_TO]->(child:Plot)
-                 WHERE child.status IN ["ACTIVE", "PENDING"]
-                 RETURN { name: child.name, description: child.description,
-                          brief: child.brief, status: child.status } } AS children
-ORDER BY p._updated_at DESC
-`;
-
 // ── Formatters ──
 
 function formatDisposition(d: DispositionRow): string {
@@ -88,7 +76,7 @@ function formatDisposition(d: DispositionRow): string {
 export async function buildSceneContext(): Promise<string> {
   const client = getMemoryClient();
 
-  const [gameTime, sceneRows, dispositionRows, plotRows] = await Promise.all([
+  const [gameTime, sceneRows, dispositionRows] = await Promise.all([
     getCurrentTimePoint().catch((err) => {
       console.error(
         "[sceneContext] getCurrentTimePoint failed:",
@@ -110,13 +98,6 @@ export async function buildSceneContext(): Promise<string> {
       );
       return [] as DispositionRow[];
     }),
-    client.neo4j.executeRead(PLOTS_QUERY).catch((err) => {
-      console.error(
-        "[sceneContext] plots query failed:",
-        err instanceof Error ? err.message : String(err),
-      );
-      return [] as PlotRef[];
-    }),
   ]);
 
   const parts: string[] = [];
@@ -124,7 +105,7 @@ export async function buildSceneContext(): Promise<string> {
 
   // Game time
   if (gameTime) {
-    parts.push(`**Time**: ${describeTime(gameTime)}`);
+    parts.push(`\n### Time\n${describeTime(gameTime)}`);
   }
 
   const scene = sceneRows[0] as SceneRow | undefined;
@@ -144,17 +125,17 @@ export async function buildSceneContext(): Promise<string> {
       description: (loc.description as string) || null,
       brief: (loc.brief as string) || null,
     };
-    compactLines.push(`**Location**: ${formatEntityCompact(locRef)}`);
+    compactLines.push(`\n###Location\n${formatEntityCompact(locRef)}`);
   }
 
   // Inventory — names only
   if (scene.inventory && scene.inventory.length > 0) {
-    compactLines.push(`**Carrying**: ${scene.inventory.map((i) => i.name).join(", ")}`);
+    compactLines.push(`\n### Carrying\n${scene.inventory.map((i) => i.name).join(", ")}`);
   }
 
   // NPCs
   if (scene.npcs && scene.npcs.length > 0) {
-    compactLines.push("**Nearby NPCs**:");
+    compactLines.push("\n### Nearby NPCs");
     for (const npc of scene.npcs) {
       compactLines.push(formatEntityCompact(npc));
     }
@@ -162,7 +143,7 @@ export async function buildSceneContext(): Promise<string> {
 
   // Objects
   if (scene.objects && scene.objects.length > 0) {
-    compactLines.push("**Nearby Objects**:");
+    compactLines.push("\n### Nearby Objects");
     for (const obj of scene.objects) {
       compactLines.push(formatEntityCompact(obj));
     }
@@ -170,25 +151,10 @@ export async function buildSceneContext(): Promise<string> {
 
   // Dispositions — always compact
   if (dispositionRows.length > 0) {
-    compactLines.push("**NPC Dispositions toward Player**:");
+    compactLines.push("\n### NPC Dispositions toward Player");
     for (const d of dispositionRows) {
       compactLines.push(formatDisposition(d as DispositionRow));
     }
-  }
-
-  // Active plots
-  if (plotRows.length > 0) {
-    const plotRefs: PlotRef[] = plotRows.map((p: any) => ({
-      name: p.name,
-      description: p.description ?? "",
-      brief: p.brief || null,
-      status: p.status,
-      triggerCondition: p.triggerCondition,
-      children: (p.children || []).filter((c: any) => c && c.name),
-    }));
-    const { tree } = buildPlotTree(plotRefs);
-    compactLines.push("**Active Plots**:");
-    compactLines.push(tree);
   }
 
   // Build compact section
@@ -226,7 +192,7 @@ export async function buildCharactersBrief(): Promise<string> {
   const lines: string[] = ["## CHARACTERS", ""];
   for (const c of rows) {
     const brief = c.brief || (c.description || "").slice(0, 120) || "";
-    const loc = c.location ? ` (${c.location})` : "";
+    const loc = c.location ? ` (at ${c.location})` : "";
     const disp = c.disposition ? ` [${c.disposition}]` : "";
     lines.push(`- **${c.name}**${loc}: ${brief}${disp}`);
   }
@@ -295,7 +261,7 @@ export async function buildObjectsBrief(): Promise<string> {
       ? `Carried by: ${o.carrier}`
       : o.location
         ? `Located at: ${o.location}`
-        : "location unknown";
+        : "(location unknown)";
     lines.push(`- **${o.name}** — ${context}`);
   }
   lines.push("");
@@ -307,22 +273,49 @@ export async function buildObjectsBrief(): Promise<string> {
 export async function buildPlotsBrief(): Promise<string> {
   const client = getMemoryClient();
   const rows = (await client.neo4j.executeRead(
-    `MATCH (p:Plot) RETURN p ORDER BY p.name`,
-  )) as Array<{ p: Record<string, unknown> }>;
+    `MATCH (p:Plot)
+     RETURN p.name AS name, p.description AS description, p.brief AS brief,
+            p.status AS status, p.flags AS flags, p.trigger_condition AS triggerCondition,
+            COLLECT { MATCH (p)-[:BRANCHES_TO]->(child:Plot)
+                      RETURN { name: child.name, description: child.description,
+                               brief: child.brief, status: child.status } } AS children
+     ORDER BY name`,
+  )) as Array<{
+    name: string; description: string; brief: string | null;
+    status: string; flags: unknown; triggerCondition: string | null;
+    children: Array<{ name: string; description: string; brief: string | null; status: string }>;
+  }>;
 
   if (rows.length === 0) return "## PLOTS\n\n(none)\n";
 
-  const lines: string[] = ["## PLOTS", ""];
-  for (const row of rows) {
-    const p = row.p;
-    const name = p.name as string;
-    const status = p.status as string;
-    const brief = (p.brief as string) || ((p.description as string) || "").slice(0, 120);
-    const flags = parseFlags(p.flags);
-    const flagStr = flags.length > 0 ? `\n  Flags: ${flags.map((f) => f.flagId).join(", ")}` : "";
-    lines.push(`- **${name}** (${status}): ${brief}${flagStr}`);
+  const plotRefs: PlotRef[] = rows.map((p) => ({
+    name: p.name,
+    description: p.description ?? "",
+    brief: p.brief || null,
+    status: p.status,
+    triggerCondition: p.triggerCondition,
+    children: (p.children || [])
+      .filter((c) => c && c.name)
+      .map((c) => ({ ...c, children: [] })),
+  }));
+
+  // Cross-reference: replace shallow child refs (from parent's COLLECT) with
+  // the full PlotRef so that buildPlotTree can recurse into grandchildren.
+  const plotMap = new Map(plotRefs.map((p) => [p.name, p]));
+  for (const plot of plotRefs) {
+    plot.children = plot.children.map((c) => plotMap.get(c.name) || c);
   }
-  lines.push("");
+
+  const { tree } = buildPlotTree(plotRefs);
+
+  const lines: string[] = [
+    "## PLOTS",
+    "",
+    "Each plot shows its triggerCondition (when present) as a sub-line with '▸', inheriting the same tree indentation",
+    "",
+    "\`\`\`",
+    tree,
+    "\`\`\`"];
   return lines.join("\n");
 }
 

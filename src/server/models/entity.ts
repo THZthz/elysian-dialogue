@@ -25,7 +25,7 @@ export interface EntityRef {
 
 export function formatEntityCompact(e: EntityRef): string {
   const brief = e.brief || e.description?.slice(0, 120) || "";
-  return `**${e.name}** — ${brief}`;
+  return `- **${e.name}** — ${brief}`;
 }
 
 export function formatEntityFull(e: EntityRef): string {
