@@ -17,7 +17,7 @@
  */
 
 import express from "express";
-import { generateTurn } from "@/server/llm";
+import { generateTurn, isGenerating } from "@/server/llm";
 import { chatStreamSchema } from "@/server/validation";
 import { getMemoryClient, MemoryClient } from "@/server/memory/client";
 import { RelationshipManager } from "@/server/relationshipManager";
@@ -31,6 +31,7 @@ import { editPlot } from "@/server/llm/tools/editPlot";
 import { manageSchema } from "@/server/llm/tools/manageSchema";
 import type { Message } from "@/types/dialogue";
 import { getContext } from "@/server/llm/tools/getContext";
+import { listCheckpoints, restoreCheckpoint } from "@/server/checkpointManager";
 
 const debugToolRegistry: Record<string, { execute: (args: any) => Promise<string> }> = {
   queryWorld: queryWorld as any,
@@ -148,6 +149,37 @@ apiRouter.post("/reset", async (_req, res) => {
     await nodeManager.syncToNeo4j(client.neo4j);
 
     res.json({ success: true });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    res.status(500).json({ error: message });
+  }
+});
+
+// ── Checkpoints ──
+
+apiRouter.get("/checkpoints", async (_req, res) => {
+  try {
+    const checkpoints = await listCheckpoints();
+    res.json(checkpoints);
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    res.status(500).json({ error: message });
+  }
+});
+
+apiRouter.post("/checkpoint/restore/:turnNumber", async (req, res) => {
+  if (isGenerating()) {
+    res.status(409).json({ error: "A turn is in progress" });
+    return;
+  }
+  const turnNumber = parseInt(req.params.turnNumber, 10);
+  if (!Number.isFinite(turnNumber) || turnNumber < 1) {
+    res.status(400).json({ error: "Invalid turn number" });
+    return;
+  }
+  try {
+    const result = await restoreCheckpoint(turnNumber);
+    res.json(result);
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
     res.status(500).json({ error: message });

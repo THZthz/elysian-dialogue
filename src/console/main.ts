@@ -286,6 +286,69 @@ async function handleOptionSelect(option: DialogueOption) {
   await postChatStream(option.text, history, option.check);
 }
 
+async function handleRegenerate() {
+  // Save the last player action before restoring
+  const lastPlayerMsg = [...history].reverse().find((m) => m.speaker === "YOU");
+  if (!lastPlayerMsg) {
+    console.log(chalk.dim("Nothing to regenerate.\n"));
+    return;
+  }
+
+  // Find previous checkpoint
+  let targetTurn: number;
+  try {
+    const cpRes = await fetch(`${BASE_URL}/api/checkpoints`);
+    if (!cpRes.ok) {
+      console.log(chalk.red("Failed to fetch checkpoints.\n"));
+      return;
+    }
+    const checkpoints = (await cpRes.json()) as Array<{ turnNumber: number }>;
+    if (checkpoints.length < 2) {
+      console.log(chalk.dim("Need at least 2 turns before you can regenerate.\n"));
+      return;
+    }
+    targetTurn = checkpoints[checkpoints.length - 2].turnNumber;
+  } catch {
+    console.log(chalk.red("Failed to fetch checkpoints.\n"));
+    return;
+  }
+
+  // Restore
+  try {
+    const restoreRes = await fetch(`${BASE_URL}/api/checkpoint/restore/${targetTurn}`, {
+      method: "POST",
+    });
+    if (!restoreRes.ok) {
+      const err = (await restoreRes.json()) as { error?: string };
+      console.log(chalk.red(`\nFailed to regenerate: ${err.error ?? restoreRes.statusText}\n`));
+      return;
+    }
+  } catch (err) {
+    console.log(chalk.red(`\nFailed to regenerate: ${err}\n`));
+    return;
+  }
+
+  // Reload history from restored state
+  try {
+    const histRes = await fetch(`${BASE_URL}/api/history`);
+    if (histRes.ok) {
+      history = (await histRes.json()) as Message[];
+    }
+  } catch {
+    // proceed with local history
+  }
+  messageIdCounter = history.length;
+
+  sseClient?.abort();
+  currentOptions = [];
+  streamingMessages = [];
+  isRetrying = false;
+
+  console.log(chalk.dim("\nRegenerating response...\n"));
+  emitYouMessage(lastPlayerMsg.text);
+  await postChatStream(lastPlayerMsg.text, history);
+}
+
 // ── Resume ──
 
 async function checkResumable(): Promise<boolean> {
@@ -344,12 +407,12 @@ async function doResume(): Promise<boolean> {
 
 async function presentChoice(
   options: DialogueOption[],
-): Promise<number | "custom" | "reset" | "help" | "quit"> {
+): Promise<number | "custom" | "reset" | "regenerate" | "help" | "quit"> {
   const sep = "─".repeat(50);
   console.log(chalk.dim(sep));
 
   const choices: Array<
-    | { name: string; value: number | "custom" | "reset" | "help" | "quit"; description?: string }
+    | { name: string; value: number | "custom" | "reset" | "regenerate" | "help" | "quit"; description?: string }
     | InstanceType<typeof Separator>
   > = [
     ...options.map((opt, i) => ({
@@ -361,15 +424,16 @@ async function presentChoice(
     })),
     new Separator(chalk.dim(sep)),
     { name: chalk.hex("#ff6b35")("[Custom input...]"), value: "custom" as const },
+    { name: chalk.hex("#4fb0c6")("/regenerate  Undo and redo current turn"), value: "regenerate" as const },
     { name: chalk.dim("/reset  Clear and restart"), value: "reset" as const },
     { name: chalk.dim("/help   Show available commands"), value: "help" as const },
     { name: "Quit", value: "quit" as const },
   ];
 
-  return await select<number | "custom" | "reset" | "help" | "quit">({
+  return await select<number | "custom" | "reset" | "regenerate" | "help" | "quit">({
     message: "Choose your action:",
     choices,
-    pageSize: Math.min(options.length + 5, 12),
+    pageSize: Math.min(options.length + 6, 12),
     loop: false,
   });
 }
@@ -449,6 +513,8 @@ async function main() {
           sseClient?.abort();
           console.log(chalk.dim("\nSession reset.\n"));
         }
+      } else if (choice === "regenerate") {
+        await handleRegenerate();
       } else if (choice === "help") {
         showHelp();
       } else if (choice === "quit") {
@@ -471,10 +537,11 @@ function showHelp() {
   console.log("");
   console.log(chalk.bold("Available commands:"));
   console.log("");
-  console.log(chalk.dim("  Type text  ") + "  Send input and generate a response");
-  console.log(chalk.dim("  /reset     ") + "  Clear the session and restart");
-  console.log(chalk.dim("  /help      ") + "  Show this help message");
-  console.log(chalk.dim("  /exit      ") + "  Quit the console client");
+  console.log(chalk.dim("  Type text   ") + "  Send input and generate a response");
+  console.log(chalk.dim("  /regenerate ") + "  Undo current turn and regenerate the response");
+  console.log(chalk.dim("  /reset      ") + "  Clear the session and restart");
+  console.log(chalk.dim("  /help       ") + "  Show this help message");
+  console.log(chalk.dim("  /exit       ") + "  Quit the console client");
   console.log("");
 }
 

@@ -258,6 +258,57 @@ class QdrantVectorClient {
     }
   }
 
+  async createSnapshot(): Promise<{ name: string; size: number }> {
+    const res = await this.fetchApi<{
+      result: { name: string; creation_time: string; size: number };
+    }>(`/collections/${COLLECTION_NAME}/snapshots?wait=true`, {
+      method: "POST",
+    });
+    return { name: res.result.name, size: res.result.size };
+  }
+
+  async downloadSnapshot(snapshotName: string): Promise<ArrayBuffer> {
+    const res = await fetch(
+      `${this.baseUrl}/collections/${COLLECTION_NAME}/snapshots/${encodeURIComponent(snapshotName)}`,
+    );
+    if (!res.ok) {
+      const err = await res.text();
+      throw new Error(
+        `Qdrant GET snapshot ${snapshotName} returned ${res.status}: ${err.slice(0, 300)}`,
+      );
+    }
+    return res.arrayBuffer();
+  }
+
+  async uploadSnapshot(filePath: string): Promise<void> {
+    const fs = await import("fs");
+    const buf = fs.readFileSync(filePath);
+    const form = new FormData();
+    form.append("snapshot", new Blob([buf]));
+
+    const res = await fetch(
+      `${this.baseUrl}/collections/${COLLECTION_NAME}/snapshots/upload?priority=snapshot`,
+      { method: "POST", body: form },
+    );
+    if (!res.ok) {
+      const err = await res.text();
+      throw new Error(`Qdrant POST snapshot/upload returned ${res.status}: ${err.slice(0, 300)}`);
+    }
+  }
+
+  async deleteSnapshot(snapshotName: string): Promise<void> {
+    const res = await fetch(
+      `${this.baseUrl}/collections/${COLLECTION_NAME}/snapshots/${encodeURIComponent(snapshotName)}`,
+      { method: "DELETE" },
+    );
+    if (!res.ok) {
+      const err = await res.text();
+      if (!err.includes("not found") && !err.includes("404")) {
+        console.warn(`[qdrant] delete snapshot ${snapshotName} failed: ${err.slice(0, 200)}`);
+      }
+    }
+  }
+
   async healthCheck(): Promise<boolean> {
     try {
       await this.fetchApi("/collections");

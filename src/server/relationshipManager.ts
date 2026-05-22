@@ -401,6 +401,36 @@ export class RelationshipManager {
     return true;
   }
 
+  // Reload GM_DEFINED types from restored Neo4j after a checkpoint restore.
+  async reloadGmDefined(client: Neo4jClient): Promise<void> {
+    // Clear existing GM_DEFINED entries
+    for (const [key, def] of this.registry) {
+      if (def.type === "GM_DEFINED") {
+        this.registry.delete(key);
+      }
+    }
+    // Reload from Neo4j
+    const rows = await client.executeRead(
+      `MATCH (rt:RelationshipType {category: 'GM_DEFINED'}) RETURN rt`,
+    );
+    for (const row of rows) {
+      const rt = row.rt as Record<string, unknown>;
+      const name = rt.name as string;
+      const description = (rt.description as string) || "";
+      const sourceLabel = (rt.source_label as string) || "";
+      const targetLabel = (rt.target_label as string) || "";
+      let properties: RelationshipPropertyDef[] = [];
+      try {
+        properties = JSON.parse(rt.properties as string) as RelationshipPropertyDef[];
+      } catch {
+        /* ignore malformed */
+      }
+      if (name) {
+        this.register(name, description, "GM_DEFINED", sourceLabel, targetLabel, properties);
+      }
+    }
+  }
+
   reset(): void {
     for (const [key, def] of this.registry) {
       if (def.type === "GM_DEFINED") {

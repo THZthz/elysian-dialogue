@@ -27,10 +27,11 @@ src/
 ├── server/
 │   ├── main.ts                           # Express server entry point (port 3000)
 │   ├── mcp.ts                            # MCP server entry point — exposes GM tools via stdio
-│   ├── api.ts                            # Routes: /api/chat/stream, /api/history, /api/reset, /api/debug/tools/*
+│   ├── api.ts                            # Routes: /api/chat/stream, /api/history, /api/reset, /api/checkpoints, /api/checkpoint/restore/:turn, /api/debug/tools/*
 │   ├── nodeManager.ts                    # Node label registry: schemas, embedding text, Neo4j sync
 │   ├── relationshipManager.ts            # Rel type registry: composite key (name, sourceLabel, targetLabel)
 │   ├── gameState.ts                      # Persists dialogue options on :Conversation node
+│   ├── checkpointManager.ts              # Turn checkpoint save/restore via APOC + Qdrant snapshots
 │   ├── idGenerator.ts                    # Monotonic integer ID generator for Neo4j
 │   ├── validation.ts                     # Zod schemas for API request validation
 │   │
@@ -327,14 +328,16 @@ Defined in `src/shared/events.ts`:
 
 ## 9. API Endpoints
 
-| Method | Path                         | Purpose                            |
-|--------|------------------------------|------------------------------------|
-| `POST` | `/api/chat/stream`           | Primary AI turn (SSE streaming)    |
-| `GET`  | `/api/history`               | Full conversation history          |
-| `GET`  | `/api/game/current`          | Current dialogue options           |
-| `POST` | `/api/debug/tools/:toolName` | Debug: invoke any GM tool directly |
-| `POST` | `/api/reset`                 | Clear Neo4j and re-seed            |
-| `MCP`  | `src/server/mcp.ts`          | Stdio MCP server — all 10 GM tools |
+| Method | Path                            | Purpose                            |
+|--------|---------------------------------|------------------------------------|
+| `POST` | `/api/chat/stream`              | Primary AI turn (SSE streaming)    |
+| `GET`  | `/api/history`                  | Full conversation history          |
+| `GET`  | `/api/game/current`             | Current dialogue options           |
+| `POST` | `/api/debug/tools/:toolName`    | Debug: invoke any GM tool directly |
+| `POST` | `/api/reset`                    | Clear Neo4j and re-seed            |
+| `GET`  | `/api/checkpoints`              | List all saved checkpoints         |
+| `POST` | `/api/checkpoint/restore/:turn` | Restore to a previous checkpoint   |
+| `MCP`  | `src/server/mcp.ts`             | Stdio MCP server — all 10 GM tools |
 
 ---
 
@@ -423,6 +426,52 @@ Relationship types declared via `[[relationshipTypes]]` with `name`, `descriptio
 14. **Relationship description properties** — LOCATED_AT, CARRIES, ALLIED_WITH, HOSTILE_TOWARDS, and LOCATED_IN have `description` (string, embedded) for narrative context. Vector-indexed for semantic search via searchWorld.
 15. **Schema dump from memory** — `getContext SCHEMA_DUMP` reads type definitions directly from `NodeManager`/`RelationshipManager` registries (no Neo4j round-trip), presenting full property schemas with tags and descriptions.
 16. **MCP server** — `src/server/mcp.ts` exposes all 10 GM tools over stdio via `@modelcontextprotocol/sdk`. Wraps each tool's `execute(args) => Promise<string>` into MCP's `{ content: [{ type: "text", text }] }`. Two factory-based tools (`generateDialogueStep`, `advanceTime`) are instantiated with MCP-appropriate options.
+17. **Turn checkpoints** — at the end of each successful turn, the full Neo4j graph is serialized via `apoc.export.json.all` and the Qdrant collection is snapshotted via the native snapshot API. Both files are saved to `data/checkpoints/`. Restoring a checkpoint wipes both databases and reimports the checkpoint data, then deletes all later checkpoints (linear undo only).
+
+---
+
+## 15. Checkpoint System
+
+`checkpointManager.ts` provides save/restore for turn-level rollback.
+
+### Save (end of each successful turn)
+
+1. `apoc.export.json.all(null, {stream: true, useTypes: true})` — streams the entire Neo4j graph as JSON Lines through the driver
+2. `POST /collections/chorus_embeddings/snapshots?wait=true` — creates a Qdrant snapshot, then downloads it
+3. Both files written to `data/checkpoints/turn_NNNN_neo4j.jsonl` and `data/checkpoints/turn_NNNN_qdrant.snapshot`
+4. Index updated in `data/checkpoints/index.json`
+
+### Restore (`POST /api/checkpoint/restore/:turnNumber`)
+
+1. Writes `.restore_in_progress` sentinel (crash safety)
+2. Parses the checkpoint JSONL file
+3. `MATCH (n) DETACH DELETE n` — wipes Neo4j
+4. Creates nodes in batches grouped by label combination, tracking old APOC id → Neo4j elementId via a temporary `_chorus_restore_id` property
+5. Creates relationships using elementId endpoint matching, strips `_`-prefixed system properties
+6. Removes temporary `_chorus_restore_id` from all nodes
+7. `POST /collections/chorus_embeddings/snapshots/upload` — restores Qdrant snapshot
+8. Calls `NodeManager.reloadGmDefined()` and `RelationshipManager.reloadGmDefined()` to sync GM_DEFINED types from restored Neo4j
+9. Deletes all checkpoint files for turns > restored turn
+10. Removes sentinel
+
+Restore uses manual batch Cypher instead of `apoc.import.json` to avoid the import-directory constraint (Neo4j may run containerized).
+
+Restore returns 409 if a turn is in progress or if the sentinel exists from a previous crashed restore.
+
+### Files
+
+Checkpoints stored on the filesystem (not inside either database):
+- `data/checkpoints/index.json` — checkpoint listing
+- `data/checkpoints/turn_NNNN_neo4j.jsonl` — APOC JSON Lines export
+- `data/checkpoints/turn_NNNN_qdrant.snapshot` — Qdrant binary snapshot
+
+### Qdrant snapshot methods
+
+Added to `qdrant.ts`:
+- `createSnapshot()` — `POST /collections/{name}/snapshots?wait=true`
+- `downloadSnapshot(name)` — `GET /collections/{name}/snapshots/{name}` (binary)
+- `uploadSnapshot(filePath)` — `POST /collections/{name}/snapshots/upload` (multipart)
+- `deleteSnapshot(name)` — `DELETE /collections/{name}/snapshots/{name}`
 
 ---
 

@@ -34,6 +34,7 @@ import { editPlot } from "@/server/llm/tools/editPlot";
 import { getContext } from "@/server/llm/tools/getContext";
 import { manageSchema } from "@/server/llm/tools/manageSchema";
 import { saveCurrentOptions } from "@/server/gameState";
+import { saveCheckpoint } from "@/server/checkpointManager";
 import { loadGMMessages, saveGMMessages, getNextTurnNumber } from "@/server/llm/gmMessages";
 import { createGenerateDialogueStepTool } from "@/server/llm/tools/generateDialogueStep";
 import { createAdvanceTimeTool } from "@/server/llm/tools/advanceTime";
@@ -42,6 +43,10 @@ import { type SkillName, TOOL_NAMES } from "@/shared/constants";
 import { DeepSeekLanguageModelOptions } from "@ai-sdk/deepseek";
 
 let generating = false;
+
+export function isGenerating(): boolean {
+  return generating;
+}
 
 export async function generateTurn(
   userInput: string,
@@ -552,6 +557,13 @@ export async function generateTurn(
       saveCurrentOptions(finalOptions).catch((err) =>
         console.error("[generateTurn] failed to persist options:", err),
       );
+    }
+
+    // Save checkpoint at end of successful turn (blocking so next turn doesn't start mid-save)
+    try {
+      await saveCheckpoint(turnNumber);
+    } catch (err) {
+      console.error("[generateTurn] failed to save checkpoint:", err);
     }
   } finally {
     generating = false;

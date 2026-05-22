@@ -499,6 +499,32 @@ export class NodeManager {
     return true;
   }
 
+  // Reload GM_DEFINED types from restored Neo4j after a checkpoint restore.
+  async reloadGmDefined(client: Neo4jClient): Promise<void> {
+    // Clear existing GM_DEFINED entries
+    for (const [name, def] of this.registry) {
+      if (def.type === "GM_DEFINED") {
+        this.registry.delete(name);
+      }
+    }
+    // Reload from Neo4j
+    const rows = await client.executeRead(`MATCH (nt:NodeType {category: 'GM_DEFINED'}) RETURN nt`);
+    for (const row of rows) {
+      const nt = row.nt as Record<string, unknown>;
+      const name = nt.name as string;
+      const description = (nt.description as string) || "";
+      let properties: NodePropertyDef[] = [];
+      try {
+        properties = JSON.parse(nt.properties as string) as NodePropertyDef[];
+      } catch {
+        /* ignore malformed */
+      }
+      if (name) {
+        this.register(name, description, properties, "GM_DEFINED");
+      }
+    }
+  }
+
   // Clear all GM_DEFINED types from the registry (keeps INTERNAL + PREDEFINED).
   reset(): void {
     for (const [name, def] of this.registry) {
