@@ -66,15 +66,16 @@ function getVectorSearchable(type: "relationship" | "label"): {
 export const searchWorld = tool({
   title: TOOL_NAMES.SEARCH_WORLD,
   description: `
-Search the archive by semantic MEANING (vector similarity search with optional reranking).
+## Brief
+Search the archive by semantic MEANING (vector similarity search with reranking).
 
-Find things by what they're ABOUT, not by exact name or Cypher pattern. Pass one or
-more domains (node labels or relationship types) via 'domains' to scope the search
-(e.g. ["Entity", "Message"]). Omit to search all searchable types. Use 'target' to
-restrict to only nodes or only relationships.
+Use 'target' to restrict to only nodes or only relationships. Pass one or more domains (node labels
+or relationship types) via 'domains' to scope the search (e.g. ["Entity", "Message"], ["LOCATED_AT"]).
+Omit to search all searchable types.
 
 Search your notes at the start of every turn with domains: ["Note"].
 
+## Forbidden
 Do not combine multiple search attempts into a single call.
 Do not forget to use parameter \`limit\` wisely, if the search should be exact, set it to 1.
 `.trim(),

@@ -309,7 +309,7 @@ const PREDEFINED_TYPES: { name: string; description: string; properties: NodePro
       },
       {
         name: "status",
-        description: "Plot lifecycle: PENDING, ACTIVE, IN_PROGRESS, COMPLETED, or ABANDONED.",
+        description: "Plot lifecycle: PENDING, ACTIVE, COMPLETED, or ABANDONED.",
         tags: ["string"],
       },
       {

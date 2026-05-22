@@ -76,28 +76,45 @@ System properties (_id, _created_at, _updated_at) are managed automatically.
 export const editNode = tool({
   title: TOOL_NAMES.EDIT_NODE,
   description: `
+## Brief
 CREATE, UPDATE, or DELETE a single node in the Neo4j database using an node type already registered
-by \`${TOOL_NAMES.MANAGE_SCHEMA}\`.
+by \`${TOOL_NAMES.MANAGE_SCHEMA}\`. Can be used for Entity (Character, Object, Location) and
+Disposition nodes. It is not recommended to use this tool to directly edit Note or Plot.
 
-CREATE — Add a new entity, note, plot, or custom node type. Properties are validated
-against the type's schema.
+## CREATE
+Add a new entity, note, plot, or custom node type. Properties are validated against the type's schema.
 
-UPDATE — Change properties on an existing node. Only include fields you want to change.
+## UPDATE
+Partially change properties on an existing node. Only include fields you want to change.
 Supports partial JSON property updates for properties tagged "json" in their type schema.
 
-DELETE — Remove a node and all its relationships (DETACH DELETE). Requires exact match criteria.
+## DELETE
+Remove a node and all its relationships (DETACH DELETE). Requires exact match criteria.
 
-Can be used for Entity (Character, Object, Location) and Disposition nodes. Do NOT use for
-notes (use \`${TOOL_NAMES.EDIT_NOTE}\` instead) or plots (use \`${TOOL_NAMES.EDIT_PLOT}\` instead).
-
-Entity metadata property (json): stores stats (skill→value pairs, for player only), conditions,
-attributes (key→description), opinions (target→text), aliases (string[]). Use metadata
-for structured character data rather than free-text in description.
-
-Disposition: stored as a NODE (not a relationship), linked via
-(npc:Entity)-[:HAS_DISPOSITION]->(d:Disposition). Sentiment keywords: protective,
-trusting, fearful, hostile, attracted, suspicious, resentful, grateful, indifferent.
+## Disposition
+Stored as a NODE (not a relationship), linked via (npc:Character)-[:HAS_DISPOSITION]->(d:Disposition).
+Sentiment keywords can be protective, trusting, fearful, hostile, attracted, suspicious, resentful, grateful, indifferent.
 Set or update disposition when an NPC's feelings shift due to player actions.
+
+## Example
+Since \`metadata\` is tagged as "json" of node Character in SCHEMA_DUMP, you can partial update player's stats like:
+\`\`\`
+{
+  "nodeLabel": "Character",
+  "action": "UPDATE",
+  "match": {
+    "_id": "#player#"
+  },
+  "properties": {
+    "metadata": {
+      "stats": {
+        "logic": 3,
+        "rhetoric": 2,
+      },
+    }
+  }
+}
+\`\`\`
 `.trim(),
   inputSchema,
   execute: wrapSafe(async (args: z.infer<typeof inputSchema>) => {

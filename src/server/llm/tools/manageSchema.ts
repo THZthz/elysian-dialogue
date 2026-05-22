@@ -28,6 +28,7 @@ import { TOOL_NAMES } from "@/shared/constants";
 export const manageSchema = tool({
   title: TOOL_NAMES.MANAGE_SCHEMA,
   description: `
+## Brief
 Register or unregister node types and relationship types in the world schema.
 
 Must be called BEFORE creating a node with a new label or a relationship with a new type.
@@ -42,15 +43,15 @@ constrain which node types can sit at each endpoint. Tags: same as node tags exc
 
 Only GM_DEFINED types can be unregistered. PREDEFINED and INTERNAL types are permanent.
 
-Tags dictionary:
+## Tags dictionary
 - \`string\`: normal string
 - \`number\`: normal number
 - \`number[]\`: list of numbers
 - \`json\`: Saved as string in Neo4j. But when used in tools supporting partial update, will automatically unfold Neo4j string property to avoid whole string overwritten
-- \`embedded_name\`: used for identity/exact-match vector (name_vec)
-- \`embedded_content\`: used for semantic/meaning vector (content_vec)
-- \`unique\`: will create a unique constraint on this property
-- \`composite_unique_X\`: will create a composite unique constraint for all specified properties
+- \`embedded_name\`: used for identity/exact-match vector (name_vec) when the property is created or updated
+- \`embedded_content\`: used for semantic/meaning vector (content_vec) when the property is created or updated
+- \`unique\`: will create a unique constraint on this property, not available for relationship
+- \`composite_unique_X\`: will create a composite unique constraint for all specified properties, not available for relationship
 - \`index\`: will create a regular index on this property
 - \`composite_index_X\`: will create composite index on all specified properties
 `.trim(),

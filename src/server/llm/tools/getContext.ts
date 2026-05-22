@@ -103,18 +103,17 @@ async function buildSchemaDump(): Promise<string> {
 export const getContext = tool({
   title: TOOL_NAMES.GET_CONTEXT,
   description: `
+## Brief
 Pull pre-built context from the world. Nothing is auto-loaded — you choose what you need.
 
-Types:
-- SCENE_CONTEXT — Time, your location, nearby NPCs/objects, inventory, NPC dispositions, active plots. Full descriptions on first encounter, compact briefs after.
+## Types
+- SCHEMA_DUMP — All registered node types (with full property schemas: names, tags, descriptions) and relationship types (with endpoint constraints and property schemas) in Neo4j. Managed by \`${TOOL_NAMES.MANAGE_SCHEMA}\`.
 - CHARACTERS_BRIEF — All characters with location and disposition toward player.
 - LOCATIONS_BRIEF — All locations with brief descriptions.
 - OBJECTS_BRIEF — All objects with carrier or location.
 - PLOTS_BRIEF — All plots with status, brief, and flags.
-- SCHEMA_DUMP — All registered node types (with full property schemas: names, tags, descriptions) and relationship types (with endpoint constraints and property schemas) in Neo4j.
+- SCENE_CONTEXT — Time, your location, nearby NPCs/objects, inventory, NPC dispositions, active plots.
 - RELATIONSHIP_DUMP — All active relationships grouped by type. LOCATED_AT/LOCATED_IN are grouped by location showing occupants and access details.
-
-Default (no types specified): SCENE_CONTEXT only.
 `.trim(),
   inputSchema: z.object({
     types: z

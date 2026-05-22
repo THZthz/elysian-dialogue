@@ -58,16 +58,20 @@ Note text. CREATE: required. UPDATE: optional (set to overwrite). DELETE: omit.`
 export const editNote = tool({
   title: TOOL_NAMES.EDIT_NOTE,
   description: `
+## Brief
 Your scratchpad — CREATE, UPDATE (partial overwrite), or DELETE a note. Notes can be
-linked to entities (aboutEntities), messages (aboutMessages), and plots (aboutPlots)
-for cross-referencing to the world, timeline, and story arcs.
+linked to entities via \`aboutEntities\` (ABOUT_ENTITY), messages via \`aboutMessages\`
+(ABOUT_MESSAGE), and plots via \`aboutPlots\` (ABOUT_PLOT) for cross-referencing to the world,
+timeline, and story arcs.
 
-Write a note when: tracking a suspicion or theory, an NPC made a promise/plan/threat,
+## Write a note
+Write a note when tracking a suspicion or theory, an NPC made a promise/plan/threat,
 a clue appeared but its meaning is unresolved, a player choice deserves future consequence.
-A good note reads like a reminder to yourself: "Kael promised info about the glass cage.
-Player paid 50 coins. Should reappear in 2-3 turns."
+A good note reads like a concise reminder to yourself, and positively contributes to story progression.
 
-Search your notes via searchWorld at the start of every turn to recall what you were tracking.
+## Search a note
+Do not readily use \`${TOOL_NAMES.SEARCH_WORLD}\`, consider relationships ABOUT_ENTITY, ABOUT_PLOT
+or ABOUT_MESSAGE first if you have a clear target.
 `.trim(),
   inputSchema,
   execute: wrapSafe(async (args: z.infer<typeof inputSchema>) => {
@@ -120,6 +124,11 @@ Search your notes via searchWorld at the start of every turn to recall what you 
       for (const name of args.aboutPlots) await client.notes.linkToPlot(args.noteName, name);
     }
 
-    return `Note "${args.noteName}" is successfully updated (${[flags & 0x1 ? "content" : "", flags & 0x2 ? "all entities links" : "", flags & 0x4 ? "all messages links" : "", flags & 0x8 ? "all plots links" : ""].join(", ")} is overwritten).`;
+    const updatedFields = [];
+    if (flags & 0x1) updatedFields.push("content");
+    if (flags & 0x2) updatedFields.push("all entities links");
+    if (flags & 0x4) updatedFields.push("all messages links");
+    if (flags & 0x8) updatedFields.push("all plots links");
+    return `Note "${args.noteName}" is successfully updated (${updatedFields.join(", ")} is overwritten).`;
   }, TOOL_NAMES.EDIT_NOTE),
 });

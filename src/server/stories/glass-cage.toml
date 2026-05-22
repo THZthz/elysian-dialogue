@@ -516,7 +516,7 @@ summary = "I don't know who they are. I don't know what they've done. But when I
 name = "The Glass Cage"
 description = """The player wakes in a private compartment on the Aethon Conveyor, bound for Karavelle. Elias Crowne — an information broker who knew the player's true identity — lies dead in the next compartment, a thin blade wound under his ribs. His ledger is missing. His door was locked from the inside. The player's hands are stained with his blood. Twelve passengers, five crew, one killer — and the conveyor doesn't stop for 30 more hours. The player has no memory of who they are, why they're here, or what Crowne meant to them. Every passenger has a motive. Every smile masks a lie. Somewhere in this cage of velvet and brass, a killer is waiting — and they may know more about the player than the player knows about themselves."""
 brief = "Root plot — player wakes with amnesia and blood on their hands beside a murdered information broker on a levitating conveyor bound for Karavelle."
-status = "IN_PROGRESS"
+status = "ACTIVE"
 branchesTo = ["The Hunter", "The Hunted", "The Web", "The Truth", "The Bond"]
 
 [[plots.flags]]

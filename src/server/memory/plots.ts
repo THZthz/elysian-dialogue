@@ -271,11 +271,11 @@ export class Plots {
     return { ...existing, flags };
   }
 
-  async removeFlag(plotName: string, flagId: string): Promise<MemoryPlot | null> {
+  async removeFlags(plotName: string, flagIds: string[]): Promise<MemoryPlot | null> {
     const existing = await this.getPlot(plotName);
     if (!existing) return null;
 
-    const flags = existing.flags.filter((f) => f.flagId !== flagId);
+    const flags = existing.flags.filter((f) => flagIds.includes(f.flagId));
     const now = new Date().toISOString();
 
     await this.client.executeWrite(

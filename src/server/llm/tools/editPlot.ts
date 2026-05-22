@@ -41,55 +41,56 @@ const inputSchema = z.object({
     .enum(PLOT_STATUSES)
     .nullable()
     .optional()
-    .describe("Plot status: PENDING, ACTIVE, IN_PROGRESS, COMPLETED, or ABANDONED."),
+    .describe("Plot status."),
   triggerCondition: z
     .string()
     .nullable()
     .optional()
-    .describe("JS expression evaluated to auto-activate this plot."),
+    .describe("One liner brief describing when will this plot get activated."),
   setFlag: z
     .object({ flagId: z.string(), description: z.string() })
     .nullable()
     .optional()
-    .describe("Add or update a flag on this plot."),
-  removeFlag: z.string().nullable().optional().describe("Flag ID to remove from this plot."),
+    .describe("Add or update flags on this plot."),
+  removeFlags: z.array(z.string()).nullable().optional().describe("Array of flag IDs to remove from this plot."),
   branchTo: z
     .string()
     .nullable()
     .optional()
-    .describe("Child plot name to connect via BRANCHES_TO."),
+    .describe("Child plot \`name\` to connect via BRANCHES_TO."),
   unbranch: z
     .string()
     .nullable()
     .optional()
-    .describe("Child plot name to disconnect from this plot."),
+    .describe("Child plot \`name\` to disconnect from this plot."),
 });
 
 export const editPlot = tool({
   title: TOOL_NAMES.EDIT_PLOT,
   description: `
+## Brief
 Manage narrative arcs — CREATE, UPDATE (partial overwrite), or DELETE a plot.
 
-Status flow: PENDING → ACTIVE → IN_PROGRESS → COMPLETED / ABANDONED.
-Status transitions auto-wire time relationships (STARTED_AT, ACTIVE_AT, COMPLETED_AT)
-to the current TimePoint — just set the new status.
+## Status flow
+> PENDING → ACTIVE → COMPLETED / ABANDONED
+Status transitions auto-wire time relationships (STARTED_AT, ACTIVE_AT, COMPLETED_AT) to the current
+TimePoint — just set the \`status\` parameter.
 
-Use setFlag/removeFlag to track story milestones within a plot.
-Use branchTo/unbranch to connect or disconnect child plots. A branch describes a course
+## Flags and branches
+Use \`setFlag\` or \`removeFlags\` to track story milestones within a plot.
+Use \`branchTo\` or \`unbranch\` to connect or disconnect child plots. A branch describes a course
 of action or allegiance, not a single line of dialogue.
-Create plots in advance — don't wait for the moment to arrive.
-Find existing plots via searchWorld.
 `.trim(),
   inputSchema,
   execute: wrapSafe(async (args: z.infer<typeof inputSchema>) => {
     const client = getMemoryClient();
 
     if (!args.plotName) {
-      return `ERROR: Parameter "plotName" should be included.`;
+      return `ERROR: Parameter \`plotName\` should be included.`;
     }
 
     if (args.action == "CREATE") {
-      if (!args.description) return `ERROR: Parameter "description" is required for action CREATE.`;
+      if (!args.description) return `ERROR: Parameter \`description\` is required for action CREATE.`;
       const plot = await client.plots.createPlot(args.plotName, {
         description: args.description,
         brief: args.brief ?? undefined,
@@ -130,14 +131,10 @@ Find existing plots via searchWorld.
 
     // Auto-wire time relationships on status transition
     if (newStatus !== oldStatus) {
-      if (oldStatus === "PENDING" && (newStatus === "ACTIVE" || newStatus === "IN_PROGRESS")) {
+      if (oldStatus === "PENDING" && newStatus === "ACTIVE") {
         await client.plots.markPlotStarted(args.plotName);
         await client.plots.markPlotActive(args.plotName);
-      } else if (
-        (newStatus === "ACTIVE" || newStatus === "IN_PROGRESS") &&
-        oldStatus !== "ACTIVE" &&
-        oldStatus !== "IN_PROGRESS"
-      ) {
+      } else if (newStatus === "ACTIVE" && oldStatus !== "ACTIVE") {
         await client.plots.markPlotActive(args.plotName);
       } else if (newStatus === "COMPLETED") {
         await client.plots.markPlotCompleted(args.plotName);
@@ -148,9 +145,9 @@ Find existing plots via searchWorld.
       changes.push(`flag "${args.setFlag.flagId}"`);
       await client.plots.setFlag(args.plotName, args.setFlag.flagId, args.setFlag.description);
     }
-    if (args.removeFlag) {
-      changes.push(`flag "${args.removeFlag}" removed`);
-      await client.plots.removeFlag(args.plotName, args.removeFlag);
+    if (args.removeFlags && args.removeFlags.length > 0) {
+      changes.push(`flag "${args.removeFlags.join(", ")}" removed`);
+      await client.plots.removeFlags(args.plotName, args.removeFlags);
     }
     if (args.branchTo) {
       changes.push(`branched to "${args.branchTo}"`);

@@ -412,7 +412,11 @@ async function presentChoice(
   console.log(chalk.dim(sep));
 
   const choices: Array<
-    | { name: string; value: number | "custom" | "reset" | "regenerate" | "help" | "quit"; description?: string }
+    | {
+        name: string;
+        value: number | "custom" | "reset" | "regenerate" | "help" | "quit";
+        description?: string;
+      }
     | InstanceType<typeof Separator>
   > = [
     ...options.map((opt, i) => ({
@@ -424,7 +428,10 @@ async function presentChoice(
     })),
     new Separator(chalk.dim(sep)),
     { name: chalk.hex("#ff6b35")("[Custom input...]"), value: "custom" as const },
-    { name: chalk.hex("#4fb0c6")("/regenerate  Undo and redo current turn"), value: "regenerate" as const },
+    {
+      name: chalk.hex("#4fb0c6")("/regenerate  Undo and redo current turn"),
+      value: "regenerate" as const,
+    },
     { name: chalk.dim("/reset  Clear and restart"), value: "reset" as const },
     { name: chalk.dim("/help   Show available commands"), value: "help" as const },
     { name: "Quit", value: "quit" as const },

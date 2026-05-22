@@ -46,7 +46,7 @@ describe("Gameplay: Murder Mystery Investigation", () => {
     // 3. Review active plots
     const plots = await exec(getContext, { types: ["PLOTS_BRIEF"] });
     expect(plots).toContain("The Glass Cage");
-    expect(plots).toContain("IN_PROGRESS");
+    expect(plots).toContain("ACTIVE");
 
     // 4. Search for clues related to the ledger
     const searchResult = await exec(searchWorld, {

@@ -40,7 +40,7 @@ export interface SeedPlot {
   name: string;
   description: string;
   brief?: string;
-  status: "PENDING" | "ACTIVE" | "IN_PROGRESS" | "COMPLETED" | "ABANDONED";
+  status: "PENDING" | "ACTIVE" | "COMPLETED" | "ABANDONED";
   triggerCondition?: string;
   flags?: Array<{ flagId: string; description: string }>;
   branchesTo?: string[];

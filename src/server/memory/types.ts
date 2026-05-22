@@ -44,7 +44,6 @@ export interface MemoryNote {
 export const PLOT_STATUSES = [
   "PENDING",
   "ACTIVE",
-  "IN_PROGRESS",
   "COMPLETED",
   "ABANDONED",
 ] as const;

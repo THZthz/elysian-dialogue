@@ -30,6 +30,7 @@ const AUTO_LIMIT = 50;
 export const queryWorld = tool({
   title: TOOL_NAMES.QUERY_WORLD,
   description: `
+## Brief
 READ or WRITE the world archive using Cypher.
 
 READ — MATCH...RETURN. The current scene is pre-loaded in SCENE_CONTEXT — don't
@@ -43,6 +44,9 @@ deleting. Register new types via manageSchema before creating nodes/relationship
 new types in your Cypher.
 
 Internal properties prefixed with "_" are hidden from READ results.
+
+## Forbidden
+- Do not call this tool multiple times when the queries are similar in structure, combine queries.
 `.trim(),
   inputSchema: z.object({
     action: z

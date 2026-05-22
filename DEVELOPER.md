@@ -240,7 +240,7 @@ All defined in `src/server/llm/tools/`. Registered in `generateTurn()`.
 | Tool       | Purpose                                                                                                                                                                         |
 |------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `editNote` | CREATE/UPDATE/DELETE a GM scratchpad note. Links to entities, messages, and plots for cross-referencing to world state, timeline, and story arcs. Partial overwrite on UPDATE.  |
-| `editPlot` | CREATE/UPDATE/DELETE a plot. Manages status transitions (PENDING→ACTIVE→IN_PROGRESS→COMPLETED/ABANDONED), flags, and branching. Auto-wires time relationships on status change. |
+| `editPlot` | CREATE/UPDATE/DELETE a plot. Manages status transitions (PENDING→ACTIVE→COMPLETED/ABANDONED), flags, and branching. Auto-wires time relationships on status change. |
 
 ### GM tools — SPEAK (player output)
 

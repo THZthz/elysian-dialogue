@@ -68,11 +68,11 @@ ORDER BY d._updated_at DESC
 
 const PLOTS_QUERY = `
 MATCH (p:Plot)
-WHERE p.status IN ["ACTIVE", "IN_PROGRESS"]
+WHERE p.status IN ["ACTIVE"]
 RETURN p.name AS name, p.description AS description, p.brief AS brief,
        p.status AS status, p.trigger_condition AS triggerCondition,
        COLLECT { MATCH (p)-[:BRANCHES_TO]->(child:Plot)
-                 WHERE child.status IN ["ACTIVE", "IN_PROGRESS", "PENDING"]
+                 WHERE child.status IN ["ACTIVE", "PENDING"]
                  RETURN { name: child.name, description: child.description,
                           brief: child.brief, status: child.status } } AS children
 ORDER BY p._updated_at DESC

@@ -32,7 +32,7 @@ const messageSchema = z.object({
     .optional()
     .describe(
       `
-When isCorrection is true: the 0-based index of the message to correct (shown in the validation error).
+When \`isCorrection\` is true: the 0-based index of the message to correct (shown in the validation error).
 Omit when generating fresh.`.trim(),
     ),
   speaker: z
@@ -376,6 +376,7 @@ export function createGenerateDialogueStepTool(persistMessage?: PersistMessageFn
   const dialogueTool = tool({
     title: TOOL_NAMES.GENERATE_DIALOGUE,
     description: `
+## Brief
 SPEAK to the player. Each turn must include a valid call here.
 After speaking, persist world state changes, then reply with brief text to end your turn.
 
@@ -395,30 +396,31 @@ isCorrection — ONLY set to true when retrying after a validation error.
   Send ONLY the failing items with their 'index' field from the error message.
   Valid items are preserved automatically — do NOT copy or resend them.
 
-Speaker names and their type:
-  | type         | speaker name                   |
-  |--------------|--------------------------------|
-  | SYSTEM       | NARRATOR                       |
-  | CHARACTER    | NPC's name                     |
-  | INNER_VOICE  | skill names like LOGIC/EMPATHY |
-  | NOTIFICATION | rarely used                    |
+## Speaker names and their type
+| type         | speaker name                   |
+|--------------|--------------------------------|
+| SYSTEM       | NARRATOR                       |
+| CHARACTER    | NPC's name                     |
+| INNER_VOICE  | skill names like LOGIC/EMPATHY |
+| NOTIFICATION | rarely used                    |
 
-Inner voice personalities:
-  LOGIC — cold, deductive, spots inconsistencies in arguments and mechanisms
-  RHETORIC — political, reads ideologies, loyalties, and agendas
-  EMPATHY — senses emotions, suffering; detects lies through feeling
-  PERCEPTION — notices environmental details; sees, hears, smells
-  VOLITION — willpower, sanity, moral compass; holds psyche together
-  ENDURANCE — physical stamina, pain tolerance; the body's last word
-  SORCERY — arcane intuition; senses magic, ley-lines, supernatural presences
-  SUGGESTION — charm, persuasion; knows what people want to hear
-  INSTINCT — primal survival sense; detects threats, urges fight-or-flight
-  MIGHT — raw strength, intimidation, brute force
-  CLOCKWORK — mechanical intuition; understands gears, steam-pressure, alchemical engines
-  ALCHEMY — appetite for transmutation; craves alchemical substances, vice, transformation
+## Inner voice personalities
+- LOGIC — cold, deductive, spots inconsistencies in arguments and mechanisms
+- RHETORIC — political, reads ideologies, loyalties, and agendas
+- EMPATHY — senses emotions, suffering; detects lies through feeling
+- PERCEPTION — notices environmental details; sees, hears, smells
+- VOLITION — willpower, sanity, moral compass; holds psyche together
+- ENDURANCE — physical stamina, pain tolerance; the body's last word
+- SORCERY — arcane intuition; senses magic, ley-lines, supernatural presences
+- SUGGESTION — charm, persuasion; knows what people want to hear
+- INSTINCT — primal survival sense; detects threats, urges fight-or-flight
+- MIGHT — raw strength, intimidation, brute force
+- CLOCKWORK — mechanical intuition; understands gears, steam-pressure, alchemical engines
+- ALCHEMY — appetite for transmutation; craves alchemical substances, vice, transformation
 
-Formatting for each of the message array:
-Message will be displayed as rendered Markdown for player.
+## Message formatting
+Message will be displayed as rendered Markdown for player. Formatting for each of the message array
+should follow:
 - Narration should be in plain text
 - Dialogue of characters should be wrapped by \`"\` and in italics
 - Any text that is emphasized should be in bold

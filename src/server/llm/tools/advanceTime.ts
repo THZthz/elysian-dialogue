@@ -33,7 +33,7 @@ const inputSchema = z.object({
     .multipleOf(0.5)
     .nullable()
     .optional()
-    .describe("Number of hours to advance (0–48, in 0.5 increments = 30 minutes)."),
+    .describe("Number of half-hours to advance (0–48, 30 minutes)."),
   days: z
     .number()
     .int()
@@ -48,12 +48,13 @@ export function createAdvanceTimeTool(events: EventEmitter) {
   return tool({
     title: TOOL_NAMES.ADVANCE_TIME,
     description: `
+## Brief
 Advance the in-game clock. Do not just narrate that time have passed without calling
 \`${TOOL_NAMES.ADVANCE_TIME}\`. Use hours for sub-day advances, or days (0+) for multi-day travel.
 Total advancement = days * 24 + hours. Always include a brief \`reason\` so your future self knows
 why time moved.
 
-Inner details:
+## Inner details
 When ${TOOL_NAMES.ADVANCE_TIME} is called, a new TimePoint will be created first, then TimeAnchor
 will point to the new TimePoint: (TimeAnchor)-[:CURRENT_TIMEPOINT]->(TimePoint), finally the new
 TimePoint will link to the old via NEXT_TIMEPOINT with the \`reason\` stored on the relationship.
