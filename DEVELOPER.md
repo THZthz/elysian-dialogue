@@ -66,6 +66,7 @@ src/
 │   │   ├── plots.ts                      # :Plot lifecycle: beats, branches, flags, time relationships
 │   │   ├── search.ts                     # Vector search by label/rel-type via Qdrant, optional reranking
 │   │   ├── embedder.ts                   # llama-server embedding (default: localhost:8080)
+│   │   ├── sparseEncoder.ts              # FNV-1a token hashing for sparse TF vectors
 │   │   ├── reranker.ts                   # Cross-encoder reranking (optional, via LLAMA_RERANK_URL)
 │   │   ├── validation.ts                 # CypherValidator: schema-aware Cypher validation
 │   │   ├── reset.ts                      # clearNeo4jDatabase(): DETACH DELETE all nodes + Qdrant clear
@@ -274,7 +275,7 @@ All defined in `src/server/llm/tools/`. Registered in `generateTurn()`.
 
 **Parameters**: `target` (array of `"node"`/`"relationship"`, defaults to both), `domains` (optional list of node labels or relationship types to search), `query`, `limit`.
 
-`MemorySearch.searchByLabel(label, query)` and `MemorySearch.searchByRelationshipType(type, query)` search Qdrant collection `chorus_embeddings` filtered by `node_type` and `kind`. Optional cross-encoder reranking is applied when `LLAMA_RERANK_URL` is configured.
+`MemorySearch.searchByLabel(label, query)` and `MemorySearch.searchByRelationshipType(type, query)` perform 3-way hybrid search across Qdrant named vectors (`name_vec` dense, `content_vec` dense, `sparse_vec` sparse). Results are fused with Reciprocal Rank Fusion (RRF, k=60), then top candidates are passed through the optional cross-encoder reranker when `LLAMA_RERANK_URL` is configured.
 
 ---
 
@@ -348,11 +349,13 @@ Defined in `src/shared/events.ts`:
 | `shortTerm.ts`           | Conversation + `:Message` nodes as ordered linked list (NEXT_MESSAGE).                                                                                                                                              |
 | `notes.ts`               | `:Note` CRUD with vector embedding. Links to entities/messages/plots via ABOUT_ENTITY/ABOUT_MESSAGE/ABOUT_PLOT. Uses `extractSearchTexts` for rerank text.                                                          |
 | `plots.ts`               | `:Plot` lifecycle: beats, branches, flags. Uses `extractSearchTexts` for rerank text.                                                                                                                               |
-| `search.ts`              | `MemorySearch`: `searchByLabel(label, query)` for nodes, `searchByRelationshipType(type, query)` for relationships. Both support optional reranking.                                                                |
+| `search.ts`              | `MemorySearch`: 3-way hybrid search (name dense + content dense + sparse keyword) with RRF fusion. `searchByLabel(label, query)` for nodes, `searchByRelationshipType(type, query)` for relationships. Both support optional reranking. |
+| `embedder.ts`            | llama-server via `LLAMA_EMBED_URL`. Default 1024 dimensions.                                                                                                                                                       |
+| `sparseEncoder.ts`       | FNV-1a 32-bit token hashing for sparse TF vectors. Used for keyword matching in hybrid search.                                                                                                                      |
 | `reranker.ts`            | Optional cross-encoder reranking (LLAMA_RERANK_URL). `extractSearchTexts` uses `NodeManager.getEmbeddingText` for node text extraction.                                                                             |
 | `validation.ts`          | `CypherValidator`: validates Cypher queries against `NodeManager`/`RelationshipManager`. Auto-registers unknown relationship types with empty-string wildcard sentinel.                                             |
-| `nodeManager.ts`         | Node label registry. `syncToNeo4j` creates constraints, indexes, and vector indexes dynamically. Has `getEmbeddingText()` for nodes.                                                                                |
-| `relationshipManager.ts` | Relationship type registry with composite `(name, sourceLabel, targetLabel)` key. `syncToNeo4j` creates property, composite, and vector indexes for relationship types. Has `getEmbeddingText()` for relationships. |
+| `nodeManager.ts`         | Node label registry. `syncToNeo4j` creates constraints, indexes, and vector indexes dynamically. Has `getEmbeddingNameText()` and `getEmbeddingContentText()` for nodes.                                            |
+| `relationshipManager.ts` | Relationship type registry with composite `(name, sourceLabel, targetLabel)` key. `syncToNeo4j` creates property, composite, and vector indexes for relationship types. Has `getEmbeddingNameText()` and `getEmbeddingContentText()` for relationships. |
 | `gameState.ts`           | Persists dialogue options as JSON on `:Conversation` node.                                                                                                                                                          |
 
 ### Neo4j Schema
@@ -361,11 +364,11 @@ Defined in `src/shared/events.ts`:
 
 **Indexes**: Regular indexes on Entity.type, Entity.name, Message.timestamp, Plot.status. Composite indexes on Disposition(source_name, target_name) and TimePoint(day, segment). Composite unique constraints supported via `composite_unique_1/2/3` tags. All created dynamically by `syncToNeo4j`.
 
-**Vector storage**: Embeddings stored in Qdrant collection `chorus_embeddings` with Cosine distance. Payload indexed by `node_type`, `kind`, `object_id`. Neo4j vector indexes are no longer used.
+**Vector storage**: Embeddings stored in Qdrant collection `chorus_embeddings` using named vectors (`name_vec`, `content_vec` dense Cosine) and sparse vectors (`sparse_vec` with IDF modifier). HNSW graph on-disk with int8 scalar quantization. Payload indexed by `node_type`, `kind`, `object_id`. Neo4j vector indexes are no longer used.
 
 ### Embeddings
 
-`embedder.ts` — llama-server via `LLAMA_EMBED_URL` (default `http://localhost:8080/v1/embeddings`). Default dimensions: 1024. Embedding text is built by `NodeManager.getEmbeddingText()` (for nodes) and `RelationshipManager.getEmbeddingText()` (for relationships) from `"embedded"`-tagged properties. Embeddings are stored in Qdrant (`chorus_embeddings` collection) and searched via `MemorySearch.searchByLabel()` / `searchByRelationshipType()`. Optional cross-encoder reranking via `LLAMA_RERANK_URL`.
+`embedder.ts` — llama-server via `LLAMA_EMBED_URL` (default `http://localhost:8080/v1/embeddings`). Default dimensions: 1024. Each entity/relationship stores three vectors in Qdrant: `name_vec` (dense, identity/exact-match from `embedded_name`-tagged props), `content_vec` (dense, semantic meaning from `embedded_content`-tagged props), and `sparse_vec` (sparse TF vector for keyword matching via FNV-1a token hashing). Sparse vectors use Qdrant's `"modifier": "idf"` for server-side IDF weighting. Collection config includes HNSW tuning (`m=16, ef_construct=100`), int8 scalar quantization, and query-time `ef` via `QDRANT_EF` env var (default 128). Optional cross-encoder reranking via `LLAMA_RERANK_URL`.
 
 ---
 
@@ -411,8 +414,8 @@ Relationship types declared via `[[relationshipTypes]]` with `name`, `descriptio
 5. **Properties use snake_case in Neo4j** — `_created_at`, `trigger_condition`, `source_name`.
 6. **Composite key for relationship types** — `(name, sourceLabel, targetLabel)` uniquely identifies a `RelationshipDef`.
 7. **Dynamic vector search** — `searchWorld` queries `NodeManager` and `RelationshipManager` at runtime for node labels and relationship types with `_embedding`, not a hardcoded enum.
-8. **Embedding text from schema** — `getEmbeddingText()` reads `"embedded"`-tagged properties from `NodeManager` (nodes) and `RelationshipManager` (relationships).
-9. **Two-stage retrieval** — when `LLAMA_RERANK_URL` is set: relaxed vector search + cross-encoder rerank.
+8. **Embedding text from schema** — `getEmbeddingNameText()` and `getEmbeddingContentText()` read `"embedded_name"` and `"embedded_content"`-tagged properties from `NodeManager` (nodes) and `RelationshipManager` (relationships).
+9. **Three-way hybrid retrieval** — dense name + dense content + sparse keyword search fused via RRF, then cross-encoder rerank when `LLAMA_RERANK_URL` is set.
 10. **GM message history persisted** — `:GMTurnMessage` nodes for multi-turn continuity.
 11. **COLE+O entity model** — CHARACTER, OBJECT, LOCATION, ORGANIZATION, EVENT with dynamic Neo4j sub-labels.
 12. **Skill checks resolved server-side** — dice rolls computed automatically, result injected into prompt.
