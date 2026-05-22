@@ -22,6 +22,7 @@ import { Neo4jClient } from "@/server/memory/neo4j";
 import { Embedder, getEmbedder } from "@/server/memory/embedder";
 import { GAME_ID } from "@/server/gameState";
 import { nextId } from "@/server/idGenerator";
+import { getQdrantClient } from "@/server/memory/qdrant";
 import type { MemoryMessage } from "@/server/memory/types";
 
 export class ShortTermMemory {
@@ -42,9 +43,10 @@ export class ShortTermMemory {
     const convId = await this.ensureConversation();
 
     let embedding: number[] | undefined;
+    let embedText: string | undefined;
     if (generateEmbedding) {
       const { NodeManager: NM } = await import("@/server/nodeManager");
-      const embedText = NM.getCachedInstance().getEmbeddingText("Message", { content });
+      embedText = NM.getCachedInstance().getEmbeddingText("Message", { content });
       embedding = embedText ? await this.embedder.embed(embedText) : undefined;
     }
 
@@ -56,7 +58,7 @@ export class ShortTermMemory {
       `MATCH (c:Conversation {_id: $convId})
        CREATE (m:Message {
          id: $id, content: $content,
-         _embedding: $embedding, timestamp: datetime($now),
+         timestamp: datetime($now),
          metadata: $metadata
        })
        CREATE (c)-[r:HAS_MESSAGE {_created_at: datetime()}]->(m)
@@ -65,11 +67,31 @@ export class ShortTermMemory {
         convId,
         id: messageId,
         content,
-        embedding: embedding || null,
         now,
         metadata: JSON.stringify(merged),
       },
     );
+
+    // Store embedding in Qdrant (after Neo4j write succeeds).
+    if (embedding) {
+      try {
+        await getQdrantClient().upsert(`Message:${messageId}`, embedding, {
+          node_type: "Message",
+          kind: "node",
+          object_id: `Message:${messageId}`,
+          text: embedText,
+          content,
+          id: messageId,
+          metadata: JSON.stringify(merged),
+          timestamp: now,
+        });
+      } catch (err) {
+        console.warn(
+          "[shortTerm] Qdrant upsert failed for message:",
+          err instanceof Error ? err.message : String(err),
+        );
+      }
+    }
 
     const lastId = await this.getLastMessageId(convId, messageId);
     const isFirst = lastId === null;
@@ -97,7 +119,6 @@ export class ShortTermMemory {
       id: messageId,
       content,
       metadata: metadata || {},
-      _embedding: embedding,
     };
   }
 
@@ -116,7 +137,6 @@ export class ShortTermMemory {
         id: m.id as string,
         content: m.content as string,
         metadata: meta,
-        _embedding: m._embedding as number[] | undefined,
       };
     });
   }

@@ -19,7 +19,7 @@
 import "dotenv/config";
 import express from "express";
 import apiRouter from "@/server/api";
-import { MemoryClient } from "@/server/memory/client";
+import { getMemoryClient, MemoryClient } from "@/server/memory/client";
 import { seedDatabase } from "@/server/stories/seed";
 
 const NEO4J_RETRY_MS = 10000;

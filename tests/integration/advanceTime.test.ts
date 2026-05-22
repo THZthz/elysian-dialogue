@@ -18,6 +18,7 @@
 
 import { createAdvanceTimeTool } from "@/server/llm/tools/advanceTime";
 import { exec, createMockEventEmitter, resetDb } from "../helpers";
+import { getMemoryClient } from "@/server/memory/client";
 
 describe("advanceTime", () => {
   beforeEach(async () => {
@@ -111,7 +112,7 @@ describe("advanceTime", () => {
 
     // Verify reason is stored on the NEXT_TIMEPOINT relationship
     const { MemoryClient } = await import("@/server/memory/client");
-    const client = MemoryClient.getCachedInstance();
+    const client = getMemoryClient();
     const rows = await client.neo4j.executeRead(
       `MATCH (:TimePoint)-[r:NEXT_TIMEPOINT]->(:TimePoint) RETURN r.reason AS reason`,
     );

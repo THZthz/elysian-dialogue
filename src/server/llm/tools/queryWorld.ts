@@ -18,7 +18,7 @@
 
 import { tool } from "ai";
 import { z } from "zod";
-import { MemoryClient } from "@/server/memory/client";
+import { getMemoryClient, MemoryClient } from "@/server/memory/client";
 import { CypherValidator } from "@/server/memory/validation";
 import { stripHiddenProperties } from "@/server/memory/neo4j";
 import { wrapSafe } from "@/server/llm/tools/shared";
@@ -56,7 +56,7 @@ Internal properties prefixed with "_" are hidden from READ results.
       ),
   }),
   execute: wrapSafe(async (args) => {
-    const client = MemoryClient.getCachedInstance();
+    const client = getMemoryClient();
 
     if (args.action === "WRITE") {
       const validation = validator.validateWrite(args.query);

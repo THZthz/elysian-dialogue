@@ -48,7 +48,7 @@ async function buildSchemaDump(): Promise<string> {
   const relManager = RelationshipManager.getCachedInstance();
 
   const lines: string[] = [];
-  lines.push("## Schema (from in-memory registry)");
+  lines.push(`## Schema (from registry by \`${TOOL_NAMES.MANAGE_SCHEMA}\`)`);
   lines.push("");
   lines.push(
     "A list of nodes/relationships, with their list of properties, tags of the property is displayed before its name.",

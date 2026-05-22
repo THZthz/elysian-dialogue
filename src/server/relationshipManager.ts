@@ -17,7 +17,7 @@
  */
 
 import type { Neo4jClient } from "@/server/memory/neo4j";
-import { TOOL_NAMES } from "@/shared/constants.ts";
+import { TOOL_NAMES } from "@/shared/constants";
 
 /** The meaning of those tags is basically the same with NODE_PROPERTY_TAGS. */
 export const RELATIONSHIP_PROPERTY_TAGS = [
@@ -159,11 +159,6 @@ const PREDEFINED_TYPES: {
           "Spatial position detail — how/where exactly the entity is located (e.g., 'hiding behind crates', 'slumped at the bar').",
         tags: ["string", "embedded"],
       },
-      {
-        name: "_embedding",
-        description: "Internal vector embedding for semantic search.",
-        tags: ["number[]"],
-      },
     ],
   },
   {
@@ -176,11 +171,6 @@ const PREDEFINED_TYPES: {
         name: "brief",
         description: "How the item is carried (e.g., 'concealed in a boot', 'worn openly on hip').",
         tags: ["string", "embedded"],
-      },
-      {
-        name: "_embedding",
-        description: "Internal vector embedding for semantic search.",
-        tags: ["number[]"],
       },
     ],
   },
@@ -196,11 +186,6 @@ const PREDEFINED_TYPES: {
           "Reason or motive for the alliance (e.g., 'shared hatred of the Magistrate', 'family loyalty').",
         tags: ["string", "embedded"],
       },
-      {
-        name: "_embedding",
-        description: "Internal vector embedding for semantic search.",
-        tags: ["number[]"],
-      },
     ],
   },
   {
@@ -214,11 +199,6 @@ const PREDEFINED_TYPES: {
         description:
           "Reason or motive for the hostility (e.g., 'unpaid debt of 200 coins', 'territorial dispute').",
         tags: ["string", "embedded"],
-      },
-      {
-        name: "_embedding",
-        description: "Internal vector embedding for semantic search.",
-        tags: ["number[]"],
       },
     ],
   },
@@ -234,11 +214,6 @@ const PREDEFINED_TYPES: {
         description:
           "Access or containment detail (e.g., 'accessed through a trapdoor behind the bar').",
         tags: ["string", "embedded"],
-      },
-      {
-        name: "_embedding",
-        description: "Internal vector embedding for semantic search.",
-        tags: ["number[]"],
       },
     ],
   },
@@ -462,22 +437,6 @@ export class RelationshipManager {
           const msg = err instanceof Error ? err.message : String(err);
           console.error(
             `[RelationshipManager] Composite index on ${indexName} not created: ${msg}`,
-          );
-        }
-      }
-
-      // Create vector index for types that have _embedding property.
-      if (def.properties.some((p) => p.name === "_embedding")) {
-        const vectorIndexName = `rel_${def.name.toLowerCase()}_embedding_idx`;
-        const dimensions = process.env.EMBEDDING_DIMENSIONS || 1024;
-        try {
-          await client.executeWrite(
-            `CREATE VECTOR INDEX ${vectorIndexName} IF NOT EXISTS FOR ()-[r:\`${def.name}\`]-() ON (r._embedding)
-            OPTIONS { indexConfig: { \`vector.dimensions\`: ${dimensions}, \`vector.similarity_function\`: 'COSINE' } }`,
-          );
-        } catch {
-          console.error(
-            `[RelationshipManager] Vector index ${vectorIndexName} not created (Neo4j 5.11+ required).`,
           );
         }
       }

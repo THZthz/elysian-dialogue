@@ -62,7 +62,7 @@ describe("searchWorld", () => {
   });
 
   // Default target is now ["node", "relationship"] — both are searched unless
-  // no relationship types have _embedding, in which case only nodes appear.
+  // no relationship types have embedded properties, in which case only nodes appear.
   it("returns results for all searchable domains by default", async () => {
     if (!embedderAvailable) return;
     const result = await exec(searchWorld, {

@@ -9,7 +9,7 @@ Architecture, core systems, and data structures of the **Chorus** application.
 **Chorus** is a cinematic dialogue engine with a vertical-scrolling "thought stream" aesthetic, branching dialogue paths, and probabilistic skill checks influenced by character attributes.
 
 - **Stack:** TypeScript, Node.js
-- **Backend:** Express + Neo4j (via local `src/server/memory/` module)
+- **Backend:** Express + Neo4j (graph storage) + Qdrant (vector storage)
 - **AI:** Single-LLM Game Master (Gemini/DeepSeek via Vercel AI SDK)
 - **SSE:** Server-Sent Events for real-time streaming of LLM output
 - **Console client:** Standalone Node.js REPL with chalk rendering
@@ -57,17 +57,18 @@ src/
 │   │       ├── advanceTime.ts            # Advance in-game clock
 │   │       └── shared.ts                 # wrapSafe error wrapper, extractInternalAndUnknownKeys
 │   │
-│   ├── memory/                           # Neo4j persistence layer
+│   ├── memory/                           # Persistence layer (Neo4j + Qdrant)
 │   │   ├── client.ts                     # MemoryClient singleton facade composing all subsystems
 │   │   ├── neo4j.ts                      # Neo4j driver wrapper with value normalization
+│   │   ├── qdrant.ts                     # Qdrant vector client: upsert, delete, search, clearAll
 │   │   ├── shortTerm.ts                  # Conversation + :Message nodes as ordered linked list
 │   │   ├── notes.ts                      # :Note CRUD with embedding, entity/message linking
 │   │   ├── plots.ts                      # :Plot lifecycle: beats, branches, flags, time relationships
-│   │   ├── search.ts                     # Vector search by label/rel-type with optional reranking
+│   │   ├── search.ts                     # Vector search by label/rel-type via Qdrant, optional reranking
 │   │   ├── embedder.ts                   # llama-server embedding (default: localhost:8080)
 │   │   ├── reranker.ts                   # Cross-encoder reranking (optional, via LLAMA_RERANK_URL)
 │   │   ├── validation.ts                 # CypherValidator: schema-aware Cypher validation
-│   │   ├── reset.ts                      # clearNeo4jDatabase(): DETACH DELETE all nodes
+│   │   ├── reset.ts                      # clearNeo4jDatabase(): DETACH DELETE all nodes + Qdrant clear
 │   │   └── types.ts                      # Shared types: MemoryEntity, MemoryNote, MemoryPlot, PlotFlag, etc.
 │   │
 │   ├── stories/                          # World seeding
@@ -154,10 +155,10 @@ scripts/
 │  stopWhen: generateDialogueStep passes validation                    │
 │  prepareStep: nudges if GM forgets dialogue output                   │
 └──────────────────────────────┬───────────────────────────────────────┘
-                               │ tool calls read/write Neo4j
+                               │ tool calls read/write Neo4j + Qdrant
                                ▼
 ┌───────────────────────────────────────────────────────────────────────────┐
-│                     MEMORY LAYER (Neo4j-backed)                           │
+│                     MEMORY LAYER (Neo4j + Qdrant)                         │
 │  src/server/memory/client.ts  ── MemoryClient singleton                   │
 │                                                                           │
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐       │
@@ -184,26 +185,29 @@ scripts/
 │        │ (query→vector)    │                │ (cross-encoder)   │         │
 │        └────────┬──────────┘                └────────┬──────────┘         │
 │                 │                                    │                    │
-│                 └─────────────────┬──────────────────┘                    │
-│                                   ▼                                       │
-│  ┌─────────────────────────────────────────────────────────────────┐      │
-│  │  neo4j.ts ── driver wrapper with value normalization            │      │
-│  │  nodeManager.ts ── node label registry + getEmbeddingText       │      │
-│  │  relationshipManager.ts ── rel type registry + getEmbeddingText │      │
-│  │  validation.ts ── CypherValidator (schema-aware)                │      │
-│  └─────────────────────────────────────────────────────────────────┘      │
-└──────────────────────────────┬────────────────────────────────────────────┘
-                               │
-                               ▼
-┌──────────────────────────────────────────────────────────────────────┐
-│                         NEO4J DATABASE                               │
-│  Node labels: Conversation, Message, Entity (+ subtype labels),      │
-│  Disposition, Note, Plot, TimeAnchor, TimePoint, GMTurnMessage,   │
-│  RelationshipType, NodeType, IdCounter                               │
-│                                                                      │
-│  Indexes: node property indexes, rel property indexes, composite,    │
-│  vector indexes (node & relationship)                                │
-└──────────────────────────────────────────────────────────────────────┘
+│    ┌────────────┴────────────┐                       │                    │
+│    ▼                         ▼                       │                    │
+│  ┌───────────────────┐  ┌────────────────────────────┴────────────────┐   │
+│  │    qdrant.ts      │  │              neo4j.ts                       │   │
+│  │  Qdrant vector    │  │  driver wrapper with value normalization    │   │
+│  │  upsert / search  │  │  nodeManager.ts — label registry            │   │
+│  │  / delete         │  │  relationshipManager.ts — rel type registry │   │
+│  └────────┬──────────┘  │  validation.ts — CypherValidator            │   │
+│           │             └──────────────────────┬──────────────────────┘   │
+└───────────┼────────────────────────────────────┼──────────────────────────┘
+            │                                    │
+            ▼                                    ▼
+  ┌────────────────────┐             ┌──────────────────────────────┐
+  │     QDRANT         │             │          NEO4J               │
+  │  chorus_embeddings │             │  Node labels: Conversation,  │
+  │  Cosine distance   │             │  Message, Entity (+ subtypes │
+  │  vectors + payload │             │  Character,Location,Object), │
+  └────────────────────┘             │  Disposition, Note, Plot,    │
+                                     │  TimeAnchor, TimePoint,      │
+                                     │  GMTurnMessage,              │
+                                     │  RelationshipType, NodeType, │
+                                     │  IdCounter                   │
+                                     └──────────────────────────────┘
 ```
 
 ---
@@ -214,27 +218,27 @@ All defined in `src/server/llm/tools/`. Registered in `generateTurn()`.
 
 ### GM tools — SENSE (understanding the world)
 
-| Tool                | Purpose                                                                                                                                                                                 |
-|---------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `getContext`        | Fetch scene context, character/location/object briefs, plot tree, schema dump, relationship dump. Schema dump now served from in-memory NodeManager/RelationshipManager (no Neo4j query). |
-| `searchWorld`       | Dynamic vector search across any node type or relationship type with `_embedding`. Pass `domains` (labels/types) and optional `target` (`"node"`/`"relationship"`); omit to search all. |
-| `queryWorld`        | Cypher READ/WRITE validated via CypherValidator. READ auto-limited to 50 rows. WRITE with MERGE/SET/DELETE.                                                                             |
+| Tool          | Purpose                                                                                                                                                                                   |
+|---------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `getContext`  | Fetch scene context, character/location/object briefs, plot tree, schema dump, relationship dump. Schema dump now served from in-memory NodeManager/RelationshipManager (no Neo4j query). |
+| `searchWorld` | Dynamic vector search across any node type or relationship type with `_embedding`. Pass `domains` (labels/types) and optional `target` (`"node"`/`"relationship"`); omit to search all.   |
+| `queryWorld`  | Cypher READ/WRITE validated via CypherValidator. READ auto-limited to 50 rows. WRITE with MERGE/SET/DELETE.                                                                               |
 
 ### GM tools — ACT (changing the world)
 
-| Tool                   | Purpose                                                                                                                                                             |
-|------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `editNode`             | CREATE/UPDATE/DELETE any node. Validates properties against NodeManager schema. Auto-generates embeddings. Use for Entity and Disposition; not for Note or Plot. |
-| `editRelationship`     | CREATE/UPDATE/DELETE relationships. LOCATED_AT, CARRIES, ALLIED_WITH, HOSTILE_TOWARDS, LOCATED_IN now have `description` (string, embedded) property for narrative context. |
-| `manageSchema`         | Register/unregister node types and relationship types. Must be called before creating instances of new types.                                                       |
-| `advanceTime`          | Advance in-game clock by hours/days. Always include reason. Stored on NEXT_TIMEPOINT.reason.                                                                        |
+| Tool               | Purpose                                                                                                                                                                     |
+|--------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `editNode`         | CREATE/UPDATE/DELETE any node. Validates properties against NodeManager schema. Auto-generates embeddings. Use for Entity and Disposition; not for Note or Plot.            |
+| `editRelationship` | CREATE/UPDATE/DELETE relationships. LOCATED_AT, CARRIES, ALLIED_WITH, HOSTILE_TOWARDS, LOCATED_IN now have `description` (string, embedded) property for narrative context. |
+| `manageSchema`     | Register/unregister node types and relationship types. Must be called before creating instances of new types.                                                               |
+| `advanceTime`      | Advance in-game clock by hours/days. Always include reason. Stored on NEXT_TIMEPOINT.reason.                                                                                |
 
 ### GM tools — TRACK (memory & plans)
 
-| Tool                | Purpose                                                                                                                                                |
-|---------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `editNote`          | CREATE/UPDATE/DELETE a GM scratchpad note. Links to entities, messages, and plots for cross-referencing to world state, timeline, and story arcs. Partial overwrite on UPDATE. |
-| `editPlot`          | CREATE/UPDATE/DELETE a plot. Manages status transitions (PENDING→ACTIVE→IN_PROGRESS→COMPLETED/ABANDONED), flags, and branching. Auto-wires time relationships on status change. |
+| Tool       | Purpose                                                                                                                                                                         |
+|------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `editNote` | CREATE/UPDATE/DELETE a GM scratchpad note. Links to entities, messages, and plots for cross-referencing to world state, timeline, and story arcs. Partial overwrite on UPDATE.  |
+| `editPlot` | CREATE/UPDATE/DELETE a plot. Manages status transitions (PENDING→ACTIVE→IN_PROGRESS→COMPLETED/ABANDONED), flags, and branching. Auto-wires time relationships on status change. |
 
 ### GM tools — SPEAK (player output)
 
@@ -266,11 +270,11 @@ All defined in `src/server/llm/tools/`. Registered in `generateTurn()`.
 
 ## 6. Dynamic Vector Search
 
-`searchWorld` discovers searchable node types and relationship types at runtime via `NodeManager` and `RelationshipManager`. Types with `_embedding` property are searchable. Subtype labels (Character, Location, Object, etc.) that share a parent's identical property schema are filtered out via fingerprint comparison, since they share the same vector index.
+`searchWorld` discovers searchable node types and relationship types at runtime via `NodeManager` and `RelationshipManager`. Types with `_embedding` property are searchable. Subtype labels (Character, Location, Object, etc.) are mapped to their canonical parent label (Entity) since they share the same Qdrant `node_type`.
 
 **Parameters**: `target` (array of `"node"`/`"relationship"`, defaults to both), `domains` (optional list of node labels or relationship types to search), `query`, `limit`.
 
-`MemorySearch.searchByLabel(label, query)` and `MemorySearch.searchByRelationshipType(type, query)` provide generic single-type vector search. Node vector indexes are named `${label.toLowerCase()}_embedding_idx`; relationship vector indexes are named `rel_${type.toLowerCase()}_embedding_idx`.
+`MemorySearch.searchByLabel(label, query)` and `MemorySearch.searchByRelationshipType(type, query)` search Qdrant collection `chorus_embeddings` filtered by `node_type` and `kind`. Optional cross-encoder reranking is applied when `LLAMA_RERANK_URL` is configured.
 
 ---
 
@@ -342,7 +346,7 @@ Defined in `src/shared/events.ts`:
 | Module                   | Responsibility                                                                                                                                                                                                      |
 |--------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `shortTerm.ts`           | Conversation + `:Message` nodes as ordered linked list (NEXT_MESSAGE).                                                                                                                                              |
-| `notes.ts`               | `:Note` CRUD with vector embedding. Links to entities/messages/plots via ABOUT_ENTITY/ABOUT_MESSAGE/ABOUT_PLOT. Uses `extractSearchTexts` for rerank text.                                                                           |
+| `notes.ts`               | `:Note` CRUD with vector embedding. Links to entities/messages/plots via ABOUT_ENTITY/ABOUT_MESSAGE/ABOUT_PLOT. Uses `extractSearchTexts` for rerank text.                                                          |
 | `plots.ts`               | `:Plot` lifecycle: beats, branches, flags. Uses `extractSearchTexts` for rerank text.                                                                                                                               |
 | `search.ts`              | `MemorySearch`: `searchByLabel(label, query)` for nodes, `searchByRelationshipType(type, query)` for relationships. Both support optional reranking.                                                                |
 | `reranker.ts`            | Optional cross-encoder reranking (LLAMA_RERANK_URL). `extractSearchTexts` uses `NodeManager.getEmbeddingText` for node text extraction.                                                                             |
@@ -357,11 +361,11 @@ Defined in `src/shared/events.ts`:
 
 **Indexes**: Regular indexes on Entity.type, Entity.name, Message.timestamp, Plot.status. Composite indexes on Disposition(source_name, target_name) and TimePoint(day, segment). Composite unique constraints supported via `composite_unique_1/2/3` tags. All created dynamically by `syncToNeo4j`.
 
-**Vector indexes**: One per node type with `_embedding` (Entity, Message, Note, Plot). Naming: `{label_lower}_embedding_idx`. Also created for relationship types with `_embedding`, named `rel_{type_lower}_embedding_idx`.
+**Vector storage**: Embeddings stored in Qdrant collection `chorus_embeddings` with Cosine distance. Payload indexed by `node_type`, `kind`, `object_id`. Neo4j vector indexes are no longer used.
 
 ### Embeddings
 
-`embedder.ts` — llama-server via `LLAMA_EMBED_URL` (default `http://localhost:8080/v1/embeddings`). Default dimensions: 1024. Embedding text is built by `NodeManager.getEmbeddingText()` (for nodes) and `RelationshipManager.getEmbeddingText()` (for relationships) from `"embedded"`-tagged properties.
+`embedder.ts` — llama-server via `LLAMA_EMBED_URL` (default `http://localhost:8080/v1/embeddings`). Default dimensions: 1024. Embedding text is built by `NodeManager.getEmbeddingText()` (for nodes) and `RelationshipManager.getEmbeddingText()` (for relationships) from `"embedded"`-tagged properties. Embeddings are stored in Qdrant (`chorus_embeddings` collection) and searched via `MemorySearch.searchByLabel()` / `searchByRelationshipType()`. Optional cross-encoder reranking via `LLAMA_RERANK_URL`.
 
 ---
 

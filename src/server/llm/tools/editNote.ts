@@ -18,7 +18,7 @@
 
 import { tool } from "ai";
 import { z } from "zod";
-import { MemoryClient } from "@/server/memory/client";
+import { getMemoryClient, MemoryClient } from "@/server/memory/client";
 import { wrapSafe } from "@/server/llm/tools/shared";
 import { TOOL_NAMES } from "@/shared/constants";
 
@@ -71,7 +71,7 @@ Search your notes via searchWorld at the start of every turn to recall what you 
 `.trim(),
   inputSchema,
   execute: wrapSafe(async (args: z.infer<typeof inputSchema>) => {
-    const client = MemoryClient.getCachedInstance();
+    const client = getMemoryClient();
 
     if (args.action == "DELETE") {
       const deleted = await client.notes.deleteNote(args.noteName);

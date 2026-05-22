@@ -48,13 +48,16 @@ export function createAdvanceTimeTool(events: EventEmitter) {
   return tool({
     title: TOOL_NAMES.ADVANCE_TIME,
     description: `
-Advance the in-game clock. Time only moves when this tool is called — narrating that time passed
-without ${TOOL_NAMES.ADVANCE_TIME} means time stood still in the archive. Use hours for sub-day
-advances, or days (0+) for multi-day travel. Total advancement = days * 24 + hours. Always include
-a brief \`reason\` so your future self knows why time moved. When ${TOOL_NAMES.ADVANCE_TIME} is
-called, a new TimePoint will be created first, then TimeAnchor will point to the new TimePoint:
-(TimeAnchor)-[:CURRENT_TIMEPOINT]->(TimePoint), finally the new TimePoint will link to the old via
-NEXT_TIMEPOINT with the \`reason\` stored on the relationship.`.trim(),
+Advance the in-game clock. Do not just narrate that time have passed without calling
+\`${TOOL_NAMES.ADVANCE_TIME}\`. Use hours for sub-day advances, or days (0+) for multi-day travel.
+Total advancement = days * 24 + hours. Always include a brief \`reason\` so your future self knows
+why time moved.
+
+Inner details:
+When ${TOOL_NAMES.ADVANCE_TIME} is called, a new TimePoint will be created first, then TimeAnchor
+will point to the new TimePoint: (TimeAnchor)-[:CURRENT_TIMEPOINT]->(TimePoint), finally the new
+TimePoint will link to the old via NEXT_TIMEPOINT with the \`reason\` stored on the relationship.
+`.trim(),
     inputSchema,
     execute: wrapSafe(async (args: z.infer<typeof inputSchema>) => {
       const totalHalfHours = (args.days ?? 0) * 48 + (args.hours ?? 0) * 2;

@@ -59,8 +59,8 @@ llama-server -m data/models/Qwen3-Embedding-0.6B-Q8_0.gguf --port 8080 -c 32768 
 llama-server -m data/models/Qwen3-Reranker-0.6B-Q8_0.gguf --port 8081 -c 32768 -ngl 99 --reranking
 
 # Terminal 3 — Neo4j container and Express server
-docker compose -f docker-compose.yml up -d # Will take some time to start
-npm run server # Or: npm run server:dev
+docker compose up -d
+npm run server
 
 # Terminal 4 — Play
 npm run console
@@ -75,7 +75,7 @@ Other operations:
 npm run test
 
 # Stop Neo4j container
-docker compose -f docker-compose.yml down # Or with `-v` parameter
+docker compose down -v
 
 # Notify server to clear data
 curl -X POST http://localhost:3000/api/reset

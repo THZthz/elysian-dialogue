@@ -18,7 +18,7 @@
 
 import { tool } from "ai";
 import { z } from "zod";
-import { MemoryClient } from "@/server/memory/client";
+import { getMemoryClient, MemoryClient } from "@/server/memory/client";
 import { RelationshipManager, RELATIONSHIP_PROPERTY_TAGS } from "@/server/relationshipManager";
 import type { RelationshipPropertyDef } from "@/server/relationshipManager";
 import { NODE_PROPERTY_TAGS, NodeManager } from "@/server/nodeManager";
@@ -47,7 +47,7 @@ Tags dictionary:
 - \`number\`: normal number
 - \`number[]\`: list of numbers
 - \`json\`: Saved as string in Neo4j. But when used in tools supporting partial update, will automatically unfold Neo4j string property to avoid whole string overwritten
-- \`embedded\`: will be used to compute property \`_embedding\` when the content of this property is changed
+- \`embedded\`: will be used to compute vector embedding when the content of this property is changed
 - \`unique\`: will create a unique constraint on this property
 - \`composite_unique_X\`: will create a composite unique constraint for all specified properties
 - \`index\`: will create a regular index on this property
@@ -133,7 +133,7 @@ Tags dictionary:
           );
         }
 
-        const client = MemoryClient.getCachedInstance();
+        const client = getMemoryClient();
         // TODO: This function will sync everything by default, incremental in future?
         await nodeManager.syncToNeo4j(client.neo4j);
 
@@ -184,7 +184,7 @@ Tags dictionary:
           );
         }
 
-        const client = MemoryClient.getCachedInstance();
+        const client = getMemoryClient();
         await manager.syncToNeo4j(client.neo4j);
 
         const endpoints = `(${srcLabel})→(${tgtLabel})`;
@@ -203,7 +203,7 @@ Tags dictionary:
         if (!removed) {
           return `Cannot unregister "${args.name}": it is not a GM_DEFINED type.`;
         }
-        const client = MemoryClient.getCachedInstance();
+        const client = getMemoryClient();
         // Remove the corresponding :NodeType node from Neo4j
         await client.neo4j.executeWrite(`MATCH (nt:NodeType {name: $name}) DETACH DELETE nt`, {
           name: args.name,
@@ -222,7 +222,7 @@ Tags dictionary:
         if (!removed) {
           return `Cannot unregister "${args.name}" (${srcLabel}→${tgtLabel}): it is not a GM_DEFINED type.`;
         }
-        const client = MemoryClient.getCachedInstance();
+        const client = getMemoryClient();
         // Remove the corresponding :RelationshipType node from Neo4j
         await client.neo4j.executeWrite(
           `MATCH (rt:RelationshipType {name: $name, source_label: $srcLabel, target_label: $tgtLabel}) DETACH DELETE rt`,

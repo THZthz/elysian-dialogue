@@ -26,7 +26,6 @@ export interface MemoryEntity {
   brief?: string;
   aliases: string[];
   metadata: Record<string, unknown>;
-  _embedding?: number[];
   // True if the entity was newly created (MERGE semantics).
   isNew?: boolean;
 }
@@ -35,13 +34,11 @@ export interface MemoryMessage {
   id: string;
   content: string;
   metadata: Record<string, unknown>;
-  _embedding?: number[];
 }
 
 export interface MemoryNote {
   name: string;
   content: string;
-  _embedding?: number[];
 }
 
 export const PLOT_STATUSES = [
@@ -65,7 +62,6 @@ export interface MemoryPlot {
   status: PlotStatus;
   triggerCondition?: string;
   flags: PlotFlag[];
-  _embedding?: number[];
 }
 
 export interface Disposition {

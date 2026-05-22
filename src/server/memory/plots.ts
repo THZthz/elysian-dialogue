@@ -20,6 +20,7 @@ import { v4 as uuidv4 } from "uuid";
 import { int } from "neo4j-driver";
 import { Neo4jClient } from "@/server/memory/neo4j";
 import { Embedder, getEmbedder } from "@/server/memory/embedder";
+import { getQdrantClient } from "@/server/memory/qdrant";
 import { getReranker, extractSearchTexts, applyRerank } from "@/server/memory/reranker";
 import type { MemoryPlot, PlotFlag, PlotStatus } from "@/server/memory/types";
 
@@ -65,7 +66,6 @@ export class Plots {
          p.brief = $brief,
          p.status = $status,
          p.flags = $flags,
-         p._embedding = $embedding,
          p.trigger_condition = $triggerCondition,
          p._created_at = datetime($now),
          p._updated_at = datetime($now)
@@ -80,10 +80,29 @@ export class Plots {
         status,
         triggerCondition,
         flags: flags.length > 0 ? JSON.stringify(flags) : null,
-        embedding,
         now,
       },
     );
+
+    if (embedding) {
+      try {
+        await getQdrantClient().upsert(`Plot:${name}`, embedding, {
+          node_type: "Plot",
+          kind: "node",
+          object_id: `Plot:${name}`,
+          text: embedText,
+          name,
+          description,
+          brief: brief ?? "",
+          status,
+        });
+      } catch (err) {
+        console.warn(
+          "[plots] Qdrant upsert failed:",
+          err instanceof Error ? err.message : String(err),
+        );
+      }
+    }
 
     const node = (rows[0]?.p as Record<string, unknown>) || {};
     return {
@@ -93,7 +112,6 @@ export class Plots {
       status: (node.status as PlotStatus) || status,
       triggerCondition: (node.trigger_condition as string) || (triggerCondition ?? undefined),
       flags,
-      _embedding: embedding,
     };
   }
 
@@ -122,15 +140,22 @@ export class Plots {
       options.triggerCondition !== undefined
         ? options.triggerCondition
         : (existing.triggerCondition ?? null);
-    const embedding = options.description
-      ? await this.embedder.embed(`${name}: ${options.description}`)
-      : existing._embedding;
+    let embedding = undefined;
+    if (options.description !== undefined || options.brief !== undefined) {
+      const { NodeManager: NM } = await import("@/server/nodeManager");
+      const embedText = NM.getCachedInstance().getEmbeddingText("Plot", {
+        name,
+        description: newDescription,
+        brief: newBrief ?? "",
+      });
+      embedding = embedText ? await this.embedder.embed(embedText) : undefined;
+    }
     const now = new Date().toISOString();
 
     await this.client.executeWrite(
       `MATCH (p:Plot {name: $name})
        SET p.description = $description, p.brief = $brief, p.status = $status,
-           p.trigger_condition = $triggerCondition, p._embedding = $embedding,
+           p.trigger_condition = $triggerCondition,
            p._updated_at = datetime($now)`,
       {
         name,
@@ -138,10 +163,35 @@ export class Plots {
         brief: newBrief || null,
         status: newStatus,
         triggerCondition: newTrigger,
-        embedding: embedding || null,
         now,
       },
     );
+
+    if (embedding) {
+      try {
+        const { NodeManager: NM } = await import("@/server/nodeManager");
+        const embedText = NM.getCachedInstance().getEmbeddingText("Plot", {
+          name,
+          description: newDescription,
+          brief: newBrief ?? "",
+        });
+        await getQdrantClient().upsert(`Plot:${name}`, embedding, {
+          node_type: "Plot",
+          kind: "node",
+          object_id: `Plot:${name}`,
+          text: embedText,
+          name,
+          description: newDescription,
+          brief: newBrief ?? "",
+          status: newStatus,
+        });
+      } catch (err) {
+        console.warn(
+          "[plots] Qdrant upsert failed:",
+          err instanceof Error ? err.message : String(err),
+        );
+      }
+    }
 
     return {
       ...existing,
@@ -149,11 +199,19 @@ export class Plots {
       brief: newBrief,
       status: newStatus,
       triggerCondition: newTrigger ?? undefined,
-      _embedding: embedding,
     };
   }
 
   async deletePlot(name: string): Promise<boolean> {
+    try {
+      await getQdrantClient().deletePoint(`Plot:${name}`);
+    } catch (err) {
+      console.warn(
+        "[plots] Qdrant delete failed:",
+        err instanceof Error ? err.message : String(err),
+      );
+    }
+
     const result = await this.client.executeWrite(
       `MATCH (p:Plot {name: $name}) DETACH DELETE p RETURN count(p) AS deleted`,
       { name },
@@ -283,7 +341,6 @@ export class Plots {
       status: (data.status as PlotStatus) || "PENDING",
       triggerCondition: (data.trigger_condition as string) || undefined,
       flags,
-      _embedding: data._embedding as number[] | undefined,
     };
   }
 }

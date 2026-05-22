@@ -20,6 +20,7 @@ import { v4 as uuidv4 } from "uuid";
 import { int } from "neo4j-driver";
 import { Neo4jClient } from "@/server/memory/neo4j";
 import { Embedder, getEmbedder } from "@/server/memory/embedder";
+import { getQdrantClient } from "@/server/memory/qdrant";
 import { getReranker, extractSearchTexts, applyRerank } from "@/server/memory/reranker";
 import type { MemoryNote } from "@/server/memory/types";
 
@@ -39,15 +40,29 @@ export class Notes {
     const now = new Date().toISOString();
 
     await this.client.executeWrite(
-      `CREATE (n:Note {name: $name, content: $content, _embedding: $embedding, _created_at: datetime($now), _updated_at: datetime($now)})`,
-      { name: noteName, content, embedding, now },
+      `CREATE (n:Note {name: $name, content: $content, _created_at: datetime($now), _updated_at: datetime($now)})`,
+      { name: noteName, content, now },
     );
 
-    return {
-      name: noteName,
-      content,
-      _embedding: embedding,
-    };
+    if (embedding) {
+      try {
+        await getQdrantClient().upsert(`Note:${noteName}`, embedding, {
+          node_type: "Note",
+          kind: "node",
+          object_id: `Note:${noteName}`,
+          text: embedText,
+          name: noteName,
+          content,
+        });
+      } catch (err) {
+        console.warn(
+          "[notes] Qdrant upsert failed:",
+          err instanceof Error ? err.message : String(err),
+        );
+      }
+    }
+
+    return { name: noteName, content };
   }
 
   async updateNote(noteName: string, options: { content?: string }): Promise<MemoryNote | null> {
@@ -55,7 +70,7 @@ export class Notes {
     if (!existing) return null;
 
     const content = options.content ?? existing.content;
-    let embedding = existing._embedding;
+    let embedding: number[] | undefined;
     if (options.content) {
       const { NodeManager: NM } = await import("@/server/nodeManager");
       const embedText = NM.getCachedInstance().getEmbeddingText("Note", {
@@ -68,15 +83,48 @@ export class Notes {
 
     await this.client.executeWrite(
       `MATCH (n:Note {name: $name})
-       SET n.content = $content, n._embedding = $embedding, n._updated_at = datetime($now)
+       SET n.content = $content, n._updated_at = datetime($now)
        RETURN n`,
-      { name: noteName, content, embedding: embedding || null, now },
+      { name: noteName, content, now },
     );
 
-    return { ...existing, content, _embedding: embedding };
+    if (embedding) {
+      try {
+        const { NodeManager: NM } = await import("@/server/nodeManager");
+        const embedText = NM.getCachedInstance().getEmbeddingText("Note", {
+          name: noteName,
+          content,
+        });
+        await getQdrantClient().upsert(`Note:${noteName}`, embedding, {
+          node_type: "Note",
+          kind: "node",
+          object_id: `Note:${noteName}`,
+          text: embedText,
+          name: noteName,
+          content,
+        });
+      } catch (err) {
+        console.warn(
+          "[notes] Qdrant upsert failed:",
+          err instanceof Error ? err.message : String(err),
+        );
+      }
+    }
+
+    return { ...existing, content };
   }
 
   async deleteNote(noteName: string): Promise<boolean> {
+    // Delete Qdrant point first, then Neo4j node.
+    try {
+      await getQdrantClient().deletePoint(`Note:${noteName}`);
+    } catch (err) {
+      console.warn(
+        "[notes] Qdrant delete failed:",
+        err instanceof Error ? err.message : String(err),
+      );
+    }
+
     const result = await this.client.executeWrite(
       `MATCH (n:Note {name: $name}) DETACH DELETE n RETURN count(n) AS deleted`,
       { name: noteName },
@@ -185,7 +233,6 @@ export class Notes {
     return {
       name: data.name as string,
       content: data.content as string,
-      _embedding: data._embedding as number[] | undefined,
     };
   }
 }

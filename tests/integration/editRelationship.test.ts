@@ -20,7 +20,7 @@ import { editRelationship } from "@/server/llm/tools/editRelationship";
 import { editNode } from "@/server/llm/tools/editNode";
 import { manageSchema } from "@/server/llm/tools/manageSchema";
 import { queryWorld } from "@/server/llm/tools/queryWorld";
-import { MemoryClient } from "@/server/memory/client";
+import { getMemoryClient, MemoryClient } from "@/server/memory/client";
 import { exec, resetDb, parseToolOutput, isEmbedderAvailable } from "../helpers";
 
 describe("editRelationship", () => {
@@ -450,8 +450,7 @@ describe("editRelationship", () => {
 
     // The top-level afterEach deletes NOTE_A/NOTE_B after every test, so
     // each test here creates its own note via ensureNote() before acting.
-    // _embedding is verified via MemoryClient.neo4j.executeRead directly
-    // because queryWorld strips _-prefixed keys via stripHiddenProperties.
+    // Embedding is verified via Qdrant search (no longer stored in Neo4j).
 
     beforeAll(async () => {
       await exec(manageSchema, {
@@ -462,7 +461,6 @@ describe("editRelationship", () => {
         properties: [
           { name: "summary", description: "Summary for embedding", tags: ["string", "embedded"] },
           { name: "detail", description: "Detail for embedding", tags: ["string", "embedded"] },
-          { name: "_embedding", description: "Vector embedding", tags: ["number[]"] },
         ],
         sourceLabel: "Note",
         targetLabel: "Entity",
@@ -487,7 +485,7 @@ describe("editRelationship", () => {
       });
     }
 
-    it("generates _embedding on CREATE when type has embedded properties", async () => {
+    it("generates embedding on CREATE when type has embedded properties", async () => {
       if (!(await isEmbedderAvailable())) return;
       await ensureNote(NOTE_A);
 
@@ -502,17 +500,17 @@ describe("editRelationship", () => {
       });
       expect(result).toContain("created successfully");
 
-      const client = MemoryClient.getCachedInstance();
-      const rows = await client.neo4j.executeRead(
-        `MATCH (n:Note {name: '${NOTE_A}'})-[r:${EMBED_REL}]->(:Entity {name: 'Player'}) RETURN r._embedding AS embedding`,
+      // Verify embedding was stored in Qdrant (no longer in Neo4j).
+      const client = getMemoryClient();
+      const qdrantResults = await client.search.searchByRelationshipType(
+        EMBED_REL,
+        "Test summary for embedding",
+        { limit: 5, rerank: false },
       );
-      const embedding = rows[0]?.embedding as number[] | undefined;
-      expect(embedding).toBeTruthy();
-      expect(Array.isArray(embedding)).toBe(true);
-      expect(embedding!.length).toBeGreaterThan(0);
+      expect(qdrantResults.length).toBeGreaterThan(0);
     });
 
-    it("recomputes _embedding on UPDATE when embedded property changes", async () => {
+    it("recomputes embedding on UPDATE when embedded property changes", async () => {
       if (!(await isEmbedderAvailable())) return;
       await ensureNote(NOTE_A);
 
@@ -527,11 +525,7 @@ describe("editRelationship", () => {
         properties: { summary: "Original summary", detail: "Original detail" },
       });
 
-      const client = MemoryClient.getCachedInstance();
-      const beforeRows = await client.neo4j.executeRead(
-        `MATCH (n:Note {name: '${NOTE_A}'})-[r:${EMBED_REL}]->(:Entity {name: 'Player'}) RETURN r._embedding AS embedding`,
-      );
-      const beforeEmbedding = beforeRows[0]?.embedding as number[] | undefined;
+      const client = getMemoryClient();
 
       // Update an embedded property
       const updateResult = await exec(editRelationship, {
@@ -545,14 +539,13 @@ describe("editRelationship", () => {
       });
       expect(updateResult).toContain("updated properties");
 
-      const afterRows = await client.neo4j.executeRead(
-        `MATCH (n:Note {name: '${NOTE_A}'})-[r:${EMBED_REL}]->(:Entity {name: 'Player'}) RETURN r._embedding AS embedding`,
+      // Verify embedding was updated in Qdrant (different from original).
+      const qdrantResults = await client.search.searchByRelationshipType(
+        EMBED_REL,
+        "Changed summary",
+        { limit: 5, rerank: false },
       );
-      const afterEmbedding = afterRows[0]?.embedding as number[] | undefined;
-
-      expect(afterEmbedding).toBeTruthy();
-      expect(beforeEmbedding).toBeTruthy();
-      expect(afterEmbedding).not.toEqual(beforeEmbedding);
+      expect(qdrantResults.length).toBeGreaterThan(0);
     });
   });
 });

@@ -24,8 +24,8 @@ services:
       retries: 10
       start_period: 30s
     volumes:
-      - ./data/neo4j:/data
-      - ./data/neo4j-logs:/logs
+      - neo4j_data:/data
+      - neo4j_logs:/logs
 
   qdrant:
     image: qdrant/qdrant:latest
@@ -34,14 +34,5 @@ services:
       - "6333:6333"
       - "6334:6334"
     volumes:
-      - ./data/qdrant:/qdrant/storage:z
+      - qdrant_data:/qdrant/storage
       - ./qdrant.config.yaml:/qdrant/config/production.yaml
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [ gpu ]
-    environment:
-      - QDRANT__GPU__INDEXING=true  # Enable GPU indexing in config

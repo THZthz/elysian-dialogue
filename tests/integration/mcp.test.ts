@@ -31,8 +31,8 @@ import { manageSchema } from "@/server/llm/tools/manageSchema";
 import { createGenerateDialogueStepTool } from "@/server/llm/tools/generateDialogueStep";
 import { createAdvanceTimeTool } from "@/server/llm/tools/advanceTime";
 import { createMockEventEmitter, resetDb } from "../helpers";
-import { setupServer } from "@/server/mcp.ts";
-import { TOOL_NAMES } from "@/shared/constants.ts";
+import { setupServer } from "@/server/mcp";
+import { TOOL_NAMES } from "@/shared/constants";
 
 function buildServer(): McpServer {
   const dialogueStepTool = createGenerateDialogueStepTool();
@@ -138,7 +138,7 @@ describe("MCP Server", () => {
     it("searchWorld: searches entities via vector search", async () => {
       const result = await client.callTool({
         name: "searchWorld",
-        arguments: { query: "tavern", target: ["node"], domains: ["Entity"], limit: 3 },
+        arguments: { query: "tavern", target: ["NODE"], domains: ["Entity"], limit: 3 },
       });
 
       const text = (result as any).content?.[0]?.text;

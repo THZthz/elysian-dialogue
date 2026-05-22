@@ -17,7 +17,7 @@
  */
 
 import { v4 as uuidv4 } from "uuid";
-import { MemoryClient } from "@/server/memory/client";
+import { getMemoryClient, MemoryClient } from "@/server/memory/client";
 
 // ── Types ──
 
@@ -39,7 +39,7 @@ const HALF_HOURS_PER_DAY = 48; // 24 hours × 2 half-hours
 // ── Current Time ──
 
 export async function getCurrentTimePoint(): Promise<TimePoint | null> {
-  const client = MemoryClient.getCachedInstance();
+  const client = getMemoryClient();
   const rows = await client.neo4j.executeRead(
     `MATCH (a:TimeAnchor {_id: 'anchor'})-[:CURRENT_TIMEPOINT]->(tp:TimePoint)
      RETURN tp`,
@@ -58,7 +58,7 @@ export async function getCurrentTimePoint(): Promise<TimePoint | null> {
 // ── Advance Time ──
 
 export async function setInitialTime(day: number, hour: number): Promise<void> {
-  const client = MemoryClient.getCachedInstance();
+  const client = getMemoryClient();
   const existing = await getCurrentTimePoint();
   if (existing) return; // already initialized
 
@@ -82,7 +82,7 @@ export async function advanceGameTime(
   halfHours: number,
   reason?: string | null,
 ): Promise<{ oldTime: GameTime; newTime: GameTime; totalHalfHours: number }> {
-  const client = MemoryClient.getCachedInstance();
+  const client = getMemoryClient();
   const oldTimePoint = await getCurrentTimePoint();
   const oldTime: GameTime = oldTimePoint ?? { day: 1, hour: 8 };
 

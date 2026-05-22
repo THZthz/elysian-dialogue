@@ -20,7 +20,7 @@ import {
   type EntityType,
   MemoryClient,
   type MemoryEntity,
-  type Disposition,
+  type Disposition, getMemoryClient,
 } from "@/server/memory/client";
 import { RelationshipManager } from "@/server/relationshipManager";
 import { NodeManager } from "@/server/nodeManager";
@@ -28,8 +28,9 @@ import { CypherValidator } from "@/server/memory/validation";
 import { setInitialTime } from "@/server/models/time";
 import { getActiveSeedStory } from "@/server/stories";
 import { v4 as uuidv4 } from "uuid";
-import { Neo4jClient } from "@/server/memory/neo4j.ts";
-import { Embedder, getEmbedder } from "@/server/memory/embedder.ts";
+import { Neo4jClient } from "@/server/memory/neo4j";
+import { Embedder, getEmbedder } from "@/server/memory/embedder";
+import { getQdrantClient } from "@/server/memory/qdrant";
 
 // ── Helpers ──
 
@@ -72,7 +73,7 @@ async function addEntity(
     generateEmbedding?: boolean;
   },
 ): Promise<MemoryEntity> {
-  const client = MemoryClient.getCachedInstance();
+  const client = getMemoryClient();
 
   const {
     id,
@@ -96,9 +97,10 @@ async function addEntity(
   const subtypeLabel = finalSubtype ? pascalCase(finalSubtype) : null;
 
   let embedding: number[] | undefined;
+  let embedText: string | undefined;
   if (generateEmbedding) {
     const nodeManager = NodeManager.getCachedInstance();
-    const embedText = nodeManager.getEmbeddingText("Entity", {
+    embedText = nodeManager.getEmbeddingText("Entity", {
       name,
       type: finalType,
       description: description ?? "",
@@ -124,7 +126,6 @@ async function addEntity(
          e.subtype = $subtype,
          e.brief = $brief,
          e.description = $description,
-         e._embedding = $embedding,
          e.metadata = $metadata
        SET e:${typeLabel}
        ${subtypeLabel ? `SET e:${subtypeLabel}` : ""}
@@ -136,13 +137,35 @@ async function addEntity(
       subtype: finalSubtype || null,
       brief: brief || null,
       description: description || null,
-      embedding: embedding || null,
       metadata: Object.keys(storageMetadata).length > 0 ? JSON.stringify(storageMetadata) : null,
     },
   );
 
   const result = rows[0];
   const isNew = (result?.isNew as boolean) || false;
+
+  if (embedding) {
+    try {
+      const payload: Record<string, unknown> = {
+        node_type: "Entity",
+        kind: "node",
+        object_id: `Entity:${name}`,
+        text: embedText,
+        name,
+        type: finalType,
+        subtype: finalSubtype || null,
+        brief: brief || null,
+        description: description || null,
+      };
+      await getQdrantClient().upsert(`Entity:${name}`, embedding, payload);
+    } catch (err) {
+      console.warn(
+        "[seed] Qdrant upsert failed:",
+        err instanceof Error ? err.message : String(err),
+      );
+    }
+  }
+
   return {
     name,
     type: finalType as EntityType,
@@ -151,7 +174,6 @@ async function addEntity(
     description,
     aliases: aliases || [],
     metadata: metadata || {},
-    _embedding: embedding,
     isNew,
   };
 }
@@ -171,7 +193,7 @@ async function setDisposition(
   sentiment: string,
   summary: string,
 ): Promise<Disposition> {
-  const neo4j = MemoryClient.getCachedInstance().neo4j;
+  const neo4j = getMemoryClient().neo4j;
   const id = uuidv4();
   const now = new Date().toISOString();
   const rows = await neo4j.executeWrite(

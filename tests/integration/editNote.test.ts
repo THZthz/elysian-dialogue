@@ -20,7 +20,7 @@ import { editNote } from "@/server/llm/tools/editNote";
 import { editPlot } from "@/server/llm/tools/editPlot";
 import { queryWorld } from "@/server/llm/tools/queryWorld";
 import { exec, parseToolOutput, resetDb } from "../helpers";
-import { MemoryClient } from "@/server/memory/client";
+import { getMemoryClient, MemoryClient } from "@/server/memory/client";
 
 describe("editNote", () => {
   const TEST_NOTE = "test_note_editNote";
@@ -121,7 +121,7 @@ describe("editNote", () => {
         content: "Note about messages",
       });
 
-      const client = MemoryClient.getCachedInstance();
+      const client = getMemoryClient();
       const msg = await client.shortTerm.addMessage("A test message for linking");
 
       const result = await exec(editNote, {

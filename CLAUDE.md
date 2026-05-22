@@ -4,7 +4,7 @@
 - Focus on **MODULARITY** and **EXTENSIBILITY**. Avoid type redefinition and magic strings. Do not let one file grows too big (>700 lines).
 - If `// TODO:`, `// WARNING:` or `// NOTE:` is found in code, preserve it.
 - No need to add license header for new files, user will add it manually.
-- No need to consider database backward compatibility, this project is local/development only.
+- No need to consider backward compatibility, always start fresh.
 
 ## IMPORTANT: Your workflow
 

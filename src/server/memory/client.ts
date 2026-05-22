@@ -18,6 +18,7 @@
 
 import { Neo4jClient } from "@/server/memory/neo4j";
 import { getEmbedder } from "@/server/memory/embedder";
+import { getQdrantClient, QdrantVectorClient } from "@/server/memory/qdrant";
 import { ShortTermMemory } from "@/server/memory/shortTerm";
 import { MemorySearch } from "@/server/memory/search";
 import { Notes } from "@/server/memory/notes";
@@ -31,8 +32,11 @@ export { Notes } from "@/server/memory/notes";
 export { Plots } from "@/server/memory/plots";
 export * from "@/server/memory/types";
 
+let memoryClient: MemoryClient | null = null;
+
 export class MemoryClient {
   readonly neo4j: Neo4jClient;
+  readonly qdrant: QdrantVectorClient;
   readonly shortTerm: ShortTermMemory;
   readonly search: MemorySearch;
   readonly notes: Notes;
@@ -40,8 +44,9 @@ export class MemoryClient {
 
   private constructor(neo4j: Neo4jClient) {
     this.neo4j = neo4j;
+    this.qdrant = getQdrantClient();
     this.shortTerm = new ShortTermMemory(neo4j);
-    this.search = new MemorySearch(neo4j);
+    this.search = new MemorySearch(neo4j, this.qdrant);
     this.notes = new Notes(neo4j);
     this.plots = new Plots(neo4j);
   }
@@ -52,20 +57,28 @@ export class MemoryClient {
 
   // ── Singleton ──
 
-  private static instance: MemoryClient | null = null;
-
   static async getInstance(options?: {
     neo4jUri?: string;
     neo4jUser?: string;
     neo4jPassword?: string;
   }): Promise<MemoryClient> {
-    if (MemoryClient.instance) return MemoryClient.instance;
+    if (memoryClient) return memoryClient;
 
     const client = new Neo4jClient(options?.neo4jUri, options?.neo4jUser, options?.neo4jPassword);
 
     await client.verifyConnectivity();
     const _embedder = getEmbedder();
-    MemoryClient.instance = new MemoryClient(client);
+    memoryClient = new MemoryClient(client);
+
+    // Ensure Qdrant collection exists (non-blocking on failure)
+    try {
+      await memoryClient.qdrant.ensureCollection();
+    } catch (err) {
+      console.warn(
+        "[qdrant] collection init failed — vector search will be unavailable:",
+        err instanceof Error ? err.message : String(err),
+      );
+    }
 
     // Initialize RelationshipManager singleton (eager, idempotent)
     RelationshipManager.getCachedInstance();
@@ -73,23 +86,24 @@ export class MemoryClient {
     // Initialize NodeManager singleton (eager, idempotent)
     NodeManager.getCachedInstance();
 
-    return MemoryClient.instance;
-  }
-
-  // TODO: Should be "getMemoryClient" just like "getEmbedder" or "getReranker".
-  static getCachedInstance(): MemoryClient {
-    if (!MemoryClient.instance) {
-      throw new Error("MemoryClient not initialized. Call getInstance() first.");
-    }
-    return MemoryClient.instance;
+    return memoryClient;
   }
 
   // TODO: We should have a global event emitter to broadcast events like "server_start" or "server_close" to handle this automatically.
   //  But where should the event get registered?
   static async closeInstance(): Promise<void> {
-    if (MemoryClient.instance) {
-      await MemoryClient.instance.close();
-      MemoryClient.instance = null;
+    if (memoryClient) {
+      await memoryClient.close();
+      memoryClient = null;
+      QdrantVectorClient.resetInstance();
     }
   }
+}
+
+// TODO: Should be "getMemoryClient" just like "getEmbedder" or "getReranker".
+export function getMemoryClient(): MemoryClient {
+  if (!memoryClient) {
+    throw new Error("MemoryClient not initialized. Call getInstance() first.");
+  }
+  return memoryClient;
 }

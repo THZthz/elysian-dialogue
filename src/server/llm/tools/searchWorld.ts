@@ -18,14 +18,17 @@
 
 import { tool } from "ai";
 import { z } from "zod";
-import { MemoryClient } from "@/server/memory/client";
+import { getMemoryClient, MemoryClient } from "@/server/memory/client";
 import { stripHiddenProperties } from "@/server/memory/neo4j";
 import { wrapSafe } from "@/server/llm/tools/shared";
 import { TOOL_NAMES } from "@/shared/constants";
 import { NodeDef, NodeManager } from "@/server/nodeManager";
 import { RelationshipDef, RelationshipManager } from "@/server/relationshipManager";
 
-function getVectorSearchable(type: "relationship" | "label") {
+function getVectorSearchable(type: "relationship" | "label"): {
+  canonical: Set<string>;
+  labelToCanonical: Map<string, string>;
+} {
   const all: RelationshipDef[] | NodeDef[] = (
     type === "relationship"
       ? RelationshipManager.getCachedInstance()
@@ -34,14 +37,14 @@ function getVectorSearchable(type: "relationship" | "label") {
     .getAll()
     .filter(
       (def) =>
-        def.properties.some((p) => p.name === "_embedding") &&
         def.properties.some((p) => p.tags.includes("embedded")),
     );
 
   // Filter out subtype labels: labels whose property definitions (names + tags)
   // are identical to another label's — they share the same vector index.
   const seen = new Map<string, string>(); // property-fingerprint → first label name
-  const primary: string[] = [];
+  const labelToCanonical = new Map<string, string>();
+  const canonical = new Set<string>();
   for (const def of all) {
     const fingerprint = def.properties
       .map((p) => `${p.name}:${[...p.tags].sort().join(",")}`)
@@ -50,11 +53,13 @@ function getVectorSearchable(type: "relationship" | "label") {
     const existing = seen.get(fingerprint);
     if (existing === undefined) {
       seen.set(fingerprint, def.name);
-      primary.push(def.name);
+      canonical.add(def.name);
+      labelToCanonical.set(def.name, def.name);
+    } else {
+      labelToCanonical.set(def.name, existing);
     }
-    // else: def.name is a subtype of existing — shares the same vector index
   }
-  return primary;
+  return { canonical, labelToCanonical };
 }
 
 export const searchWorld = tool({
@@ -79,8 +84,8 @@ Do not forget to use parameter \`limit\` wisely, if the search should be exact, 
         "Natural language search query, usually a few keywords. Keep short and focus on the same topic.",
       ),
     target: z
-      .array(z.enum(["node", "relationship"]))
-      .default(["node", "relationship"])
+      .array(z.enum(["NODE", "RELATIONSHIP"]))
+      .default(["NODE", "RELATIONSHIP"])
       .describe("Search nodes, relationships, or both. Defaults to both."),
     domains: z
       .array(z.string())
@@ -91,40 +96,37 @@ Do not forget to use parameter \`limit\` wisely, if the search should be exact, 
     limit: z.number().default(3).describe("Max results per domain."),
   }),
   execute: wrapSafe(async (args) => {
-    const target = args.target ?? ["node", "relationship"];
-    const searchNodes = target.includes("node");
-    const searchRels = target.includes("relationship");
+    const target = args.target ?? ["NODE", "RELATIONSHIP"];
+    const searchNodes = target.includes("NODE");
+    const searchRels = target.includes("RELATIONSHIP");
 
-    const searchableLabels = searchNodes
-      ? new Set(getVectorSearchable("label"))
-      : new Set<string>();
-    const searchableRelTypes = searchRels
-      ? new Set(getVectorSearchable("relationship"))
-      : new Set<string>();
+    const nodeSearchable = searchNodes ? getVectorSearchable("label") : { canonical: new Set<string>(), labelToCanonical: new Map<string, string>() };
+    const relSearchable = searchRels ? getVectorSearchable("relationship") : { canonical: new Set<string>(), labelToCanonical: new Map<string, string>() };
 
     // Resolve domains: filter user-provided values to what's searchable.
-    // If none provided, use all searchable node labels and relationship types.
+    // If none provided, use all canonical (non-subtype) node labels and relationship types.
+    // Subtype labels (Character, Location, Object) map to their canonical parent (Entity).
     const nodeDomains: string[] = [];
     const relDomains: string[] = [];
 
     if (args.domains && args.domains.length > 0) {
       for (const d of args.domains) {
-        const isNode = searchableLabels.has(d);
-        const isRel = searchableRelTypes.has(d);
-        if (!isNode && !isRel) {
-          const available = [...searchableLabels, ...searchableRelTypes].join(", ");
+        const canonicalNode = searchNodes ? nodeSearchable.labelToCanonical.get(d) : undefined;
+        const isRel = searchRels ? relSearchable.canonical.has(d) : false;
+        if (!canonicalNode && !isRel) {
+          const available = [...nodeSearchable.canonical, ...relSearchable.canonical].join(", ");
           return `ERROR: "${d}" is not a searchable node label or relationship type. Available: ${available}`;
         }
-        if (isNode && searchNodes) nodeDomains.push(d);
+        if (canonicalNode && searchNodes) nodeDomains.push(canonicalNode);
         if (isRel && searchRels) relDomains.push(d);
       }
     } else {
       // Search all labels and relationships.
-      if (searchNodes) nodeDomains.push(...searchableLabels);
-      if (searchRels) relDomains.push(...searchableRelTypes);
+      if (searchNodes) nodeDomains.push(...nodeSearchable.canonical);
+      if (searchRels) relDomains.push(...relSearchable.canonical);
     }
 
-    const client = MemoryClient.getCachedInstance();
+    const client = getMemoryClient();
     const result: Record<string, Record<string, unknown>[]> = {};
 
     const tasks: Promise<void>[] = [];

@@ -16,7 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { MemoryClient } from "@/server/memory/client";
+import { getMemoryClient, MemoryClient } from "@/server/memory/client";
 import type { DialogueOption } from "@/types/dialogue";
 
 export const GAME_ID = "chorus-game";
@@ -26,7 +26,7 @@ export const GAME_ID = "chorus-game";
  * @param options
  */
 export async function saveCurrentOptions(options: DialogueOption[]): Promise<void> {
-  const client = MemoryClient.getCachedInstance();
+  const client = getMemoryClient();
   await client.neo4j.executeWrite(
     `MERGE (c:Conversation {session_id: $gameId})
      SET c.options = $options, c._updated_at = datetime()`,
@@ -41,7 +41,7 @@ export async function getCurrentOptions(): Promise<{
   id: string;
   options: DialogueOption[];
 } | null> {
-  const client = MemoryClient.getCachedInstance();
+  const client = getMemoryClient();
   const rows = await client.neo4j.executeRead(
     `MATCH (c:Conversation {session_id: $gameId}) RETURN c._id AS id, c.options AS options`,
     { gameId: GAME_ID },

@@ -19,7 +19,7 @@
 import express from "express";
 import { generateTurn } from "@/server/llm";
 import { chatStreamSchema } from "@/server/validation";
-import { MemoryClient } from "@/server/memory/client";
+import { getMemoryClient, MemoryClient } from "@/server/memory/client";
 import { RelationshipManager } from "@/server/relationshipManager";
 import { getCurrentOptions } from "@/server/gameState";
 import { queryWorld } from "@/server/llm/tools/queryWorld";
@@ -75,7 +75,7 @@ apiRouter.post("/chat/stream", async (req, res) => {
 
 apiRouter.get("/history", async (_req, res) => {
   try {
-    const client = MemoryClient.getCachedInstance();
+    const client = getMemoryClient();
     const messages = await client.shortTerm.getConversation();
     const history: Message[] = messages.map((m, i) => {
       const meta = m.metadata || {};

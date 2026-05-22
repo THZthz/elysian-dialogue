@@ -17,7 +17,7 @@
  */
 
 import { queryWorld } from "@/server/llm/tools/queryWorld";
-import { MemoryClient } from "@/server/memory/client";
+import { getMemoryClient, MemoryClient } from "@/server/memory/client";
 import { exec, parseToolOutput, resetDb } from "../helpers";
 
 describe("queryWorld READ", () => {
@@ -97,7 +97,7 @@ describe("queryWorld WRITE", () => {
   const TEST_NAME = "TestWriteEntity";
 
   afterEach(async () => {
-    const client = MemoryClient.getCachedInstance();
+    const client = getMemoryClient();
     try {
       await client.neo4j.executeWrite(`MATCH (e:Entity {name: '${TEST_NAME}'}) DETACH DELETE e`);
     } catch {

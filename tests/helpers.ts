@@ -16,10 +16,11 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { MemoryClient } from "@/server/memory/client";
+import { getMemoryClient, MemoryClient } from "@/server/memory/client";
 import { seedDatabase } from "@/server/stories/seed";
 import { clearNeo4jDatabase } from "@/server/memory/reset";
 import { RelationshipManager } from "@/server/relationshipManager";
+import { getEmbedder } from "@/server/memory/embedder";
 
 export async function resetDb() {
   await clearNeo4jDatabase();
@@ -35,7 +36,7 @@ export async function resetDb() {
   await seedDatabase();
 
   // Sync INTERNAL + PREDEFINED types back to Neo4j after seed
-  const client = MemoryClient.getCachedInstance();
+  const client = getMemoryClient();
   await relManager.syncToNeo4j(client.neo4j);
   await nodeManager.syncToNeo4j(client.neo4j);
 }
@@ -54,8 +55,7 @@ export function parseToolOutput(output: string): Record<string, unknown> {
 
 export async function isEmbedderAvailable(): Promise<boolean> {
   try {
-    const client = MemoryClient.getCachedInstance();
-    await client.search.searchByLabel("Entity", "test", { limit: 1 });
+    await getEmbedder().embed("test");
     return true;
   } catch {
     return false;

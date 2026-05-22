@@ -17,7 +17,7 @@
  */
 
 import { describeTime, getCurrentTimePoint } from "@/server/models/time";
-import { MemoryClient } from "@/server/memory/client";
+import { getMemoryClient, MemoryClient } from "@/server/memory/client";
 import { RelationshipManager } from "@/server/relationshipManager";
 import { NodeManager } from "@/server/nodeManager";
 import type { EntityRef } from "@/server/models/entity";
@@ -87,7 +87,7 @@ function formatDisposition(d: DispositionRow): string {
 // ── SCENE_CONTEXT ──
 
 export async function buildSceneContext(): Promise<string> {
-  const client = MemoryClient.getCachedInstance();
+  const client = getMemoryClient();
 
   const [gameTime, sceneRows, dispositionRows, plotRows] = await Promise.all([
     getCurrentTimePoint().catch((err) => {
@@ -221,7 +221,7 @@ interface CharacterRow {
 }
 
 export async function buildCharactersBrief(): Promise<string> {
-  const client = MemoryClient.getCachedInstance();
+  const client = getMemoryClient();
   const rows = (await client.neo4j.executeRead(CHARACTERS_QUERY)) as unknown as CharacterRow[];
 
   if (rows.length === 0) return "## CHARACTERS\n\n(none)\n";
@@ -253,7 +253,7 @@ interface LocationRow {
 }
 
 export async function buildLocationsBrief(): Promise<string> {
-  const client = MemoryClient.getCachedInstance();
+  const client = getMemoryClient();
   const rows = (await client.neo4j.executeRead(LOCATIONS_QUERY)) as unknown as LocationRow[];
 
   if (rows.length === 0) return "## LOCATIONS\n\n(none)\n";
@@ -289,7 +289,7 @@ interface ObjectRow {
 }
 
 export async function buildObjectsBrief(): Promise<string> {
-  const client = MemoryClient.getCachedInstance();
+  const client = getMemoryClient();
   const rows = (await client.neo4j.executeRead(OBJECTS_QUERY)) as unknown as ObjectRow[];
 
   if (rows.length === 0) return "## OBJECTS\n\n(none)\n";
@@ -310,7 +310,7 @@ export async function buildObjectsBrief(): Promise<string> {
 // ── PLOTS_BRIEF ──
 
 export async function buildPlotsBrief(): Promise<string> {
-  const client = MemoryClient.getCachedInstance();
+  const client = getMemoryClient();
   const rows = (await client.neo4j.executeRead(
     `MATCH (p:Plot) RETURN p ORDER BY p.name`,
   )) as Array<{ p: Record<string, unknown> }>;
@@ -334,7 +334,7 @@ export async function buildPlotsBrief(): Promise<string> {
 // ── RELATIONSHIP_DUMP ──
 
 export async function buildRelationshipDump(): Promise<string> {
-  const client = MemoryClient.getCachedInstance();
+  const client = getMemoryClient();
   const manager = RelationshipManager.getCachedInstance();
   const nodeManager = NodeManager.getCachedInstance();
 

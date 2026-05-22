@@ -18,7 +18,7 @@
 
 import { tool } from "ai";
 import { z } from "zod";
-import { MemoryClient, PLOT_STATUSES } from "@/server/memory/client";
+import { getMemoryClient, MemoryClient, PLOT_STATUSES } from "@/server/memory/client";
 import { wrapSafe } from "@/server/llm/tools/shared";
 import { TOOL_NAMES } from "@/shared/constants";
 
@@ -82,7 +82,7 @@ Find existing plots via searchWorld.
 `.trim(),
   inputSchema,
   execute: wrapSafe(async (args: z.infer<typeof inputSchema>) => {
-    const client = MemoryClient.getCachedInstance();
+    const client = getMemoryClient();
 
     if (!args.plotName) {
       return `ERROR: Parameter "plotName" should be included.`;

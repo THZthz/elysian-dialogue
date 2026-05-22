@@ -17,7 +17,7 @@
  */
 
 import "dotenv/config";
-import { MemoryClient } from "@/server/memory/client";
+import { getMemoryClient, MemoryClient } from "@/server/memory/client";
 import { seedDatabase } from "@/server/stories/seed";
 
 export async function setup() {

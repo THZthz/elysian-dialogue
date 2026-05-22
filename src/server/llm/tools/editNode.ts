@@ -19,10 +19,11 @@
 import { tool } from "ai";
 import { z } from "zod";
 import { v4 as uuidv4 } from "uuid";
-import { MemoryClient } from "@/server/memory/client";
+import { getMemoryClient, MemoryClient } from "@/server/memory/client";
 import { NodeDef, NodeManager } from "@/server/nodeManager";
 import { extractInternalAndUnknownKeys, wrapSafe } from "@/server/llm/tools/shared";
 import { getEmbedder } from "@/server/memory/embedder";
+import { getQdrantClient } from "@/server/memory/qdrant";
 import { TOOL_NAMES } from "@/shared/constants";
 
 const NODE_ACTIONS = ["CREATE", "UPDATE", "DELETE"] as const;
@@ -66,7 +67,7 @@ e.g. { name: 'Tavern' } for an Entity, or { source_name: 'Guard', target_name: '
       `
 Key-value pairs to set on the node. Must match the property schema for this node type.
 CREATE: sets initial properties. UPDATE: only include properties you want to change.
-System properties (_id, _created_at, _updated_at, _embedding) are managed automatically.
+System properties (_id, _created_at, _updated_at) are managed automatically.
 `.trim(),
     ),
 });
@@ -99,7 +100,7 @@ Set or update disposition when an NPC's feelings shift due to player actions.
 `.trim(),
   inputSchema,
   execute: wrapSafe(async (args: z.infer<typeof inputSchema>) => {
-    const client = MemoryClient.getCachedInstance();
+    const client = getMemoryClient();
     const nodeManager = NodeManager.getCachedInstance();
 
     // Validate node label ever registered
@@ -155,7 +156,50 @@ Set or update disposition when an NPC's feelings shift due to player actions.
         : null;
     }
 
-    const wantsEmbedding = nodeDef.properties.some((p) => p.name === "_embedding") ?? false;
+    const wantsEmbedding = nodeDef.properties.some((p) => p.tags.includes("embedded")) ?? false;
+
+    // Derive Qdrant pointId from the node's unique identifying property.
+    function getPointId(props: Record<string, unknown>): string | null {
+      const uniqueProp = nodeDef.properties.find(
+        (p) => p.tags.includes("unique") && !p.name.startsWith("_"),
+      );
+      if (!uniqueProp) return null;
+      const val = props[uniqueProp.name];
+      return val ? `${args.nodeLabel}:${val}` : null;
+    }
+
+    async function qdrantUpsert(pointId: string, embedding: number[], props: Record<string, unknown>) {
+      try {
+        const nodeManager = NodeManager.getCachedInstance();
+        const embedText = nodeManager.getEmbeddingText(args.nodeLabel, props);
+        const payload: Record<string, unknown> = {
+          node_type: args.nodeLabel,
+          kind: "node",
+          object_id: pointId,
+          text: embedText,
+        };
+        for (const [k, v] of Object.entries(props)) {
+          if (!k.startsWith("_")) payload[k] = v;
+        }
+        await getQdrantClient().upsert(pointId, embedding, payload);
+      } catch (err) {
+        console.warn(
+          `[editNode] Qdrant upsert failed for "${args.nodeLabel}":`,
+          err instanceof Error ? err.message : String(err),
+        );
+      }
+    }
+
+    async function qdrantDelete(pointId: string) {
+      try {
+        await getQdrantClient().deletePoint(pointId);
+      } catch (err) {
+        console.warn(
+          `[editNode] Qdrant delete failed for "${args.nodeLabel}":`,
+          err instanceof Error ? err.message : String(err),
+        );
+      }
+    }
 
     async function computeEmbedding(props: Record<string, unknown>): Promise<number[] | null> {
       if (!wantsEmbedding) return null;
@@ -197,6 +241,12 @@ Set or update disposition when an NPC's feelings shift due to player actions.
       const matchErr = isMatchKeysInternal(args.match);
       if (matchErr) return `ERROR: ${matchErr}`;
 
+      // Delete Qdrant point first, then Neo4j node.
+      if (wantsEmbedding) {
+        const pointId = getPointId(args.match as Record<string, unknown>);
+        if (pointId) await qdrantDelete(pointId);
+      }
+
       const params: Record<string, unknown> = {};
       const where = buildWhere(args.match, params);
       const result = await client.neo4j.executeWrite(
@@ -229,19 +279,21 @@ Set or update disposition when an NPC's feelings shift due to player actions.
         setters.push(`n.\`${key}\` = $${pName}`);
       }
 
-      if (wantsEmbedding) {
-        const embedding = await computeEmbedding(args.properties);
-        const embeddingParam = `p__embedding`;
-        params[embeddingParam] = embedding ?? [];
-        setters.push(`n._embedding = $${embeddingParam}`);
-      }
-
-      // TODO: NodeManager, specify unique property name to enable auto de-duplication.
       const rows = await client.neo4j.executeWrite(
         `CREATE (n:\`${args.nodeLabel}\`) SET ${setters.join(", ")} RETURN n`,
         params,
       );
       const created = rows[0]?.n as Record<string, unknown> | undefined;
+
+      if (wantsEmbedding) {
+        const embedding = await computeEmbedding(args.properties);
+        if (embedding) {
+          const merged = { ...args.properties };
+          const pointId = getPointId(merged);
+          if (pointId) await qdrantUpsert(pointId, embedding, merged);
+        }
+      }
+
       const v = visibleProps(created);
       const propSummary =
         Object.keys(v).length > 0 ? ` with keys: ${Object.keys(v).join(", ")}` : "";
@@ -315,16 +367,16 @@ Set or update disposition when an NPC's feelings shift due to player actions.
       setters.push(`n.\`${key}\` = $${pName}`);
     }
 
+    let updatedEmbedding: number[] | null = null;
+    let updatedProps: Record<string, unknown> | null = null;
     if (wantsEmbedding) {
       const embeddedNames = new Set(
         nodeDef.properties.filter((p) => p.tags.includes("embedded")).map((p) => p.name),
       );
       const textChanged = Object.keys(args.properties).some((k) => embeddedNames.has(k));
       if (textChanged) {
-        const merged: Record<string, unknown> = { ...existingNode, ...args.properties };
-        const embedding = await computeEmbedding(merged);
-        setters.push(`n._embedding = $s__embedding`);
-        setParams["s__embedding"] = embedding ?? [];
+        updatedProps = { ...existingNode, ...args.properties } as Record<string, unknown>;
+        updatedEmbedding = await computeEmbedding(updatedProps);
       }
     }
 
@@ -332,6 +384,11 @@ Set or update disposition when an NPC's feelings shift due to player actions.
       `MATCH (n:\`${args.nodeLabel}\`) WHERE ${where} SET ${setters.join(", ")}`,
       setParams,
     );
+
+    if (updatedEmbedding && updatedProps) {
+      const pointId = getPointId(updatedProps);
+      if (pointId) await qdrantUpsert(pointId, updatedEmbedding, updatedProps);
+    }
 
     return `Node "${args.nodeLabel}" updated properties: ${Object.keys(args.properties).join(", ")}.`;
   }, TOOL_NAMES.EDIT_NODE),

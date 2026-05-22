@@ -20,7 +20,7 @@ import neo4j, { isNode, isRelationship, isInt, Neo4jError } from "neo4j-driver";
 import type { Driver } from "neo4j-driver";
 
 // Properties whose key starts with "_" are internal/hidden and must never be
-// exposed to the LLM (e.g. _embedding vectors, _elementId, _labels).
+// exposed to the LLM (e.g. _elementId, _labels).
 export function stripHiddenProperties(obj: any): any {
   if (obj === null || obj === undefined) return obj;
   if (Array.isArray(obj)) return obj.map((item) => stripHiddenProperties(item));

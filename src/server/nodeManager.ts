@@ -30,7 +30,7 @@ export const NODE_PROPERTY_TAGS = [
    */
   "json",
   /**
-   * Will be used to compute property `_embedding`.
+   * Will be used to compute vector embedding.
    */
   "embedded",
   /**
@@ -80,12 +80,6 @@ const INTERNAL_PROPS: NodePropertyDef[] = [
     tags: ["string", "unique"],
   },
 ];
-
-const EMBEDDING_PROP: NodePropertyDef = {
-  name: "_embedding",
-  description: "Internal vector embedding for semantic search. Hidden from GM tools.",
-  tags: ["number[]"],
-};
 
 const TIMESTAMP_PROPS: NodePropertyDef[] = [
   { name: "_created_at", description: "ISO 8601 timestamp of creation.", tags: ["string"] },
@@ -233,22 +227,22 @@ const PREDEFINED_TYPES: { name: string; description: string; properties: NodePro
     name: "Entity",
     description:
       "A world entity (CHARACTER, OBJECT, LOCATION). Core building block of the world model.",
-    properties: [...ENTITY_PROPS, EMBEDDING_PROP, ...INTERNAL_PROPS],
+    properties: [...ENTITY_PROPS, ...INTERNAL_PROPS],
   },
   {
     name: "Character",
     description: "Dynamic sub-label of Entity for CHARACTER type. Inherits all Entity properties.",
-    properties: [...ENTITY_PROPS, EMBEDDING_PROP, ...INTERNAL_PROPS],
+    properties: [...ENTITY_PROPS, ...INTERNAL_PROPS],
   },
   {
     name: "Object",
     description: "Dynamic sub-label of Entity for OBJECT type. Inherits all Entity properties.",
-    properties: [...ENTITY_PROPS, EMBEDDING_PROP, ...INTERNAL_PROPS],
+    properties: [...ENTITY_PROPS, ...INTERNAL_PROPS],
   },
   {
     name: "Location",
     description: "Dynamic sub-label of Entity for LOCATION type. Inherits all Entity properties.",
-    properties: [...ENTITY_PROPS, EMBEDDING_PROP, ...INTERNAL_PROPS],
+    properties: [...ENTITY_PROPS, ...INTERNAL_PROPS],
   },
   {
     name: "Message",
@@ -264,7 +258,6 @@ const PREDEFINED_TYPES: { name: string; description: string; properties: NodePro
           "JSON object including speaker (voice name), and type (CHARACTER/SYSTEM/ROLL/INNER_VOICE).",
         tags: ["json"],
       },
-      EMBEDDING_PROP,
     ],
   },
   {
@@ -278,7 +271,6 @@ const PREDEFINED_TYPES: { name: string; description: string; properties: NodePro
         tags: ["string", "embedded"],
       },
       ...TIMESTAMP_PROPS,
-      EMBEDDING_PROP,
       ...INTERNAL_PROPS,
     ],
   },
@@ -317,7 +309,6 @@ const PREDEFINED_TYPES: { name: string; description: string; properties: NodePro
         tags: ["json"],
       },
       ...TIMESTAMP_PROPS,
-      EMBEDDING_PROP,
       ...INTERNAL_PROPS,
     ],
   },
@@ -593,22 +584,6 @@ export class NodeManager {
           const msg = err instanceof Error ? err.message : String(err);
           console.error(
             `[syncToNeo4j] Composite unique constraint on ${constraintName} not created: ${msg}`,
-          );
-        }
-      }
-
-      // Create vector indexes (require Neo4j 5.11+) for node type that has "_embedding" properties.
-      if (def.properties.some((prop) => prop.name === "_embedding")) {
-        const vectorIndexName = def.name.toLowerCase() + "_embedding_idx";
-        const dimensions = process.env.EMBEDDING_DIMENSIONS || 1024;
-        try {
-          await client.executeWrite(
-            `CREATE VECTOR INDEX ${vectorIndexName} IF NOT EXISTS FOR (n:${def.name}) ON (n._embedding)
-            OPTIONS { indexConfig: { \`vector.dimensions\`: ${dimensions}, \`vector.similarity_function\`: 'COSINE' } }`,
-          );
-        } catch {
-          console.error(
-            `[syncToNeo4j] Vector index ${vectorIndexName} not created (Neo4j 5.11+ required).`,
           );
         }
       }
