@@ -36,3 +36,8 @@ services:
     volumes:
       - qdrant_data:/qdrant/storage
       - ./qdrant.config.yaml:/qdrant/config/production.yaml
+
+volumes:
+  neo4j_data:
+  neo4j_logs:
+  qdrant_data:

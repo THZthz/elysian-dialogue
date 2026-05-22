@@ -28,8 +28,7 @@ import { CypherValidator } from "@/server/memory/validation";
 import { setInitialTime } from "@/server/models/time";
 import { getActiveSeedStory } from "@/server/stories";
 import { v4 as uuidv4 } from "uuid";
-import { Neo4jClient } from "@/server/memory/neo4j";
-import { Embedder, getEmbedder } from "@/server/memory/embedder";
+import { getEmbedder } from "@/server/memory/embedder";
 import { getQdrantClient } from "@/server/memory/qdrant";
 import { encodeSparse } from "@/server/memory/sparseEncoder";
 
@@ -109,13 +108,17 @@ async function addEntity(
       name, type: finalType, description: description ?? "", brief: brief ?? "",
     });
 
-    const embedder = getEmbedder();
-    const [nv, cv] = await Promise.all([
-      embedder.embed(nameText),
-      embedder.embed(embedText),
-    ]);
-    nameVec = nv;
-    contentVec = cv;
+    try {
+      const embedder = getEmbedder();
+      const [nv, cv] = await Promise.all([
+        embedder.embed(nameText),
+        embedder.embed(embedText),
+      ]);
+      nameVec = nv;
+      contentVec = cv;
+    } catch {
+      console.warn(`[seed] embedding failed for entity "${name}", proceeding without vector`);
+    }
   }
 
   // Store aliases inside metadata (Python convention)
@@ -221,7 +224,8 @@ async function setDisposition(
     { npcName, targetName, sentiment, summary, id, now },
   );
   if (rows.length === 0) {
-    throw new Error(`NPC entity "${npcName}" not found`);
+    console.warn(`[seed] disposition skipped: NPC entity "${npcName}" not found`);
+    return parseDisposition({ source_name: npcName, target_name: targetName, sentiment, summary });
   }
   return parseDisposition(rows[0].d as Record<string, unknown>);
 }

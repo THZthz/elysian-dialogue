@@ -32,12 +32,6 @@ export interface PointVectors {
   sparseVec?: SparseVector;
 }
 
-export interface MultiSearchResult {
-  nameResults: Map<string, { id: string | number; score: number; payload: Record<string, unknown> }>;
-  contentResults: Map<string, { id: string | number; score: number; payload: Record<string, unknown> }>;
-  sparseResults: Map<string, { id: string | number; score: number; payload: Record<string, unknown> }>;
-}
-
 class QdrantVectorClient {
   private readonly baseUrl: string;
   private readonly dimensions: number;
@@ -172,87 +166,70 @@ class QdrantVectorClient {
     });
   }
 
-  async searchMultiVector(
+  /**
+   * Hybrid search using Qdrant's native /points/query endpoint with
+   * server-side RRF fusion across name_vec, content_vec, and sparse_vec.
+   */
+  async queryPoints(
     nameVec: number[] | null,
-    contentVec: number[],
+    contentVec: number[] | null,
     sparseVec: SparseVector,
     filter: QdrantSearchOptions["filter"],
     limit: number,
-  ): Promise<MultiSearchResult> {
-    const searches: Promise<Array<{ id: string | number; score: number; payload?: Record<string, unknown> }>>[] = [];
+    prefetchLimit?: number,
+  ): Promise<QdrantSearchResult[]> {
+    const prefetch: Array<Record<string, unknown>> = [];
+    const pl = prefetchLimit ?? limit;
 
-    // Dense name search
     if (nameVec) {
-      searches.push(
-        this.fetchApi<{ result: Array<{ id: string | number; score: number; payload?: Record<string, unknown> }> }>(
-          `/collections/${COLLECTION_NAME}/points/search`,
-          {
-            method: "POST",
-            body: {
-              vector: { name: "name_vec", vector: nameVec },
-              filter,
-              limit,
-              with_payload: true,
-              with_vector: false,
-              params: { ef: this.ef },
-            },
-          },
-        ).then(r => r.result || []),
-      );
-    } else {
-      searches.push(Promise.resolve([]));
+      prefetch.push({
+        query: nameVec,
+        using: "name_vec",
+        limit: pl,
+        filter,
+        params: { ef: this.ef },
+      });
     }
 
-    // Dense content search
-    searches.push(
-      this.fetchApi<{ result: Array<{ id: string | number; score: number; payload?: Record<string, unknown> }> }>(
-        `/collections/${COLLECTION_NAME}/points/search`,
-        {
-          method: "POST",
-          body: {
-            vector: { name: "content_vec", vector: contentVec },
-            filter,
-            limit,
-            with_payload: true,
-            with_vector: false,
-            params: { ef: this.ef },
-          },
+    if (contentVec) {
+      prefetch.push({
+        query: contentVec,
+        using: "content_vec",
+        limit: pl,
+        filter,
+        params: { ef: this.ef },
+      });
+    }
+
+    prefetch.push({
+      query: sparseVec,
+      using: "sparse_vec",
+      limit: pl,
+      filter,
+    });
+
+    const res = await this.fetchApi<{
+      result: { points?: Array<{ id: string | number; score: number; payload?: Record<string, unknown> }> };
+    }>(
+      `/collections/${COLLECTION_NAME}/points/query`,
+      {
+        method: "POST",
+        body: {
+          prefetch,
+          query: { fusion: "rrf" },
+          limit,
+          with_payload: true,
+          with_vector: false,
         },
-      ).then(r => r.result || []),
+      },
     );
 
-    // Sparse search
-    searches.push(
-      this.fetchApi<{ result: Array<{ id: string | number; score: number; payload?: Record<string, unknown> }> }>(
-        `/collections/${COLLECTION_NAME}/points/search`,
-        {
-          method: "POST",
-          body: {
-            vector: { name: "sparse_vec", vector: sparseVec },
-            filter,
-            limit,
-            with_payload: true,
-            with_vector: false,
-          },
-        },
-      ).then(r => r.result || []),
-    );
-
-    const [nameRes, contentRes, sparseRes] = await Promise.all(searches);
-
-    const toMap = (arr: Array<{ id: string | number; score: number; payload?: Record<string, unknown> }>) => {
-      const m = new Map<string, { id: string | number; score: number; payload: Record<string, unknown> }>();
-      for (const r of arr) {
-        m.set(String(r.id), { id: r.id, score: r.score, payload: r.payload ?? {} });
-      }
-      return m;
-    };
-
-    return {
-      nameResults: toMap(nameRes),
-      contentResults: toMap(contentRes),
-      sparseResults: toMap(sparseRes),
-    };
+    const points = res.result?.points ?? [];
+    return points.map((p) => ({
+      id: p.id,
+      score: p.score,
+      payload: p.payload ?? {},
+    }));
   }
 
   async deleteByFilter(filter: QdrantSearchOptions["filter"]): Promise<void> {
