@@ -31,14 +31,22 @@ function fnv1a32(str: string): number {
   return hash >>> 0;
 }
 
-export type SparseVector = Record<number, number>;
+/** Sparse vector in Qdrant REST format: { indices: number[], values: number[] } */
+export interface SparseVector {
+  indices: number[];
+  values: number[];
+}
 
 export function encodeSparse(text: string): SparseVector {
   const tokens = text.toLowerCase().split(/[\s\p{P}]+/u).filter(Boolean);
-  const vec: SparseVector = {};
+  const tf: Record<number, number> = {};
   for (const token of tokens) {
     const idx = fnv1a32(token);
-    vec[idx] = (vec[idx] || 0) + 1;
+    tf[idx] = (tf[idx] || 0) + 1;
   }
-  return vec;
+  const indices = Object.keys(tf).map(Number).sort((a, b) => a - b);
+  return {
+    indices,
+    values: indices.map((i) => tf[i]),
+  };
 }

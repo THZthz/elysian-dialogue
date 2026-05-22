@@ -22,7 +22,7 @@ import { Neo4jClient } from "@/server/memory/neo4j";
 import { Embedder, getEmbedder } from "@/server/memory/embedder";
 import { getQdrantClient } from "@/server/memory/qdrant";
 import { getReranker, extractSearchTexts, applyRerank } from "@/server/memory/reranker";
-import { encodeSparse } from "@/server/memory/sparseEncoder";
+import { encodeSparse, SparseVector } from "@/server/memory/sparseEncoder";
 import type { MemoryPlot, PlotFlag, PlotStatus } from "@/server/memory/types";
 
 export class Plots {
@@ -146,7 +146,7 @@ export class Plots {
         : (existing.triggerCondition ?? null);
     let nameVec: number[] | null = null;
     let contentVec: number[] | null = null;
-    let sparseVec: Record<number, number> | null = null;
+    let sparseVec: SparseVector | null = null;
     if (options.description !== undefined || options.brief !== undefined) {
       const { NodeManager: NM } = await import("@/server/nodeManager");
       const nodeManager = NM.getCachedInstance();
