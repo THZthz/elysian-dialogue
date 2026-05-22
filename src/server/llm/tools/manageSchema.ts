@@ -47,7 +47,8 @@ Tags dictionary:
 - \`number\`: normal number
 - \`number[]\`: list of numbers
 - \`json\`: Saved as string in Neo4j. But when used in tools supporting partial update, will automatically unfold Neo4j string property to avoid whole string overwritten
-- \`embedded\`: will be used to compute vector embedding when the content of this property is changed
+- \`embedded_name\`: used for identity/exact-match vector (name_vec)
+- \`embedded_content\`: used for semantic/meaning vector (content_vec)
 - \`unique\`: will create a unique constraint on this property
 - \`composite_unique_X\`: will create a composite unique constraint for all specified properties
 - \`index\`: will create a regular index on this property
@@ -83,7 +84,7 @@ Tags dictionary:
             .array(z.enum(NODE_PROPERTY_TAGS))
             .describe(
               "Comma-separated tags describing the property. " +
-                "For nodes: 'string', 'number', 'number[]', 'json', 'embedded', 'unique', 'index', 'composite_unique_1', 'composite_unique_2', 'composite_unique_3', 'composite_index_1', 'composite_index_2', 'composite_index_3'. " +
+                "For nodes: 'string', 'number', 'number[]', 'json', 'embedded_name', 'embedded_content', 'unique', 'index', 'composite_unique_1', 'composite_unique_2', 'composite_unique_3', 'composite_index_1', 'composite_index_2', 'composite_index_3'. " +
                 "For relationships: same tags except 'unique' and 'composite_unique_X' (not supported by Neo4j for relationship properties).",
             ),
         }),
