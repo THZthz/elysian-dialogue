@@ -24,7 +24,7 @@ import { MemorySearch } from "@/server/memory/search";
 import { Notes } from "@/server/memory/notes";
 import { Plots } from "@/server/memory/plots";
 import { RelationshipManager } from "@/server/relationshipManager";
-import { NodeManager } from "@/server/nodeManager";
+import { getNodeManager } from "@/server/nodeManager";
 
 export { ShortTermMemory } from "@/server/memory/shortTerm";
 export { MemorySearch } from "@/server/memory/search";
@@ -84,7 +84,7 @@ export class MemoryClient {
     RelationshipManager.getCachedInstance();
 
     // Initialize NodeManager singleton (eager, idempotent)
-    NodeManager.getCachedInstance();
+    getNodeManager();
 
     return memoryClient;
   }

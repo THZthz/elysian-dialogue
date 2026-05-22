@@ -28,7 +28,7 @@ import {
   buildPlotsBrief,
   buildRelationshipDump,
 } from "@/server/llm/sceneContext";
-import { NodeManager } from "@/server/nodeManager";
+import { getNodeManager } from "@/server/nodeManager";
 import { RelationshipManager } from "@/server/relationshipManager";
 
 const CONTEXT_TYPES = [
@@ -44,7 +44,7 @@ const CONTEXT_TYPES = [
 type ContextType = (typeof CONTEXT_TYPES)[number];
 
 async function buildSchemaDump(): Promise<string> {
-  const nodeManager = NodeManager.getCachedInstance();
+  const nodeManager = getNodeManager();
   const relManager = RelationshipManager.getCachedInstance();
 
   const lines: string[] = [];

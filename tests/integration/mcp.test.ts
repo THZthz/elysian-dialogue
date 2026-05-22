@@ -110,7 +110,7 @@ describe("MCP Server", () => {
     it("queryWorld: reads entities from seed data", async () => {
       const result = await client.callTool({
         name: "queryWorld",
-        arguments: { action: "READ", query: "MATCH (e:Character) RETURN e.name, e.type LIMIT 3" },
+        arguments: { action: "READ", query: "MATCH (e:Character) RETURN e.name LIMIT 3" },
       });
 
       const text = (result as any).content?.[0]?.text;
@@ -202,7 +202,7 @@ describe("MCP Server", () => {
         arguments: {
           action: "WRITE",
           query:
-            "MERGE (e:Character {_id: 'test-mcp-entity', name: 'MCP Test', type: 'Object'}) SET e.description = 'Created by MCP test'",
+            "MERGE (e:Character {_id: 'test-mcp-entity', name: 'MCP Test'}) SET e.description = 'Created by MCP test'",
         },
       });
 

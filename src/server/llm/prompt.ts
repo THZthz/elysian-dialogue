@@ -112,7 +112,7 @@ ORDER BY tp.day, tp.hour LIMIT 10
 
 // Search entities by name
 MATCH (e) WHERE (e:Character OR e:Object OR e:Location) AND e.name CONTAINS "guard"
-RETURN e.name, e.type, e.brief LIMIT 10
+RETURN e.name, e.brief LIMIT 10
 
 // Recent messages
 MATCH (m:Message) RETURN m.content, m.metadata, m.timestamp

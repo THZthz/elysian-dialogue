@@ -17,13 +17,12 @@
  */
 
 import { v4 as uuidv4 } from "uuid";
-import { int } from "neo4j-driver";
 import { Neo4jClient } from "@/server/memory/neo4j";
 import { Embedder, getEmbedder } from "@/server/memory/embedder";
 import { getQdrantClient } from "@/server/memory/qdrant";
-import { getReranker, extractSearchTexts, applyRerank } from "@/server/memory/reranker";
 import { encodeSparse, SparseVector } from "@/server/memory/sparseEncoder";
 import type { MemoryPlot, PlotFlag, PlotStatus } from "@/server/memory/types";
+import { getNodeManager } from "@/server/nodeManager";
 
 export class Plots {
   private client: Neo4jClient;
@@ -50,8 +49,7 @@ export class Plots {
     const status = options?.status ?? "PENDING";
     const triggerCondition = options?.triggerCondition ?? null;
     const flags = options?.flags ?? [];
-    const { NodeManager: NM } = await import("@/server/nodeManager");
-    const nodeManager = NM.getCachedInstance();
+    const nodeManager = getNodeManager();
     const nameText = nodeManager.getEmbeddingNameText("Plot", { name }) || `[Plot] ${name}`;
     const contentText =
       nodeManager.getEmbeddingContentText("Plot", {
@@ -155,8 +153,7 @@ export class Plots {
     let contentVec: number[] | null = null;
     let sparseVec: SparseVector | null = null;
     if (options.description !== undefined || options.brief !== undefined) {
-      const { NodeManager: NM } = await import("@/server/nodeManager");
-      const nodeManager = NM.getCachedInstance();
+      const nodeManager = getNodeManager();
       const nameText = nodeManager.getEmbeddingNameText("Plot", { name }) || `[Plot] ${name}`;
       const contentText =
         nodeManager.getEmbeddingContentText("Plot", {
@@ -192,8 +189,7 @@ export class Plots {
 
     if (nameVec || contentVec) {
       try {
-        const { NodeManager: NM } = await import("@/server/nodeManager");
-        const nodeManager = NM.getCachedInstance();
+        const nodeManager = getNodeManager();
         const contentText =
           nodeManager.getEmbeddingContentText("Plot", {
             name,

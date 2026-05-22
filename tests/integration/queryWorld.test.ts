@@ -28,7 +28,7 @@ describe("queryWorld READ", () => {
   it("reads entities from seed data", async () => {
     const result = await exec(queryWorld, {
       action: "READ",
-      query: "MATCH (e:Character) RETURN e.name, e.type LIMIT 3",
+      query: "MATCH (e:Character) RETURN e.name LIMIT 3",
     });
     const data = parseToolOutput(result);
     expect(data.rowCount).toBeGreaterThan(0);
@@ -108,7 +108,7 @@ describe("queryWorld WRITE", () => {
   it("creates and verifies an entity via MERGE", async () => {
     const writeResult = await exec(queryWorld, {
       action: "WRITE",
-      query: `MERGE (e:Character {name: '${TEST_NAME}'}) SET e.type = 'CHARACTER', e.brief = 'Test entity'`,
+      query: `MERGE (e:Character {name: '${TEST_NAME}'}) SET e.brief = 'Test entity'`,
     });
     expect(writeResult).toContain("Success");
     expect(writeResult).toContain("row(s) affected");
@@ -116,7 +116,7 @@ describe("queryWorld WRITE", () => {
     // Verify via READ
     const readResult = await exec(queryWorld, {
       action: "READ",
-      query: `MATCH (e:Character {name: '${TEST_NAME}'}) RETURN e.name, e.type`,
+      query: `MATCH (e:Character {name: '${TEST_NAME}'}) RETURN e.name`,
     });
     const data = parseToolOutput(readResult);
     expect(data.rowCount).toBe(1);
@@ -141,7 +141,7 @@ describe("queryWorld WRITE", () => {
   it("allows UPDATE via SET on existing entity", async () => {
     await exec(queryWorld, {
       action: "WRITE",
-      query: `MERGE (e:Character {name: '${TEST_NAME}'}) SET e.type = 'OBJECT', e.brief = 'Before update'`,
+      query: `MERGE (e:Character {name: '${TEST_NAME}'}) SET e.brief = 'Before update'`,
     });
 
     const updateResult = await exec(queryWorld, {

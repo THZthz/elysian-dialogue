@@ -22,7 +22,7 @@ import { getMemoryClient, MemoryClient } from "@/server/memory/client";
 import { stripHiddenProperties } from "@/server/memory/neo4j";
 import { wrapSafe } from "@/server/llm/tools/shared";
 import { TOOL_NAMES } from "@/shared/constants";
-import { NodeDef, NodeManager } from "@/server/nodeManager";
+import { NodeDef, getNodeManager } from "@/server/nodeManager";
 import { RelationshipDef, RelationshipManager } from "@/server/relationshipManager";
 
 function getVectorSearchable(type: "relationship" | "label"): {
@@ -32,7 +32,7 @@ function getVectorSearchable(type: "relationship" | "label"): {
   const all: RelationshipDef[] | NodeDef[] = (
     type === "relationship"
       ? RelationshipManager.getCachedInstance()
-      : NodeManager.getCachedInstance()
+      : getNodeManager()
   )
     .getAll()
     .filter((def) =>

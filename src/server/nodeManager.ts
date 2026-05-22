@@ -18,7 +18,6 @@
 
 import type { Neo4jClient } from "@/server/memory/neo4j";
 import { TOOL_NAMES } from "@/shared/constants";
-import { GAME_ID } from "@/server/gameState";
 
 export const NODE_PROPERTY_TAGS = [
   "string",
@@ -91,23 +90,13 @@ const ENTITY_PROPS: NodePropertyDef[] = [
     tags: ["string", "embedded_name", "unique"],
   },
   {
-    name: "type", // TODO: Should be removed.
-    description: "Entity type: CHARACTER, OBJECT, LOCATION.",
-    tags: ["string", "index"],
-  },
-  {
-    name: "subtype", // TODO: Should be removed.
-    description: "Optional subtype refinement (e.g., 'Weapon' for an OBJECT).",
-    tags: ["string"],
+    name: "brief",
+    description: "One-line summary for compact display.",
+    tags: ["string", "embedded_content"],
   },
   {
     name: "description",
     description: "Full narrative description of the entity.",
-    tags: ["string", "embedded_content"],
-  },
-  {
-    name: "brief",
-    description: "One-line summary for compact display.",
     tags: ["string", "embedded_content"],
   },
   {
@@ -124,11 +113,6 @@ const INTERNAL_TYPES: { name: string; description: string; properties: NodePrope
     description:
       "Singleton node storing the game session. Internal bookkeeping — not visible to GM.",
     properties: [
-      {
-        name: "session_id",
-        description: `Fixed game session key ('${GAME_ID}').`,
-        tags: ["string", "unique"],
-      },
       {
         name: "options",
         description: "JSON array of current dialogue options for session resume.",
@@ -162,17 +146,13 @@ const INTERNAL_TYPES: { name: string; description: string; properties: NodePrope
     name: "IdCounter",
     description: "Atomic counter for generating short message IDs. Internal bookkeeping.",
     properties: [
-      {
-        name: "session_id",
-        description: "Fixed session key for the counter.",
-        tags: ["string", "unique"],
-      },
       { name: "counter", description: "Current counter value (Neo4j Integer).", tags: ["number"] },
+      ...INTERNAL_PROPS
     ],
   },
   {
     name: "RelationshipType",
-    description: `Stores the description and category of each relationship type in the schema. Use ${TOOL_NAMES.MANAGE_SCHEMA} to register new types.`,
+    description: `Stores the description and category of each relationship type in the schema. Use \`${TOOL_NAMES.MANAGE_SCHEMA}\` to register new types.`,
     properties: [
       {
         name: "name",
@@ -200,7 +180,7 @@ const INTERNAL_TYPES: { name: string; description: string; properties: NodePrope
   },
   {
     name: "NodeType",
-    description: `Stores the description, property schema, and category of each node type in the schema. Use ${TOOL_NAMES.MANAGE_SCHEMA} to register new types.`,
+    description: `Stores the description, property schema, and category of each node type in the schema. Use \`${TOOL_NAMES.MANAGE_SCHEMA}\` to register new types.`,
     properties: [
       {
         name: "name",
@@ -385,7 +365,7 @@ const PREDEFINED_TYPES: { name: string; description: string; properties: NodePro
 export class NodeManager {
   private registry = new Map<string, NodeDef>();
 
-  private constructor() {
+  constructor() {
     for (const t of INTERNAL_TYPES) {
       this.registry.set(t.name, {
         ...t,
@@ -645,15 +625,13 @@ export class NodeManager {
       }
     }
   }
+}
 
-  // ── Singleton ──
+let nodeManager: NodeManager | null = null;
 
-  private static instance: NodeManager | null = null;
-
-  static getCachedInstance(): NodeManager {
-    if (!NodeManager.instance) {
-      NodeManager.instance = new NodeManager();
-    }
-    return NodeManager.instance;
+export function getNodeManager() {
+  if (!nodeManager) {
+    nodeManager = new NodeManager();
   }
+  return nodeManager;
 }

@@ -19,7 +19,7 @@
 import { describeTime, getCurrentTimePoint } from "@/server/models/time";
 import { getMemoryClient, MemoryClient } from "@/server/memory/client";
 import { RelationshipManager } from "@/server/relationshipManager";
-import { NodeManager } from "@/server/nodeManager";
+import { getNodeManager } from "@/server/nodeManager";
 import type { EntityRef } from "@/server/models/entity";
 import { formatEntityCompact } from "@/server/models/entity";
 import type { PlotRef } from "@/server/models/plot";
@@ -48,14 +48,14 @@ MATCH (player:Character {name: "Player"})
 OPTIONAL MATCH (player)-[:LOCATED_AT]->(loc:Location)
 RETURN player, loc,
   COLLECT { MATCH (player)-[:CARRIES]->(inv:Object)
-            RETURN { name: inv.name, type: inv.type, description: inv.description,
+            RETURN { name: inv.name, description: inv.description,
                      brief: inv.brief } } AS inventory,
   COLLECT { MATCH (npc:Character)-[:LOCATED_AT]->(loc)
             WHERE npc.name <> "Player"
-            RETURN { name: npc.name, type: npc.type, description: npc.description,
-                     brief: npc.brief, subtype: npc.subtype } } AS npcs,
+            RETURN { name: npc.name, description: npc.description,
+                     brief: npc.brief } } AS npcs,
   COLLECT { MATCH (obj:Object)-[:LOCATED_AT]->(loc)
-            RETURN { name: obj.name, type: obj.type, description: obj.description,
+            RETURN { name: obj.name, description: obj.description,
                      brief: obj.brief } } AS objects
 `;
 
@@ -141,7 +141,6 @@ export async function buildSceneContext(): Promise<string> {
   if (loc) {
     const locRef: EntityRef = {
       name: (loc.name as string) ?? "Unknown",
-      type: (loc.type as string) ?? "LOCATION",
       description: (loc.description as string) || null,
       brief: (loc.brief as string) || null,
     };
@@ -332,7 +331,7 @@ export async function buildPlotsBrief(): Promise<string> {
 export async function buildRelationshipDump(): Promise<string> {
   const client = getMemoryClient();
   const manager = RelationshipManager.getCachedInstance();
-  const nodeManager = NodeManager.getCachedInstance();
+  const nodeManager = getNodeManager();
 
   const excluded = new Set(nodeManager.getByType("INTERNAL").map((n) => n.name));
   for (const name of ["Message", "RelationshipType", "NodeType"]) {

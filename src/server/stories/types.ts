@@ -22,7 +22,6 @@ export interface SeedEntity {
   // Only used to identify which character is player! ID of player should be "#player#".
   id?: string;
   type: "CHARACTER" | "OBJECT" | "LOCATION";
-  subtype?: string;
   name: string;
   description: string;
   brief?: string;

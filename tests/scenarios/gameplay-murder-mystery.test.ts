@@ -61,7 +61,7 @@ describe("Gameplay: Murder Mystery Investigation", () => {
     const locQuery = await exec(queryWorld, {
       action: "READ",
       query:
-        "MATCH (e:Character)-[:LOCATED_AT]->(loc:Location {name: 'Passenger Car A'}) RETURN e.name, e.type",
+        "MATCH (e:Character)-[:LOCATED_AT]->(loc:Location {name: 'Passenger Car A'}) RETURN e.name",
     });
     const locData = parseToolOutput(locQuery);
     expect(locData.rowCount).toBeGreaterThan(0);

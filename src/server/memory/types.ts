@@ -20,8 +20,6 @@ export type EntityType = "CHARACTER" | "OBJECT" | "LOCATION";
 
 export interface MemoryEntity {
   name: string;
-  type: EntityType;
-  subtype?: string;
   description?: string;
   brief?: string;
   aliases: string[];

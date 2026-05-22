@@ -16,14 +16,12 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { v4 as uuidv4 } from "uuid";
-import { int } from "neo4j-driver";
 import { Neo4jClient } from "@/server/memory/neo4j";
 import { Embedder, getEmbedder } from "@/server/memory/embedder";
 import { getQdrantClient } from "@/server/memory/qdrant";
-import { getReranker, extractSearchTexts, applyRerank } from "@/server/memory/reranker";
 import { encodeSparse } from "@/server/memory/sparseEncoder";
 import type { MemoryNote } from "@/server/memory/types";
+import { getNodeManager } from "@/server/nodeManager";
 
 export class Notes {
   private client: Neo4jClient;
@@ -35,8 +33,7 @@ export class Notes {
   }
 
   async createNote(noteName: string, content: string): Promise<MemoryNote> {
-    const { NodeManager: NM } = await import("@/server/nodeManager");
-    const nodeManager = NM.getCachedInstance();
+    const nodeManager = getNodeManager();
     const nameText =
       nodeManager.getEmbeddingNameText("Note", { name: noteName }) || `[Note] ${noteName}`;
     const contentText =
@@ -93,8 +90,7 @@ export class Notes {
 
     if (options.content) {
       try {
-        const { NodeManager: NM } = await import("@/server/nodeManager");
-        const nodeManager = NM.getCachedInstance();
+        const nodeManager = getNodeManager();
         const nameText =
           nodeManager.getEmbeddingNameText("Note", { name: noteName }) || `[Note] ${noteName}`;
         const contentText =

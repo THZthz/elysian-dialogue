@@ -17,7 +17,6 @@
  */
 
 import type { Neo4jClient } from "@/server/memory/neo4j";
-import { GAME_ID } from "@/server/gameState";
 
 /**
  * 32-bit Feistel cipher – maps an unsigned integer < 2^32
@@ -96,11 +95,10 @@ function encodeBase62(n: number): string {
  */
 export async function nextId(client: Neo4jClient): Promise<string> {
   const rows = await client.executeWrite(
-    `MERGE (c:IdCounter {session_id: $id})
-     ON CREATE SET c.value = 0
+    `MERGE (c:IdCounter)
+     ON CREATE SET c.value = 0, c._id = randomUUID()
      SET c.value = c.value + 1
-     RETURN c.value AS value`,
-    { id: GAME_ID },
+     RETURN c.value AS value`
   );
   const value = Number(rows[0].value);
   if (!Number.isFinite(value)) throw new Error(`nextId: invalid counter value ${rows[0].value}`);
@@ -113,11 +111,11 @@ export async function nextId(client: Neo4jClient): Promise<string> {
  */
 export async function nextIdBatch(client: Neo4jClient, count: number): Promise<string[]> {
   const rows = await client.executeWrite(
-    `MERGE (c:IdCounter {session_id: $id})
-     ON CREATE SET c.value = 0
+    `MERGE (c:IdCounter)
+     ON CREATE SET c.value = 0, c._id = randomUUID()
      SET c.value = c.value + $count
      RETURN c.value AS value`,
-    { id: GAME_ID, count },
+    { count },
   );
   const endValue = Number(rows[0].value);
   if (!Number.isFinite(endValue))

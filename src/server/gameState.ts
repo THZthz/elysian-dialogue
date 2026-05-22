@@ -19,8 +19,6 @@
 import { getMemoryClient, MemoryClient } from "@/server/memory/client";
 import type { DialogueOption } from "@/types/dialogue";
 
-export const GAME_ID = "chorus-game";
-
 /**
  * Store current dialogue options on the one Conversation node for resume.
  * @param options
@@ -28,9 +26,9 @@ export const GAME_ID = "chorus-game";
 export async function saveCurrentOptions(options: DialogueOption[]): Promise<void> {
   const client = getMemoryClient();
   await client.neo4j.executeWrite(
-    `MERGE (c:Conversation {session_id: $gameId})
+    `MERGE (c:Conversation)
      SET c.options = $options, c._updated_at = datetime()`,
-    { gameId: GAME_ID, options: JSON.stringify(options) },
+    { options: JSON.stringify(options) },
   );
 }
 
@@ -42,10 +40,7 @@ export async function getCurrentOptions(): Promise<{
   options: DialogueOption[];
 } | null> {
   const client = getMemoryClient();
-  const rows = await client.neo4j.executeRead(
-    `MATCH (c:Conversation {session_id: $gameId}) RETURN c._id AS id, c.options AS options`,
-    { gameId: GAME_ID },
-  );
+  const rows = await client.neo4j.executeRead(`MATCH (c:Conversation) RETURN c._id AS id, c.options AS options`);
   if (rows.length === 0) return null;
   const row = rows[0];
   let options: DialogueOption[] = [];

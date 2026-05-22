@@ -17,7 +17,6 @@
  */
 
 import {
-  EntityType,
   getMemoryClient,
   MemoryClient,
   type MemoryEntity,
@@ -125,8 +124,6 @@ function parseEntity(data: Record<string, unknown>): MemoryEntity {
   delete meta.aliases;
   return {
     name: data.name as string,
-    type: data.type as EntityType,
-    subtype: (data.subtype as string) || undefined,
     brief: (data.brief as string) || undefined,
     description: (data.description as string) || undefined,
     aliases,

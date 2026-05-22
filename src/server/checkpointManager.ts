@@ -3,7 +3,7 @@ import * as path from "path";
 import { getMemoryClient } from "@/server/memory/client";
 import { getQdrantClient } from "@/server/memory/qdrant";
 import { RelationshipManager } from "@/server/relationshipManager";
-import { NodeManager } from "@/server/nodeManager";
+import { getNodeManager } from "@/server/nodeManager";
 
 const CHECKPOINT_DIR = "data/checkpoints";
 const SENTINEL_FILE = ".restore_in_progress";
@@ -257,7 +257,7 @@ export async function restoreCheckpoint(
     console.log("[checkpoint] Qdrant snapshot restored");
 
     // 8. Reload GM_DEFINED types from restored Neo4j into in-memory registries
-    const nodeManager = NodeManager.getCachedInstance();
+    const nodeManager = getNodeManager();
     await nodeManager.reloadGmDefined(client.neo4j);
     const relManager = RelationshipManager.getCachedInstance();
     await relManager.reloadGmDefined(client.neo4j);

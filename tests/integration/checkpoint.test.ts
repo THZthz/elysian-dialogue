@@ -4,7 +4,7 @@ import * as path from "path";
 import { MemoryClient } from "@/server/memory/client";
 import { clearNeo4jDatabase } from "@/server/memory/reset";
 import { saveCheckpoint, restoreCheckpoint, listCheckpoints } from "@/server/checkpointManager";
-import { NodeManager } from "@/server/nodeManager";
+import { getNodeManager } from "@/server/nodeManager";
 import { RelationshipManager } from "@/server/relationshipManager";
 import { manageSchema } from "@/server/llm/tools/manageSchema";
 import { editNode } from "@/server/llm/tools/editNode";
@@ -84,7 +84,6 @@ describe("checkpointManager", () => {
       action: "CREATE",
       properties: {
         name: TEST_CHAR_1_NAME,
-        type: "CHARACTER",
         description: "A stern guard captain in weathered plate armor.",
         brief: "Guard Captain at the North Gate",
       },
@@ -152,7 +151,6 @@ describe("checkpointManager", () => {
       action: "CREATE",
       properties: {
         name: TEST_CHAR_2_NAME,
-        type: "CHARACTER",
         description: "A nimble thief in dark leathers, known for picking pockets in the market.",
         brief: "Thief lurking near the gate",
       },

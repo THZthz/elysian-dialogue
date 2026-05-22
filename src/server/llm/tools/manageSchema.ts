@@ -21,7 +21,7 @@ import { z } from "zod";
 import { getMemoryClient, MemoryClient } from "@/server/memory/client";
 import { RelationshipManager, RELATIONSHIP_PROPERTY_TAGS } from "@/server/relationshipManager";
 import type { RelationshipPropertyDef } from "@/server/relationshipManager";
-import { NODE_PROPERTY_TAGS, NodeManager } from "@/server/nodeManager";
+import { getNodeManager, NODE_PROPERTY_TAGS, NodeManager } from "@/server/nodeManager";
 import { wrapSafe } from "@/server/llm/tools/shared";
 import { TOOL_NAMES } from "@/shared/constants";
 
@@ -111,7 +111,7 @@ Only GM_DEFINED types can be unregistered. PREDEFINED and INTERNAL types are per
   execute: wrapSafe(async (args) => {
     if (args.action === "REGISTER") {
       if (args.target === "NODE") {
-        const nodeManager = NodeManager.getCachedInstance();
+        const nodeManager = getNodeManager();
         const existing = nodeManager.get(args.name);
         if (existing && existing.type !== "GM_DEFINED") {
           return `ERROR: Cannot register "${args.name}": it is a ${existing.type} type and cannot be modified.`;
@@ -200,7 +200,7 @@ Only GM_DEFINED types can be unregistered. PREDEFINED and INTERNAL types are per
 
     if (args.action === "UNREGISTER") {
       if (args.target === "NODE") {
-        const nodeManager = NodeManager.getCachedInstance();
+        const nodeManager = getNodeManager();
         const removed = nodeManager.unregister(args.name);
         if (!removed) {
           return `Cannot unregister "${args.name}": it is not a GM_DEFINED type.`;

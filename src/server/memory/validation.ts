@@ -18,7 +18,7 @@
 
 import { TOOL_NAMES } from "@/shared/constants";
 import { RelationshipManager } from "@/server/relationshipManager";
-import { NodeManager } from "@/server/nodeManager";
+import { getNodeManager } from "@/server/nodeManager";
 import type { Neo4jClient } from "@/server/memory/neo4j";
 
 const BLOCKED_READ_CLAUSES = /\b(CREATE|MERGE|DELETE|SET|REMOVE|DETACH\s+DELETE|DROP)\b/i;
@@ -51,7 +51,7 @@ export class CypherValidator {
       );
     }
 
-    const nodeManager = NodeManager.getCachedInstance();
+    const nodeManager = getNodeManager();
     for (const label of this.extractNodeLabels(query)) {
       if (!nodeManager.isAllowedForRead(label)) {
         const allowed = nodeManager
@@ -83,7 +83,7 @@ export class CypherValidator {
       );
     }
 
-    const nodeManager = NodeManager.getCachedInstance();
+    const nodeManager = getNodeManager();
     for (const label of this.extractNodeLabels(query)) {
       // TODO: Should disallow writes on Note and Plot.
       if (!nodeManager.isAllowedForWrite(label)) {

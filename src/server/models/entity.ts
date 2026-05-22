@@ -18,15 +18,14 @@
 
 export interface EntityRef {
   name: string;
-  type: string;
+  type?: string;
   description: string | null;
   brief: string | null;
-  subtype?: string | null;
 }
 
 export function formatEntityCompact(e: EntityRef): string {
   const brief = e.brief || e.description?.slice(0, 120) || "";
-  return `**${e.name}** (${e.type}) — ${brief}`;
+  return `**${e.name}** — ${brief}`;
 }
 
 export function formatEntityFull(e: EntityRef): string {

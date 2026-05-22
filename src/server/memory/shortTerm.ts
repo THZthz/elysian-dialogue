@@ -20,10 +20,10 @@ import { v4 as uuidv4 } from "uuid";
 import { int } from "neo4j-driver";
 import { Neo4jClient } from "@/server/memory/neo4j";
 import { Embedder, getEmbedder } from "@/server/memory/embedder";
-import { GAME_ID } from "@/server/gameState";
 import { nextId } from "@/server/idGenerator";
 import { getQdrantClient } from "@/server/memory/qdrant";
 import type { MemoryMessage } from "@/server/memory/types";
+import { getNodeManager } from "@/server/nodeManager";
 
 export class ShortTermMemory {
   private readonly client: Neo4jClient;
@@ -45,8 +45,7 @@ export class ShortTermMemory {
     let contentVec: number[] | undefined;
     let embedText: string | undefined;
     if (generateEmbedding) {
-      const { NodeManager: NM } = await import("@/server/nodeManager");
-      embedText = NM.getCachedInstance().getEmbeddingContentText("Message", { content });
+      embedText = getNodeManager().getEmbeddingContentText("Message", { content });
       contentVec = embedText ? await this.embedder.embed(embedText) : undefined;
     }
 
@@ -128,10 +127,10 @@ export class ShortTermMemory {
 
   async getConversation(limit: number = 1000): Promise<MemoryMessage[]> {
     const rows = await this.client.executeRead(
-      `MATCH (c:Conversation {session_id: $gameId})
+      `MATCH (c:Conversation)
        MATCH (c)-[:HAS_MESSAGE]->(m:Message)
        RETURN m ORDER BY m.timestamp DESC LIMIT $limit`,
-      { gameId: GAME_ID, limit: int(limit) },
+      { limit: int(limit) },
     );
 
     return rows.reverse().map((r) => {
@@ -148,20 +147,14 @@ export class ShortTermMemory {
   // ── Private helpers ──
 
   private async ensureConversation(): Promise<string> {
-    const rows = await this.client.executeRead(
-      `MATCH (c:Conversation {session_id: $gameId}) RETURN c._id AS id`,
-      { gameId: GAME_ID },
-    );
+    const rows = await this.client.executeRead(`MATCH (c:Conversation) RETURN c._id AS id`);
     if (rows.length > 0) return rows[0].id as string;
 
     const convId = uuidv4();
     const now = new Date().toISOString();
     await this.client.executeWrite(
-      `CREATE (c:Conversation {
-         _id: $id, session_id: $gameId,
-         _created_at: datetime($now), _updated_at: datetime($now)
-       })`,
-      { id: convId, gameId: GAME_ID, now },
+      `CREATE (c:Conversation {_id: $id, _created_at: datetime($now), _updated_at: datetime($now)})`,
+      { id: convId, now },
     );
     return convId;
   }

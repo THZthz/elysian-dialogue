@@ -1,5 +1,5 @@
 import { getEmbedder } from "@/server/memory/embedder";
-import { NodeManager } from "@/server/nodeManager";
+import { getNodeManager } from "@/server/nodeManager";
 import { RelationshipManager } from "@/server/relationshipManager";
 import { getReranker, applyRerank } from "@/server/memory/reranker";
 import { encodeSparse } from "@/server/memory/sparseEncoder";
@@ -62,7 +62,7 @@ export class MemorySearch {
 
     if (useRerank && items.length > 0) {
       const manager =
-        kind === "node" ? NodeManager.getCachedInstance() : RelationshipManager.getCachedInstance();
+        kind === "node" ? getNodeManager() : RelationshipManager.getCachedInstance();
       const withText = items.map((item) => ({
         ...item,
         text: item.text || manager.getEmbeddingText(domain, item),

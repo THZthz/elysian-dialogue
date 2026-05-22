@@ -177,7 +177,6 @@ describe("editNode", () => {
         action: "CREATE",
         properties: {
           name: TEST_ENTITY,
-          type: "OBJECT",
           description: "A test entity for JSON merge",
           brief: "JSON merge test",
           metadata: { stats: { power: 10 }, attributes: { Color: "red" } },

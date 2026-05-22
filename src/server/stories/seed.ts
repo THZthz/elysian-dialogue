@@ -24,7 +24,7 @@ import {
   getMemoryClient,
 } from "@/server/memory/client";
 import { RelationshipManager } from "@/server/relationshipManager";
-import { NodeManager } from "@/server/nodeManager";
+import { getNodeManager } from "@/server/nodeManager";
 import { CypherValidator } from "@/server/memory/validation";
 import { setInitialTime } from "@/server/models/time";
 import { getActiveSeedStory } from "@/server/stories";
@@ -101,7 +101,7 @@ async function addEntity(
   let contentVec: number[] | null = null;
   let embedText: string | undefined;
   if (generateEmbedding) {
-    const nodeManager = NodeManager.getCachedInstance();
+    const nodeManager = getNodeManager();
     const nameText =
       nodeManager.getEmbeddingNameText(typeLabel, {
         name,
@@ -136,9 +136,7 @@ async function addEntity(
     `MERGE (e:\`${typeLabel}\` {name: $name})
        ON CREATE SET
          e._id = $id,
-         e._created_at = datetime(),
-         e.type = $type,
-         e.subtype = $subtype
+         e._created_at = datetime()
        SET
          e.brief = $brief,
          e.description = $description,
@@ -148,8 +146,6 @@ async function addEntity(
     {
       id: entityId,
       name,
-      type: finalType,
-      subtype: finalSubtype || null,
       brief: brief || null,
       description: description || null,
       metadata: Object.keys(storageMetadata).length > 0 ? JSON.stringify(storageMetadata) : null,
@@ -161,7 +157,7 @@ async function addEntity(
 
   if (nameVec || contentVec) {
     try {
-      const nodeManager = NodeManager.getCachedInstance();
+      const nodeManager = getNodeManager();
       const nameText =
         nodeManager.getEmbeddingNameText(typeLabel, {
           name,
@@ -173,8 +169,6 @@ async function addEntity(
         object_id: `${typeLabel}:${name}`,
         text: embedText,
         name,
-        type: finalType,
-        subtype: finalSubtype || null,
         brief: brief || null,
         description: description || null,
       };
@@ -197,8 +191,6 @@ async function addEntity(
 
   return {
     name,
-    type: finalType as EntityType,
-    subtype: finalSubtype,
     brief,
     description,
     aliases: aliases || [],
@@ -248,7 +240,7 @@ export async function seedDatabase(): Promise<void> {
   await RelationshipManager.getCachedInstance().syncToNeo4j(client.neo4j);
 
   // Sync INTERNAL + PREDEFINED node types to Neo4j on startup
-  await NodeManager.getCachedInstance().syncToNeo4j(client.neo4j);
+  await getNodeManager().syncToNeo4j(client.neo4j);
 
   // Audit: log warnings for any relationship types in the graph missing a :RelationshipType node
   const validator = new CypherValidator();
@@ -271,7 +263,6 @@ export async function seedDatabase(): Promise<void> {
     const cleanMetadata = entity.metadata ? { ...entity.metadata } : {};
     await addEntity(entity.name, entity.type, {
       id: entity.id ? entity.id : undefined,
-      subtype: entity.subtype,
       description: entity.description,
       brief: entity.brief,
       metadata: Object.keys(cleanMetadata).length > 0 ? cleanMetadata : undefined,

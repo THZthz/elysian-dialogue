@@ -26,14 +26,12 @@
 import { v4 as uuidv4 } from "uuid";
 import type { ModelMessage } from "ai";
 import { getMemoryClient, MemoryClient } from "@/server/memory/client";
-import { GAME_ID } from "@/server/gameState";
 
 export async function loadGMMessages(): Promise<ModelMessage[]> {
   const client = getMemoryClient();
   const rows = await client.neo4j.executeRead(
-    `MATCH (c:Conversation {session_id: $gameId})-[:_HAS_GM_MESSAGE]->(m:GMTurnMessage)
-     RETURN m ORDER BY m._created_at, m.message_index`,
-    { gameId: GAME_ID },
+    `MATCH (c:Conversation)-[:_HAS_GM_MESSAGE]->(m:GMTurnMessage)
+     RETURN m ORDER BY m._created_at, m.message_index`
   );
 
   return rows.map((r) => {
@@ -58,10 +56,7 @@ export async function saveGMMessages(
   const client = getMemoryClient();
   const now = new Date().toISOString();
 
-  const convRows = await client.neo4j.executeRead(
-    `MATCH (c:Conversation {session_id: $gameId}) RETURN c._id AS id`,
-    { gameId: GAME_ID },
-  );
+  const convRows = await client.neo4j.executeRead(`MATCH (c:Conversation) RETURN c._id AS id`);
   if (convRows.length === 0) return;
   const convId = convRows[0].id as string;
 
@@ -151,9 +146,8 @@ export async function saveGMMessages(
 export async function getNextTurnNumber(): Promise<number> {
   const client = getMemoryClient();
   const rows = await client.neo4j.executeRead(
-    `MATCH (c:Conversation {session_id: $gameId})-[:_HAS_GM_MESSAGE]->(m:GMTurnMessage)
-     RETURN max(m.turn_number) AS maxTurn`,
-    { gameId: GAME_ID },
+    `MATCH (c:Conversation)-[:_HAS_GM_MESSAGE]->(m:GMTurnMessage)
+     RETURN max(m.turn_number) AS maxTurn`
   );
   if (rows.length === 0 || rows[0].maxTurn === null) return 1;
   return (rows[0].maxTurn as number) + 1;

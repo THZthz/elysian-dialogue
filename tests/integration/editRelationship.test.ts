@@ -309,7 +309,6 @@ describe("editRelationship", () => {
           action: "CREATE",
           properties: {
             name,
-            type: "CHARACTER",
             description: `Schema validation test entity ${name}`,
             brief: "Test entity",
           },

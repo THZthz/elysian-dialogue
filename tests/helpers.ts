@@ -21,6 +21,7 @@ import { seedDatabase } from "@/server/stories/seed";
 import { clearNeo4jDatabase } from "@/server/memory/reset";
 import { RelationshipManager } from "@/server/relationshipManager";
 import { getEmbedder } from "@/server/memory/embedder";
+import { getNodeManager } from "@/server/nodeManager";
 
 export async function resetDb() {
   await clearNeo4jDatabase();
@@ -29,8 +30,7 @@ export async function resetDb() {
   // tests don't interfere with the fresh seed.
   const relManager = RelationshipManager.getCachedInstance();
   relManager.reset();
-  const { NodeManager: NM } = await import("@/server/nodeManager");
-  const nodeManager = NM.getCachedInstance();
+  const nodeManager = getNodeManager();
   nodeManager.reset();
 
   await seedDatabase();

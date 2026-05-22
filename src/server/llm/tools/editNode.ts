@@ -20,7 +20,7 @@ import { tool } from "ai";
 import { z } from "zod";
 import { v4 as uuidv4 } from "uuid";
 import { getMemoryClient, MemoryClient } from "@/server/memory/client";
-import { NodeDef, NodeManager } from "@/server/nodeManager";
+import { getNodeManager, NodeDef, NodeManager } from "@/server/nodeManager";
 import { extractInternalAndUnknownKeys, wrapSafe } from "@/server/llm/tools/shared";
 import { getEmbedder } from "@/server/memory/embedder";
 import { getQdrantClient } from "@/server/memory/qdrant";
@@ -119,7 +119,7 @@ Since \`metadata\` is tagged as "json" of node Character in SCHEMA_DUMP, you can
   inputSchema,
   execute: wrapSafe(async (args: z.infer<typeof inputSchema>) => {
     const client = getMemoryClient();
-    const nodeManager = NodeManager.getCachedInstance();
+    const nodeManager = getNodeManager();
 
     // Validate node label ever registered
     const nodeDef = nodeManager.get(args.nodeLabel);
@@ -197,7 +197,7 @@ Since \`metadata\` is tagged as "json" of node Character in SCHEMA_DUMP, you can
       props: Record<string, unknown>,
     ) {
       try {
-        const nodeManager = NodeManager.getCachedInstance();
+        const nodeManager = getNodeManager();
         const contentText = nodeManager.getEmbeddingContentText(args.nodeLabel, props);
         const nameText =
           nodeManager.getEmbeddingNameText(args.nodeLabel, props) ||
@@ -241,7 +241,7 @@ Since \`metadata\` is tagged as "json" of node Character in SCHEMA_DUMP, you can
 
     async function computeNameEmbedding(props: Record<string, unknown>): Promise<number[] | null> {
       if (!wantsNameEmbedding) return null;
-      const nodeManager = NodeManager.getCachedInstance();
+      const nodeManager = getNodeManager();
       const nameText =
         nodeManager.getEmbeddingNameText(args.nodeLabel, props) ||
         `[${args.nodeLabel}] ${String(props.name || "")}`;
@@ -257,7 +257,7 @@ Since \`metadata\` is tagged as "json" of node Character in SCHEMA_DUMP, you can
       props: Record<string, unknown>,
     ): Promise<number[] | null> {
       if (!wantsContentEmbedding) return null;
-      const nodeManager = NodeManager.getCachedInstance();
+      const nodeManager = getNodeManager();
       const contentText = nodeManager.getEmbeddingContentText(args.nodeLabel, props);
       if (!contentText) return null;
       try {
