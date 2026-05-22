@@ -22,6 +22,7 @@ import { Neo4jClient } from "@/server/memory/neo4j";
 import { Embedder, getEmbedder } from "@/server/memory/embedder";
 import { getQdrantClient } from "@/server/memory/qdrant";
 import { getReranker, extractSearchTexts, applyRerank } from "@/server/memory/reranker";
+import { encodeSparse } from "@/server/memory/sparseEncoder";
 import type { MemoryNote } from "@/server/memory/types";
 
 export class Notes {
@@ -35,31 +36,36 @@ export class Notes {
 
   async createNote(noteName: string, content: string): Promise<MemoryNote> {
     const { NodeManager: NM } = await import("@/server/nodeManager");
-    const embedText = NM.getCachedInstance().getEmbeddingText("Note", { name: noteName, content });
-    const embedding = embedText ? await this.embedder.embed(embedText) : undefined;
+    const nodeManager = NM.getCachedInstance();
+    const nameText = nodeManager.getEmbeddingNameText("Note", { name: noteName }) || `[Note] ${noteName}`;
+    const contentText = nodeManager.getEmbeddingContentText("Note", { name: noteName, content }) || content;
     const now = new Date().toISOString();
+
+    const [nameVec, contentVec] = await Promise.all([
+      this.embedder.embed(nameText),
+      this.embedder.embed(contentText),
+    ]);
+    const sparseVec = encodeSparse(nameText);
 
     await this.client.executeWrite(
       `CREATE (n:Note {name: $name, content: $content, _created_at: datetime($now), _updated_at: datetime($now)})`,
       { name: noteName, content, now },
     );
 
-    if (embedding) {
-      try {
-        await getQdrantClient().upsert(`Note:${noteName}`, embedding, {
-          node_type: "Note",
-          kind: "node",
-          object_id: `Note:${noteName}`,
-          text: embedText,
-          name: noteName,
-          content,
-        });
-      } catch (err) {
-        console.warn(
-          "[notes] Qdrant upsert failed:",
-          err instanceof Error ? err.message : String(err),
-        );
-      }
+    try {
+      await getQdrantClient().upsert(`Note:${noteName}`, { nameVec, contentVec, sparseVec }, {
+        node_type: "Note",
+        kind: "node",
+        object_id: `Note:${noteName}`,
+        text: contentText,
+        name: noteName,
+        content,
+      });
+    } catch (err) {
+      console.warn(
+        "[notes] Qdrant upsert failed:",
+        err instanceof Error ? err.message : String(err),
+      );
     }
 
     return { name: noteName, content };
@@ -70,15 +76,6 @@ export class Notes {
     if (!existing) return null;
 
     const content = options.content ?? existing.content;
-    let embedding: number[] | undefined;
-    if (options.content) {
-      const { NodeManager: NM } = await import("@/server/nodeManager");
-      const embedText = NM.getCachedInstance().getEmbeddingText("Note", {
-        name: noteName,
-        content: options.content,
-      });
-      embedding = embedText ? await this.embedder.embed(embedText) : undefined;
-    }
     const now = new Date().toISOString();
 
     await this.client.executeWrite(
@@ -88,18 +85,27 @@ export class Notes {
       { name: noteName, content, now },
     );
 
-    if (embedding) {
+    if (options.content) {
       try {
         const { NodeManager: NM } = await import("@/server/nodeManager");
-        const embedText = NM.getCachedInstance().getEmbeddingText("Note", {
-          name: noteName,
-          content,
-        });
-        await getQdrantClient().upsert(`Note:${noteName}`, embedding, {
+        const nodeManager = NM.getCachedInstance();
+        const nameText = nodeManager.getEmbeddingNameText("Note", { name: noteName }) || `[Note] ${noteName}`;
+        const contentText = nodeManager.getEmbeddingContentText("Note", { name: noteName, content }) || content;
+
+        const [nameVec, contentVec] = await Promise.all([
+          this.embedder.embed(nameText),
+          this.embedder.embed(contentText),
+        ]);
+
+        await getQdrantClient().upsert(`Note:${noteName}`, {
+          nameVec,
+          contentVec,
+          sparseVec: encodeSparse(nameText),
+        }, {
           node_type: "Note",
           kind: "node",
           object_id: `Note:${noteName}`,
-          text: embedText,
+          text: contentText,
           name: noteName,
           content,
         });

@@ -23,6 +23,7 @@ import { RelationshipManager } from "@/server/relationshipManager";
 import type { RelationshipPropertyDef } from "@/server/relationshipManager";
 import { getEmbedder } from "@/server/memory/embedder";
 import { getQdrantClient } from "@/server/memory/qdrant";
+import { encodeSparse } from "@/server/memory/sparseEncoder";
 import { extractInternalAndUnknownKeys, wrapSafe } from "@/server/llm/tools/shared";
 import { TOOL_NAMES } from "@/shared/constants";
 
@@ -147,6 +148,10 @@ sub-locations nested within a larger location (e.g., a basement inside a tavern)
       return v;
     }
 
+    const wantsNameEmbedding = relDef.properties.some((p) => p.tags.includes("embedded_name"));
+    const wantsContentEmbedding = relDef.properties.some((p) => p.tags.includes("embedded_content"));
+    const wantsEmbedding = wantsNameEmbedding || wantsContentEmbedding;
+
     // ── CREATE ──
     if (args.action === "CREATE") {
       let createProps: Record<string, unknown> = {};
@@ -158,22 +163,22 @@ sub-locations nested within a larger location (e.g., a basement inside a tavern)
         }
       }
 
-      // Compute embedding if the relationship type supports it.
-      const wantsEmbedding = relDef.properties.some((p) => p.tags.includes("embedded"));
-      let relEmbedding: number[] | undefined;
-      let relEmbedText: string | undefined;
+      // Compute embeddings if the relationship type supports it.
+      let nameVec: number[] | null = null;
+      let contentVec: number[] | null = null;
+      let nameText: string | null = null;
+
       if (wantsEmbedding) {
-        relEmbedText = RelationshipManager.getCachedInstance().getEmbeddingText(
-          args.relationshipType,
-          createProps,
-        );
-        if (relEmbedText) {
-          try {
-            relEmbedding = await getEmbedder().embed(relEmbedText);
-          } catch {
-            console.warn(`[editRelationship] embedding failed for "${args.relationshipType}"`);
-          }
-        }
+        const relManager = RelationshipManager.getCachedInstance();
+        nameText = relManager.getEmbeddingNameText(args.relationshipType, createProps, srcVal, tgtVal);
+        const contentText = relManager.getEmbeddingContentText(args.relationshipType, createProps);
+
+        const tasks: Promise<number[] | null>[] = [];
+        tasks.push(nameText ? getEmbedder().embed(nameText).catch(() => null) : Promise.resolve(null));
+        tasks.push(contentText ? getEmbedder().embed(contentText).catch(() => null) : Promise.resolve(null));
+        const [nv, cv] = await Promise.all(tasks);
+        nameVec = nv;
+        contentVec = cv;
       }
 
       const rows = await client.neo4j.mergeRelationship(
@@ -195,19 +200,25 @@ sub-locations nested within a larger location (e.g., a basement inside a tavern)
         );
       }
 
-      if (relEmbedding && relEmbedText) {
+      if (nameVec || contentVec) {
         const pointId = `:rel:${args.relationshipType}:${srcVal}:${tgtVal}`;
         try {
+          const contentText = RelationshipManager.getCachedInstance()
+            .getEmbeddingContentText(args.relationshipType, createProps);
           const payload: Record<string, unknown> = {
             node_type: args.relationshipType,
             kind: "relationship",
             object_id: pointId,
-            text: relEmbedText,
+            text: contentText || nameText || "",
           };
           for (const [k, v] of Object.entries(createProps)) {
             if (!k.startsWith("_")) payload[k] = v;
           }
-          await getQdrantClient().upsert(pointId, relEmbedding, payload);
+          await getQdrantClient().upsert(pointId, {
+            nameVec: nameVec ?? undefined,
+            contentVec: contentVec ?? undefined,
+            sparseVec: nameText ? encodeSparse(nameText) : undefined,
+          }, payload);
         } catch (err) {
           console.warn(
             `[editRelationship] Qdrant upsert failed for "${args.relationshipType}":`,
@@ -280,27 +291,31 @@ sub-locations nested within a larger location (e.g., a basement inside a tavern)
       }
 
       // Recompute embedding if any embedded-tagged property changed.
-      const wantsEmbedding = relDef.properties.some((p) => p.tags.includes("embedded"));
-      let relEmbedding: number[] | undefined;
-      let relEmbedText: string | undefined;
+      let relNameVec: number[] | null = null;
+      let relContentVec: number[] | null = null;
+      let relNameText: string | null = null;
       if (wantsEmbedding) {
-        const embeddedNames = new Set(
-          relDef.properties.filter((p) => p.tags.includes("embedded")).map((p) => p.name),
+        const nameEmbeddedNames = new Set(
+          relDef.properties.filter((p) => p.tags.includes("embedded_name")).map((p) => p.name),
         );
-        const textChanged = Object.keys(args.properties).some((k) => embeddedNames.has(k));
-        if (textChanged) {
+        const contentEmbeddedNames = new Set(
+          relDef.properties.filter((p) => p.tags.includes("embedded_content")).map((p) => p.name),
+        );
+        const nameChanged = Object.keys(args.properties).some((k) => nameEmbeddedNames.has(k));
+        const contentChanged = Object.keys(args.properties).some((k) => contentEmbeddedNames.has(k));
+        if (nameChanged || contentChanged) {
           const merged = { ...existingRel, ...args.properties };
-          relEmbedText = RelationshipManager.getCachedInstance().getEmbeddingText(
-            args.relationshipType,
-            merged,
-          );
-          if (relEmbedText) {
-            try {
-              relEmbedding = await getEmbedder().embed(relEmbedText);
-            } catch {
-              console.warn(
-                `[editRelationship] embedding update failed for "${args.relationshipType}"`,
-              );
+          const relManager = RelationshipManager.getCachedInstance();
+          if (nameChanged) {
+            relNameText = relManager.getEmbeddingNameText(args.relationshipType, merged, srcVal, tgtVal);
+            if (relNameText) {
+              try { relNameVec = await getEmbedder().embed(relNameText); } catch { /* ignore */ }
+            }
+          }
+          if (contentChanged) {
+            const contentText = relManager.getEmbeddingContentText(args.relationshipType, merged);
+            if (contentText) {
+              try { relContentVec = await getEmbedder().embed(contentText); } catch { /* ignore */ }
             }
           }
         }
@@ -311,20 +326,26 @@ sub-locations nested within a larger location (e.g., a basement inside a tavern)
         setParams,
       );
 
-      if (relEmbedding && relEmbedText) {
+      if (relNameVec || relContentVec) {
         const pointId = `:rel:${args.relationshipType}:${srcVal}:${tgtVal}`;
         try {
           const merged = { ...existingRel, ...args.properties } as Record<string, unknown>;
+          const contentText = RelationshipManager.getCachedInstance()
+            .getEmbeddingContentText(args.relationshipType, merged);
           const payload: Record<string, unknown> = {
             node_type: args.relationshipType,
             kind: "relationship",
             object_id: pointId,
-            text: relEmbedText,
+            text: contentText || relNameText || "",
           };
           for (const [k, v] of Object.entries(merged)) {
             if (!k.startsWith("_")) payload[k] = v;
           }
-          await getQdrantClient().upsert(pointId, relEmbedding, payload);
+          await getQdrantClient().upsert(pointId, {
+            nameVec: relNameVec ?? undefined,
+            contentVec: relContentVec ?? undefined,
+            sparseVec: relNameText ? encodeSparse(relNameText) : undefined,
+          }, payload);
         } catch (err) {
           console.warn(
             `[editRelationship] Qdrant upsert failed for "${args.relationshipType}":`,
@@ -338,7 +359,6 @@ sub-locations nested within a larger location (e.g., a basement inside a tavern)
 
     // ── DELETE ──
     // Delete Qdrant point first, then Neo4j relationship.
-    const wantsEmbedding = relDef.properties.some((p) => p.tags.includes("embedded"));
     if (wantsEmbedding) {
       const pointId = `:rel:${args.relationshipType}:${srcVal}:${tgtVal}`;
       try {

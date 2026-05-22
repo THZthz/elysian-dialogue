@@ -24,6 +24,7 @@ import { NodeDef, NodeManager } from "@/server/nodeManager";
 import { extractInternalAndUnknownKeys, wrapSafe } from "@/server/llm/tools/shared";
 import { getEmbedder } from "@/server/memory/embedder";
 import { getQdrantClient } from "@/server/memory/qdrant";
+import { encodeSparse } from "@/server/memory/sparseEncoder";
 import { TOOL_NAMES } from "@/shared/constants";
 
 const NODE_ACTIONS = ["CREATE", "UPDATE", "DELETE"] as const;
@@ -156,7 +157,9 @@ Set or update disposition when an NPC's feelings shift due to player actions.
         : null;
     }
 
-    const wantsEmbedding = nodeDef.properties.some((p) => p.tags.includes("embedded")) ?? false;
+    const wantsNameEmbedding = nodeDef.properties.some((p) => p.tags.includes("embedded_name"));
+    const wantsContentEmbedding = nodeDef.properties.some((p) => p.tags.includes("embedded_content"));
+    const wantsEmbedding = wantsNameEmbedding || wantsContentEmbedding;
 
     // Derive Qdrant pointId from the node's unique identifying property.
     function getPointId(props: Record<string, unknown>): string | null {
@@ -168,20 +171,31 @@ Set or update disposition when an NPC's feelings shift due to player actions.
       return val ? `${args.nodeLabel}:${val}` : null;
     }
 
-    async function qdrantUpsert(pointId: string, embedding: number[], props: Record<string, unknown>) {
+    async function qdrantUpsert(
+      pointId: string,
+      nameVec: number[] | null,
+      contentVec: number[] | null,
+      props: Record<string, unknown>,
+    ) {
       try {
         const nodeManager = NodeManager.getCachedInstance();
-        const embedText = nodeManager.getEmbeddingText(args.nodeLabel, props);
+        const contentText = nodeManager.getEmbeddingContentText(args.nodeLabel, props);
+        const nameText = nodeManager.getEmbeddingNameText(args.nodeLabel, props)
+          || `[${args.nodeLabel}] ${String(props.name || "")}`;
         const payload: Record<string, unknown> = {
           node_type: args.nodeLabel,
           kind: "node",
           object_id: pointId,
-          text: embedText,
+          text: contentText || nameText,
         };
         for (const [k, v] of Object.entries(props)) {
           if (!k.startsWith("_")) payload[k] = v;
         }
-        await getQdrantClient().upsert(pointId, embedding, payload);
+        await getQdrantClient().upsert(pointId, {
+          nameVec: nameVec ?? undefined,
+          contentVec: contentVec ?? undefined,
+          sparseVec: nameText ? encodeSparse(nameText) : undefined,
+        }, payload);
       } catch (err) {
         console.warn(
           `[editNode] Qdrant upsert failed for "${args.nodeLabel}":`,
@@ -201,18 +215,25 @@ Set or update disposition when an NPC's feelings shift due to player actions.
       }
     }
 
-    async function computeEmbedding(props: Record<string, unknown>): Promise<number[] | null> {
-      if (!wantsEmbedding) return null;
+    async function computeNameEmbedding(props: Record<string, unknown>): Promise<number[] | null> {
+      if (!wantsNameEmbedding) return null;
       const nodeManager = NodeManager.getCachedInstance();
-      const embedText = nodeManager.getEmbeddingText(args.nodeLabel, props);
-      if (!embedText) return null;
+      const nameText = nodeManager.getEmbeddingNameText(args.nodeLabel, props)
+        || `[${args.nodeLabel}] ${String(props.name || "")}`;
+      if (!nameText) return null;
       try {
-        const embedder = getEmbedder();
-        return await embedder.embed(embedText);
-      } catch {
-        console.warn(`[editNode] embedding failed for "${args.nodeLabel}"`);
-        return null;
-      }
+        return await getEmbedder().embed(nameText);
+      } catch { return null; }
+    }
+
+    async function computeContentEmbedding(props: Record<string, unknown>): Promise<number[] | null> {
+      if (!wantsContentEmbedding) return null;
+      const nodeManager = NodeManager.getCachedInstance();
+      const contentText = nodeManager.getEmbeddingContentText(args.nodeLabel, props);
+      if (!contentText) return null;
+      try {
+        return await getEmbedder().embed(contentText);
+      } catch { return null; }
     }
 
     // Serialize plain objects to JSON strings for Neo4j compatibility.
@@ -286,11 +307,12 @@ Set or update disposition when an NPC's feelings shift due to player actions.
       const created = rows[0]?.n as Record<string, unknown> | undefined;
 
       if (wantsEmbedding) {
-        const embedding = await computeEmbedding(args.properties);
-        if (embedding) {
+        const nameVec = await computeNameEmbedding(args.properties);
+        const contentVec = await computeContentEmbedding(args.properties);
+        if (nameVec || contentVec) {
           const merged = { ...args.properties };
           const pointId = getPointId(merged);
-          if (pointId) await qdrantUpsert(pointId, embedding, merged);
+          if (pointId) await qdrantUpsert(pointId, nameVec, contentVec, merged);
         }
       }
 
@@ -367,16 +389,26 @@ Set or update disposition when an NPC's feelings shift due to player actions.
       setters.push(`n.\`${key}\` = $${pName}`);
     }
 
-    let updatedEmbedding: number[] | null = null;
+    let updatedNameVec: number[] | null = null;
+    let updatedContentVec: number[] | null = null;
     let updatedProps: Record<string, unknown> | null = null;
     if (wantsEmbedding) {
-      const embeddedNames = new Set(
-        nodeDef.properties.filter((p) => p.tags.includes("embedded")).map((p) => p.name),
+      const nameEmbeddedNames = new Set(
+        nodeDef.properties.filter((p) => p.tags.includes("embedded_name")).map((p) => p.name),
       );
-      const textChanged = Object.keys(args.properties).some((k) => embeddedNames.has(k));
-      if (textChanged) {
+      const contentEmbeddedNames = new Set(
+        nodeDef.properties.filter((p) => p.tags.includes("embedded_content")).map((p) => p.name),
+      );
+      const nameChanged = Object.keys(args.properties).some((k) => nameEmbeddedNames.has(k));
+      const contentChanged = Object.keys(args.properties).some((k) => contentEmbeddedNames.has(k));
+      if (nameChanged || contentChanged) {
         updatedProps = { ...existingNode, ...args.properties } as Record<string, unknown>;
-        updatedEmbedding = await computeEmbedding(updatedProps);
+        if (nameChanged) {
+          updatedNameVec = await computeNameEmbedding(updatedProps);
+        }
+        if (contentChanged) {
+          updatedContentVec = await computeContentEmbedding(updatedProps);
+        }
       }
     }
 
@@ -385,9 +417,9 @@ Set or update disposition when an NPC's feelings shift due to player actions.
       setParams,
     );
 
-    if (updatedEmbedding && updatedProps) {
+    if ((updatedNameVec || updatedContentVec) && updatedProps) {
       const pointId = getPointId(updatedProps);
-      if (pointId) await qdrantUpsert(pointId, updatedEmbedding, updatedProps);
+      if (pointId) await qdrantUpsert(pointId, updatedNameVec, updatedContentVec, updatedProps);
     }
 
     return `Node "${args.nodeLabel}" updated properties: ${Object.keys(args.properties).join(", ")}.`;

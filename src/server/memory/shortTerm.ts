@@ -42,12 +42,12 @@ export class ShortTermMemory {
   ): Promise<MemoryMessage> {
     const convId = await this.ensureConversation();
 
-    let embedding: number[] | undefined;
+    let contentVec: number[] | undefined;
     let embedText: string | undefined;
     if (generateEmbedding) {
       const { NodeManager: NM } = await import("@/server/nodeManager");
-      embedText = NM.getCachedInstance().getEmbeddingText("Message", { content });
-      embedding = embedText ? await this.embedder.embed(embedText) : undefined;
+      embedText = NM.getCachedInstance().getEmbeddingContentText("Message", { content });
+      contentVec = embedText ? await this.embedder.embed(embedText) : undefined;
     }
 
     const messageId = await nextId(this.client);
@@ -73,9 +73,9 @@ export class ShortTermMemory {
     );
 
     // Store embedding in Qdrant (after Neo4j write succeeds).
-    if (embedding) {
+    if (contentVec) {
       try {
-        await getQdrantClient().upsert(`Message:${messageId}`, embedding, {
+        await getQdrantClient().upsert(`Message:${messageId}`, { contentVec }, {
           node_type: "Message",
           kind: "node",
           object_id: `Message:${messageId}`,

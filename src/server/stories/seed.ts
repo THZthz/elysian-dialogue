@@ -31,6 +31,7 @@ import { v4 as uuidv4 } from "uuid";
 import { Neo4jClient } from "@/server/memory/neo4j";
 import { Embedder, getEmbedder } from "@/server/memory/embedder";
 import { getQdrantClient } from "@/server/memory/qdrant";
+import { encodeSparse } from "@/server/memory/sparseEncoder";
 
 // ── Helpers ──
 
@@ -96,18 +97,25 @@ async function addEntity(
   const typeLabel = pascalCase(finalType);
   const subtypeLabel = finalSubtype ? pascalCase(finalSubtype) : null;
 
-  let embedding: number[] | undefined;
+  let nameVec: number[] | null = null;
+  let contentVec: number[] | null = null;
   let embedText: string | undefined;
   if (generateEmbedding) {
     const nodeManager = NodeManager.getCachedInstance();
-    embedText = nodeManager.getEmbeddingText("Entity", {
-      name,
-      type: finalType,
-      description: description ?? "",
-      brief: brief ?? "",
+    const nameText = nodeManager.getEmbeddingNameText("Entity", {
+      name, type: finalType, description: description ?? "", brief: brief ?? "",
+    }) || `[Entity] ${name}`;
+    embedText = nodeManager.getEmbeddingContentText("Entity", {
+      name, type: finalType, description: description ?? "", brief: brief ?? "",
     });
+
     const embedder = getEmbedder();
-    embedding = embedText ? await embedder.embed(embedText) : undefined;
+    const [nv, cv] = await Promise.all([
+      embedder.embed(nameText),
+      embedder.embed(embedText),
+    ]);
+    nameVec = nv;
+    contentVec = cv;
   }
 
   // Store aliases inside metadata (Python convention)
@@ -144,8 +152,12 @@ async function addEntity(
   const result = rows[0];
   const isNew = (result?.isNew as boolean) || false;
 
-  if (embedding) {
+  if (nameVec || contentVec) {
     try {
+      const nodeManager = NodeManager.getCachedInstance();
+      const nameText = nodeManager.getEmbeddingNameText("Entity", {
+        name, type: finalType,
+      }) || `[Entity] ${name}`;
       const payload: Record<string, unknown> = {
         node_type: "Entity",
         kind: "node",
@@ -157,7 +169,11 @@ async function addEntity(
         brief: brief || null,
         description: description || null,
       };
-      await getQdrantClient().upsert(`Entity:${name}`, embedding, payload);
+      await getQdrantClient().upsert(`Entity:${name}`, {
+        nameVec: nameVec ?? undefined,
+        contentVec: contentVec ?? undefined,
+        sparseVec: encodeSparse(nameText),
+      }, payload);
     } catch (err) {
       console.warn(
         "[seed] Qdrant upsert failed:",
