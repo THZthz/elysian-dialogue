@@ -75,16 +75,20 @@ export class ShortTermMemory {
     // Store embedding in Qdrant (after Neo4j write succeeds).
     if (contentVec) {
       try {
-        await getQdrantClient().upsert(`Message:${messageId}`, { contentVec }, {
-          node_type: "Message",
-          kind: "node",
-          object_id: `Message:${messageId}`,
-          text: embedText,
-          content,
-          id: messageId,
-          metadata: JSON.stringify(merged),
-          timestamp: now,
-        });
+        await getQdrantClient().upsert(
+          `Message:${messageId}`,
+          { contentVec },
+          {
+            node_type: "Message",
+            kind: "node",
+            object_id: `Message:${messageId}`,
+            text: embedText,
+            content,
+            id: messageId,
+            metadata: JSON.stringify(merged),
+            timestamp: now,
+          },
+        );
       } catch (err) {
         console.warn(
           "[shortTerm] Qdrant upsert failed for message:",

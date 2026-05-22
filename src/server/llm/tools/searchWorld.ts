@@ -35,9 +35,10 @@ function getVectorSearchable(type: "relationship" | "label"): {
       : NodeManager.getCachedInstance()
   )
     .getAll()
-    .filter(
-      (def) =>
-        def.properties.some((p) => p.tags.includes("embedded_name") || p.tags.includes("embedded_content")),
+    .filter((def) =>
+      def.properties.some(
+        (p) => p.tags.includes("embedded_name") || p.tags.includes("embedded_content"),
+      ),
     );
 
   // Filter out subtype labels: labels whose property definitions (names + tags)
@@ -100,8 +101,12 @@ Do not forget to use parameter \`limit\` wisely, if the search should be exact, 
     const searchNodes = target.includes("NODE");
     const searchRels = target.includes("RELATIONSHIP");
 
-    const nodeSearchable = searchNodes ? getVectorSearchable("label") : { canonical: new Set<string>(), labelToCanonical: new Map<string, string>() };
-    const relSearchable = searchRels ? getVectorSearchable("relationship") : { canonical: new Set<string>(), labelToCanonical: new Map<string, string>() };
+    const nodeSearchable = searchNodes
+      ? getVectorSearchable("label")
+      : { canonical: new Set<string>(), labelToCanonical: new Map<string, string>() };
+    const relSearchable = searchRels
+      ? getVectorSearchable("relationship")
+      : { canonical: new Set<string>(), labelToCanonical: new Map<string, string>() };
 
     // Resolve domains: filter user-provided values to what's searchable.
     // If none provided, use all canonical (non-subtype) node labels and relationship types.

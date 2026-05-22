@@ -29,7 +29,7 @@ export const NODE_PROPERTY_TAGS = [
    * unfold Neo4j string property to avoid whole string overwritten (which is unwanted in most cases).
    */
   "json",
-  "embedded_name",   // Used for identity/exact-match vector (name_vec)
+  "embedded_name", // Used for identity/exact-match vector (name_vec)
   "embedded_content", // Used for semantic/meaning vector (content_vec)
   /**
    * Will create a unique constraint if specified.
@@ -202,7 +202,11 @@ const INTERNAL_TYPES: { name: string; description: string; properties: NodePrope
     name: "NodeType",
     description: `Stores the description, property schema, and category of each node type in the schema. Use ${TOOL_NAMES.MANAGE_SCHEMA} to register new types.`,
     properties: [
-      { name: "name", description: "Node label (e.g. 'Entity', 'Artifact').", tags: ["string", "unique"] },
+      {
+        name: "name",
+        description: "Node label (e.g. 'Entity', 'Artifact').",
+        tags: ["string", "unique"],
+      },
       {
         name: "description",
         description: "Human-readable description of what the node type represents.",
@@ -246,8 +250,16 @@ const PREDEFINED_TYPES: { name: string; description: string; properties: NodePro
     name: "Message",
     description: `A conversation message between player and GM. Linked in sequence via NEXT_MESSAGE. Automatically managed by \`${TOOL_NAMES.GENERATE_DIALOGUE}\`.`,
     properties: [
-      { name: "id", description: "Message id composed of 4 characters.", tags: ["string", "unique"] },
-      { name: "content", description: "Message text content.", tags: ["string", "embedded_content"] },
+      {
+        name: "id",
+        description: "Message id composed of 4 characters.",
+        tags: ["string", "unique"],
+      },
+      {
+        name: "content",
+        description: "Message text content.",
+        tags: ["string", "embedded_content"],
+      },
       // TODO: Replace it by TIMESTAMP_PROPS.
       { name: "timestamp", description: "ISO 8601 timestamp of the message.", tags: ["string"] },
       {
@@ -262,7 +274,11 @@ const PREDEFINED_TYPES: { name: string; description: string; properties: NodePro
     name: "Note",
     description: `A GM note with vector embedding for semantic recall. Can link to Entities, Messages, or Plots via ABOUT_ENTITY / ABOUT_MESSAGE / ABOUT_PLOT. Automatically managed by \`${TOOL_NAMES.EDIT_NOTE}\`.`,
     properties: [
-      { name: "name", description: "Unique note name (used as lookup key).", tags: ["string", "unique"] },
+      {
+        name: "name",
+        description: "Unique note name (used as lookup key).",
+        tags: ["string", "unique"],
+      },
       {
         name: "content",
         description: "Full note content (embedded for vector search).",
@@ -298,7 +314,8 @@ const PREDEFINED_TYPES: { name: string; description: string; properties: NodePro
       },
       {
         name: "trigger_condition",
-        description: "JS expression evaluated to auto-activate the plot. Available variables: success, total, difficulty, statBonus.",
+        description:
+          "JS expression evaluated to auto-activate the plot. Available variables: success, total, difficulty, statBonus.",
         tags: ["string"],
       },
       {
@@ -356,7 +373,8 @@ const PREDEFINED_TYPES: { name: string; description: string; properties: NodePro
       },
       {
         name: "label",
-        description: "Human-readable clock time label (e.g. '12:00 AM', '1:30 PM'). This is created automatically.",
+        description:
+          "Human-readable clock time label (e.g. '12:00 AM', '1:30 PM'). This is created automatically.",
         tags: ["string"],
       },
       ...TIMESTAMP_PROPS,

@@ -42,7 +42,12 @@ Omit when generating fresh.`.trim(),
       "Name of the speaker (no '_' between words, e.g. 'Orin Fell' if the speaker has a clear name, 'NARRATOR', 'INSTINCT' or other inner voices if this is happen inside player's head).",
     ),
   type: z
-    .enum(SPEAKER_TYPES.filter((type) => type !== "YOU" && type !== "ROLL") as Exclude<SpeakerType, "YOU" | "ROLL">[])
+    .enum(
+      SPEAKER_TYPES.filter((type) => type !== "YOU" && type !== "ROLL") as Exclude<
+        SpeakerType,
+        "YOU" | "ROLL"
+      >[],
+    )
     .describe(""),
   text: z.string().max(MAX_MESSAGE_TEXT_LENGTH).describe("The dialogue text, supports markdown."),
   metadata: z

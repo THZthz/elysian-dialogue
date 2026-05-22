@@ -53,9 +53,12 @@ export class Plots {
     const { NodeManager: NM } = await import("@/server/nodeManager");
     const nodeManager = NM.getCachedInstance();
     const nameText = nodeManager.getEmbeddingNameText("Plot", { name }) || `[Plot] ${name}`;
-    const contentText = nodeManager.getEmbeddingContentText("Plot", {
-      name, description, brief: brief ?? "",
-    }) || description;
+    const contentText =
+      nodeManager.getEmbeddingContentText("Plot", {
+        name,
+        description,
+        brief: brief ?? "",
+      }) || description;
 
     const [nameVec, contentVec] = await Promise.all([
       this.embedder.embed(nameText),
@@ -91,16 +94,20 @@ export class Plots {
     );
 
     try {
-      await getQdrantClient().upsert(`Plot:${name}`, { nameVec, contentVec, sparseVec }, {
-        node_type: "Plot",
-        kind: "node",
-        object_id: `Plot:${name}`,
-        text: contentText,
-        name,
-        description,
-        brief: brief ?? "",
-        status,
-      });
+      await getQdrantClient().upsert(
+        `Plot:${name}`,
+        { nameVec, contentVec, sparseVec },
+        {
+          node_type: "Plot",
+          kind: "node",
+          object_id: `Plot:${name}`,
+          text: contentText,
+          name,
+          description,
+          brief: brief ?? "",
+          status,
+        },
+      );
     } catch (err) {
       console.warn(
         "[plots] Qdrant upsert failed:",
@@ -151,11 +158,12 @@ export class Plots {
       const { NodeManager: NM } = await import("@/server/nodeManager");
       const nodeManager = NM.getCachedInstance();
       const nameText = nodeManager.getEmbeddingNameText("Plot", { name }) || `[Plot] ${name}`;
-      const contentText = nodeManager.getEmbeddingContentText("Plot", {
-        name,
-        description: newDescription,
-        brief: newBrief ?? "",
-      }) || newDescription;
+      const contentText =
+        nodeManager.getEmbeddingContentText("Plot", {
+          name,
+          description: newDescription,
+          brief: newBrief ?? "",
+        }) || newDescription;
 
       const [nv, cv] = await Promise.all([
         this.embedder.embed(nameText),
@@ -186,25 +194,30 @@ export class Plots {
       try {
         const { NodeManager: NM } = await import("@/server/nodeManager");
         const nodeManager = NM.getCachedInstance();
-        const contentText = nodeManager.getEmbeddingContentText("Plot", {
-          name,
-          description: newDescription,
-          brief: newBrief ?? "",
-        }) || newDescription;
-        await getQdrantClient().upsert(`Plot:${name}`, {
-          nameVec: nameVec ?? undefined,
-          contentVec: contentVec ?? undefined,
-          sparseVec: sparseVec ?? undefined,
-        }, {
-          node_type: "Plot",
-          kind: "node",
-          object_id: `Plot:${name}`,
-          text: contentText,
-          name,
-          description: newDescription,
-          brief: newBrief ?? "",
-          status: newStatus,
-        });
+        const contentText =
+          nodeManager.getEmbeddingContentText("Plot", {
+            name,
+            description: newDescription,
+            brief: newBrief ?? "",
+          }) || newDescription;
+        await getQdrantClient().upsert(
+          `Plot:${name}`,
+          {
+            nameVec: nameVec ?? undefined,
+            contentVec: contentVec ?? undefined,
+            sparseVec: sparseVec ?? undefined,
+          },
+          {
+            node_type: "Plot",
+            kind: "node",
+            object_id: `Plot:${name}`,
+            text: contentText,
+            name,
+            description: newDescription,
+            brief: newBrief ?? "",
+            status: newStatus,
+          },
+        );
       } catch (err) {
         console.warn(
           "[plots] Qdrant upsert failed:",

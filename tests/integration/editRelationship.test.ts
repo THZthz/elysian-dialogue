@@ -459,8 +459,16 @@ describe("editRelationship", () => {
         name: EMBED_REL,
         description: "Relationship with embedded properties",
         properties: [
-          { name: "summary", description: "Summary for embedding", tags: ["string", "embedded_content"] },
-          { name: "detail", description: "Detail for embedding", tags: ["string", "embedded_content"] },
+          {
+            name: "summary",
+            description: "Summary for embedding",
+            tags: ["string", "embedded_content"],
+          },
+          {
+            name: "detail",
+            description: "Detail for embedding",
+            tags: ["string", "embedded_content"],
+          },
         ],
         sourceLabel: "Note",
         targetLabel: "Entity",

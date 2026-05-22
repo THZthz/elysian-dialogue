@@ -16,7 +16,12 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { EntityType, getMemoryClient, MemoryClient, type MemoryEntity } from "@/server/memory/client";
+import {
+  EntityType,
+  getMemoryClient,
+  MemoryClient,
+  type MemoryEntity,
+} from "@/server/memory/client";
 import type { SkillName } from "@/shared/constants";
 
 // TODO: This skill check system should be reworked since current skill check will always succeed.

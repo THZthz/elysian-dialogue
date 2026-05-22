@@ -78,9 +78,9 @@ class QdrantVectorClient {
   }
 
   async ensureCollection(): Promise<void> {
-    const info = await this.fetchApiOk<{ result: { status?: string; config?: { params?: { vectors?: Record<string, unknown> } } } }>(
-      `/collections/${COLLECTION_NAME}`,
-    );
+    const info = await this.fetchApiOk<{
+      result: { status?: string; config?: { params?: { vectors?: Record<string, unknown> } } };
+    }>(`/collections/${COLLECTION_NAME}`);
     if (info) {
       if (info.result?.status === "green" || info.result?.status === "yellow") {
         const vectors = info.result?.config?.params?.vectors;
@@ -135,7 +135,9 @@ class QdrantVectorClient {
       });
     }
 
-    console.log(`[qdrant] collection ${COLLECTION_NAME} created (${this.dimensions}d Cosine with named vectors + sparse)`);
+    console.log(
+      `[qdrant] collection ${COLLECTION_NAME} created (${this.dimensions}d Cosine with named vectors + sparse)`,
+    );
   }
 
   async upsert(
@@ -209,20 +211,19 @@ class QdrantVectorClient {
     });
 
     const res = await this.fetchApi<{
-      result: { points?: Array<{ id: string | number; score: number; payload?: Record<string, unknown> }> };
-    }>(
-      `/collections/${COLLECTION_NAME}/points/query`,
-      {
-        method: "POST",
-        body: {
-          prefetch,
-          query: { fusion: "rrf" },
-          limit,
-          with_payload: true,
-          with_vector: false,
-        },
+      result: {
+        points?: Array<{ id: string | number; score: number; payload?: Record<string, unknown> }>;
+      };
+    }>(`/collections/${COLLECTION_NAME}/points/query`, {
+      method: "POST",
+      body: {
+        prefetch,
+        query: { fusion: "rrf" },
+        limit,
+        with_payload: true,
+        with_vector: false,
       },
-    );
+    });
 
     const points = res.result?.points ?? [];
     return points.map((p) => ({

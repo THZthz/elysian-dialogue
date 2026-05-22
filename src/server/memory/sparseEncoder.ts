@@ -38,13 +38,18 @@ export interface SparseVector {
 }
 
 export function encodeSparse(text: string): SparseVector {
-  const tokens = text.toLowerCase().split(/[\s\p{P}]+/u).filter(Boolean);
+  const tokens = text
+    .toLowerCase()
+    .split(/[\s\p{P}]+/u)
+    .filter(Boolean);
   const tf: Record<number, number> = {};
   for (const token of tokens) {
     const idx = fnv1a32(token);
     tf[idx] = (tf[idx] || 0) + 1;
   }
-  const indices = Object.keys(tf).map(Number).sort((a, b) => a - b);
+  const indices = Object.keys(tf)
+    .map(Number)
+    .sort((a, b) => a - b);
   return {
     indices,
     values: indices.map((i) => tf[i]),

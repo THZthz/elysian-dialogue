@@ -149,7 +149,9 @@ sub-locations nested within a larger location (e.g., a basement inside a tavern)
     }
 
     const wantsNameEmbedding = relDef.properties.some((p) => p.tags.includes("embedded_name"));
-    const wantsContentEmbedding = relDef.properties.some((p) => p.tags.includes("embedded_content"));
+    const wantsContentEmbedding = relDef.properties.some((p) =>
+      p.tags.includes("embedded_content"),
+    );
     const wantsEmbedding = wantsNameEmbedding || wantsContentEmbedding;
 
     // ── CREATE ──
@@ -170,12 +172,29 @@ sub-locations nested within a larger location (e.g., a basement inside a tavern)
 
       if (wantsEmbedding) {
         const relManager = RelationshipManager.getCachedInstance();
-        nameText = relManager.getEmbeddingNameText(args.relationshipType, createProps, srcVal, tgtVal);
+        nameText = relManager.getEmbeddingNameText(
+          args.relationshipType,
+          createProps,
+          srcVal,
+          tgtVal,
+        );
         const contentText = relManager.getEmbeddingContentText(args.relationshipType, createProps);
 
         const tasks: Promise<number[] | null>[] = [];
-        tasks.push(nameText ? getEmbedder().embed(nameText).catch(() => null) : Promise.resolve(null));
-        tasks.push(contentText ? getEmbedder().embed(contentText).catch(() => null) : Promise.resolve(null));
+        tasks.push(
+          nameText
+            ? getEmbedder()
+                .embed(nameText)
+                .catch(() => null)
+            : Promise.resolve(null),
+        );
+        tasks.push(
+          contentText
+            ? getEmbedder()
+                .embed(contentText)
+                .catch(() => null)
+            : Promise.resolve(null),
+        );
         const [nv, cv] = await Promise.all(tasks);
         nameVec = nv;
         contentVec = cv;
@@ -203,8 +222,10 @@ sub-locations nested within a larger location (e.g., a basement inside a tavern)
       if (nameVec || contentVec) {
         const pointId = `:rel:${args.relationshipType}:${srcVal}:${tgtVal}`;
         try {
-          const contentText = RelationshipManager.getCachedInstance()
-            .getEmbeddingContentText(args.relationshipType, createProps);
+          const contentText = RelationshipManager.getCachedInstance().getEmbeddingContentText(
+            args.relationshipType,
+            createProps,
+          );
           const payload: Record<string, unknown> = {
             node_type: args.relationshipType,
             kind: "relationship",
@@ -214,11 +235,15 @@ sub-locations nested within a larger location (e.g., a basement inside a tavern)
           for (const [k, v] of Object.entries(createProps)) {
             if (!k.startsWith("_")) payload[k] = v;
           }
-          await getQdrantClient().upsert(pointId, {
-            nameVec: nameVec ?? undefined,
-            contentVec: contentVec ?? undefined,
-            sparseVec: nameText ? encodeSparse(nameText) : undefined,
-          }, payload);
+          await getQdrantClient().upsert(
+            pointId,
+            {
+              nameVec: nameVec ?? undefined,
+              contentVec: contentVec ?? undefined,
+              sparseVec: nameText ? encodeSparse(nameText) : undefined,
+            },
+            payload,
+          );
         } catch (err) {
           console.warn(
             `[editRelationship] Qdrant upsert failed for "${args.relationshipType}":`,
@@ -302,20 +327,35 @@ sub-locations nested within a larger location (e.g., a basement inside a tavern)
           relDef.properties.filter((p) => p.tags.includes("embedded_content")).map((p) => p.name),
         );
         const nameChanged = Object.keys(args.properties).some((k) => nameEmbeddedNames.has(k));
-        const contentChanged = Object.keys(args.properties).some((k) => contentEmbeddedNames.has(k));
+        const contentChanged = Object.keys(args.properties).some((k) =>
+          contentEmbeddedNames.has(k),
+        );
         if (nameChanged || contentChanged) {
           const merged = { ...existingRel, ...args.properties };
           const relManager = RelationshipManager.getCachedInstance();
           if (nameChanged) {
-            relNameText = relManager.getEmbeddingNameText(args.relationshipType, merged, srcVal, tgtVal);
+            relNameText = relManager.getEmbeddingNameText(
+              args.relationshipType,
+              merged,
+              srcVal,
+              tgtVal,
+            );
             if (relNameText) {
-              try { relNameVec = await getEmbedder().embed(relNameText); } catch { /* ignore */ }
+              try {
+                relNameVec = await getEmbedder().embed(relNameText);
+              } catch {
+                /* ignore */
+              }
             }
           }
           if (contentChanged) {
             const contentText = relManager.getEmbeddingContentText(args.relationshipType, merged);
             if (contentText) {
-              try { relContentVec = await getEmbedder().embed(contentText); } catch { /* ignore */ }
+              try {
+                relContentVec = await getEmbedder().embed(contentText);
+              } catch {
+                /* ignore */
+              }
             }
           }
         }
@@ -330,8 +370,10 @@ sub-locations nested within a larger location (e.g., a basement inside a tavern)
         const pointId = `:rel:${args.relationshipType}:${srcVal}:${tgtVal}`;
         try {
           const merged = { ...existingRel, ...args.properties } as Record<string, unknown>;
-          const contentText = RelationshipManager.getCachedInstance()
-            .getEmbeddingContentText(args.relationshipType, merged);
+          const contentText = RelationshipManager.getCachedInstance().getEmbeddingContentText(
+            args.relationshipType,
+            merged,
+          );
           const payload: Record<string, unknown> = {
             node_type: args.relationshipType,
             kind: "relationship",
@@ -341,11 +383,15 @@ sub-locations nested within a larger location (e.g., a basement inside a tavern)
           for (const [k, v] of Object.entries(merged)) {
             if (!k.startsWith("_")) payload[k] = v;
           }
-          await getQdrantClient().upsert(pointId, {
-            nameVec: relNameVec ?? undefined,
-            contentVec: relContentVec ?? undefined,
-            sparseVec: relNameText ? encodeSparse(relNameText) : undefined,
-          }, payload);
+          await getQdrantClient().upsert(
+            pointId,
+            {
+              nameVec: relNameVec ?? undefined,
+              contentVec: relContentVec ?? undefined,
+              sparseVec: relNameText ? encodeSparse(relNameText) : undefined,
+            },
+            payload,
+          );
         } catch (err) {
           console.warn(
             `[editRelationship] Qdrant upsert failed for "${args.relationshipType}":`,

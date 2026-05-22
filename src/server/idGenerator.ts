@@ -39,7 +39,7 @@ export function feistelEncrypt(x: number, key: number[]): number {
     // Simple round function: mix right half, round index and key
     const roundKey = key[i % key.length] & 0xffff;
     let f = (right * roundKey + i) & 0xffff; // not cryptographic, but works for obfuscation
-    f = ((f << 5) | (f >>> 11)) & 0xffff;     // rotate bits a little
+    f = ((f << 5) | (f >>> 11)) & 0xffff; // rotate bits a little
 
     const newRight = left ^ f;
     left = right;

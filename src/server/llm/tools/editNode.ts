@@ -158,7 +158,9 @@ Set or update disposition when an NPC's feelings shift due to player actions.
     }
 
     const wantsNameEmbedding = nodeDef.properties.some((p) => p.tags.includes("embedded_name"));
-    const wantsContentEmbedding = nodeDef.properties.some((p) => p.tags.includes("embedded_content"));
+    const wantsContentEmbedding = nodeDef.properties.some((p) =>
+      p.tags.includes("embedded_content"),
+    );
     const wantsEmbedding = wantsNameEmbedding || wantsContentEmbedding;
 
     // Derive Qdrant pointId from the node's unique identifying property.
@@ -180,8 +182,9 @@ Set or update disposition when an NPC's feelings shift due to player actions.
       try {
         const nodeManager = NodeManager.getCachedInstance();
         const contentText = nodeManager.getEmbeddingContentText(args.nodeLabel, props);
-        const nameText = nodeManager.getEmbeddingNameText(args.nodeLabel, props)
-          || `[${args.nodeLabel}] ${String(props.name || "")}`;
+        const nameText =
+          nodeManager.getEmbeddingNameText(args.nodeLabel, props) ||
+          `[${args.nodeLabel}] ${String(props.name || "")}`;
         const payload: Record<string, unknown> = {
           node_type: args.nodeLabel,
           kind: "node",
@@ -191,11 +194,15 @@ Set or update disposition when an NPC's feelings shift due to player actions.
         for (const [k, v] of Object.entries(props)) {
           if (!k.startsWith("_")) payload[k] = v;
         }
-        await getQdrantClient().upsert(pointId, {
-          nameVec: nameVec ?? undefined,
-          contentVec: contentVec ?? undefined,
-          sparseVec: nameText ? encodeSparse(nameText) : undefined,
-        }, payload);
+        await getQdrantClient().upsert(
+          pointId,
+          {
+            nameVec: nameVec ?? undefined,
+            contentVec: contentVec ?? undefined,
+            sparseVec: nameText ? encodeSparse(nameText) : undefined,
+          },
+          payload,
+        );
       } catch (err) {
         console.warn(
           `[editNode] Qdrant upsert failed for "${args.nodeLabel}":`,
@@ -218,22 +225,29 @@ Set or update disposition when an NPC's feelings shift due to player actions.
     async function computeNameEmbedding(props: Record<string, unknown>): Promise<number[] | null> {
       if (!wantsNameEmbedding) return null;
       const nodeManager = NodeManager.getCachedInstance();
-      const nameText = nodeManager.getEmbeddingNameText(args.nodeLabel, props)
-        || `[${args.nodeLabel}] ${String(props.name || "")}`;
+      const nameText =
+        nodeManager.getEmbeddingNameText(args.nodeLabel, props) ||
+        `[${args.nodeLabel}] ${String(props.name || "")}`;
       if (!nameText) return null;
       try {
         return await getEmbedder().embed(nameText);
-      } catch { return null; }
+      } catch {
+        return null;
+      }
     }
 
-    async function computeContentEmbedding(props: Record<string, unknown>): Promise<number[] | null> {
+    async function computeContentEmbedding(
+      props: Record<string, unknown>,
+    ): Promise<number[] | null> {
       if (!wantsContentEmbedding) return null;
       const nodeManager = NodeManager.getCachedInstance();
       const contentText = nodeManager.getEmbeddingContentText(args.nodeLabel, props);
       if (!contentText) return null;
       try {
         return await getEmbedder().embed(contentText);
-      } catch { return null; }
+      } catch {
+        return null;
+      }
     }
 
     // Serialize plain objects to JSON strings for Neo4j compatibility.

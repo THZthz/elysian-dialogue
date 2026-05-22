@@ -20,7 +20,8 @@ import {
   type EntityType,
   MemoryClient,
   type MemoryEntity,
-  type Disposition, getMemoryClient,
+  type Disposition,
+  getMemoryClient,
 } from "@/server/memory/client";
 import { RelationshipManager } from "@/server/relationshipManager";
 import { NodeManager } from "@/server/nodeManager";
@@ -101,19 +102,23 @@ async function addEntity(
   let embedText: string | undefined;
   if (generateEmbedding) {
     const nodeManager = NodeManager.getCachedInstance();
-    const nameText = nodeManager.getEmbeddingNameText("Entity", {
-      name, type: finalType, description: description ?? "", brief: brief ?? "",
-    }) || `[Entity] ${name}`;
+    const nameText =
+      nodeManager.getEmbeddingNameText("Entity", {
+        name,
+        type: finalType,
+        description: description ?? "",
+        brief: brief ?? "",
+      }) || `[Entity] ${name}`;
     embedText = nodeManager.getEmbeddingContentText("Entity", {
-      name, type: finalType, description: description ?? "", brief: brief ?? "",
+      name,
+      type: finalType,
+      description: description ?? "",
+      brief: brief ?? "",
     });
 
     try {
       const embedder = getEmbedder();
-      const [nv, cv] = await Promise.all([
-        embedder.embed(nameText),
-        embedder.embed(embedText),
-      ]);
+      const [nv, cv] = await Promise.all([embedder.embed(nameText), embedder.embed(embedText)]);
       nameVec = nv;
       contentVec = cv;
     } catch {
@@ -158,9 +163,11 @@ async function addEntity(
   if (nameVec || contentVec) {
     try {
       const nodeManager = NodeManager.getCachedInstance();
-      const nameText = nodeManager.getEmbeddingNameText("Entity", {
-        name, type: finalType,
-      }) || `[Entity] ${name}`;
+      const nameText =
+        nodeManager.getEmbeddingNameText("Entity", {
+          name,
+          type: finalType,
+        }) || `[Entity] ${name}`;
       const payload: Record<string, unknown> = {
         node_type: "Entity",
         kind: "node",
@@ -172,11 +179,15 @@ async function addEntity(
         brief: brief || null,
         description: description || null,
       };
-      await getQdrantClient().upsert(`Entity:${name}`, {
-        nameVec: nameVec ?? undefined,
-        contentVec: contentVec ?? undefined,
-        sparseVec: encodeSparse(nameText),
-      }, payload);
+      await getQdrantClient().upsert(
+        `Entity:${name}`,
+        {
+          nameVec: nameVec ?? undefined,
+          contentVec: contentVec ?? undefined,
+          sparseVec: encodeSparse(nameText),
+        },
+        payload,
+      );
     } catch (err) {
       console.warn(
         "[seed] Qdrant upsert failed:",

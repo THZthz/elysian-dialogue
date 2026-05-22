@@ -56,7 +56,12 @@ const server = new McpServer({
 });
 
 export function setupServer(server: McpServer, dialogueStepTool: any, advanceTimeTool: any) {
-  function reg(name: string, desc: string, schema: unknown, execute: (args: any) => Promise<string>) {
+  function reg(
+    name: string,
+    desc: string,
+    schema: unknown,
+    execute: (args: any) => Promise<string>,
+  ) {
     server.registerTool(
       name,
       {
@@ -69,14 +74,34 @@ export function setupServer(server: McpServer, dialogueStepTool: any, advanceTim
 
   reg("queryWorld", queryWorld.description!, queryWorld.inputSchema, queryWorld.execute as any);
   reg("searchWorld", searchWorld.description!, searchWorld.inputSchema, searchWorld.execute as any);
-  reg("manageSchema", manageSchema.description!, manageSchema.inputSchema, manageSchema.execute as any);
+  reg(
+    "manageSchema",
+    manageSchema.description!,
+    manageSchema.inputSchema,
+    manageSchema.execute as any,
+  );
   reg("editNode", editNode.description!, editNode.inputSchema, editNode.execute as any);
-  reg("editRelationship", editRelationship.description!, editRelationship.inputSchema, editRelationship.execute as any);
+  reg(
+    "editRelationship",
+    editRelationship.description!,
+    editRelationship.inputSchema,
+    editRelationship.execute as any,
+  );
   reg("editNote", editNote.description!, editNote.inputSchema, editNote.execute as any);
   reg("editPlot", editPlot.description!, editPlot.inputSchema, editPlot.execute as any);
   reg("getContext", getContext.description!, getContext.inputSchema, getContext.execute as any);
-  reg("generateDialogueStep", dialogueStepTool.tool.description!, dialogueStepTool.tool.inputSchema, dialogueStepTool.tool.execute as any);
-  reg("advanceTime", advanceTimeTool.description!, advanceTimeTool.inputSchema, advanceTimeTool.execute as any);
+  reg(
+    "generateDialogueStep",
+    dialogueStepTool.tool.description!,
+    dialogueStepTool.tool.inputSchema,
+    dialogueStepTool.tool.execute as any,
+  );
+  reg(
+    "advanceTime",
+    advanceTimeTool.description!,
+    advanceTimeTool.inputSchema,
+    advanceTimeTool.execute as any,
+  );
 }
 
 setupServer(server, dialogueStepTool, advanceTimeTool);

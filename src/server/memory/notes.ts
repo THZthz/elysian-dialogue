@@ -37,8 +37,10 @@ export class Notes {
   async createNote(noteName: string, content: string): Promise<MemoryNote> {
     const { NodeManager: NM } = await import("@/server/nodeManager");
     const nodeManager = NM.getCachedInstance();
-    const nameText = nodeManager.getEmbeddingNameText("Note", { name: noteName }) || `[Note] ${noteName}`;
-    const contentText = nodeManager.getEmbeddingContentText("Note", { name: noteName, content }) || content;
+    const nameText =
+      nodeManager.getEmbeddingNameText("Note", { name: noteName }) || `[Note] ${noteName}`;
+    const contentText =
+      nodeManager.getEmbeddingContentText("Note", { name: noteName, content }) || content;
     const now = new Date().toISOString();
 
     const [nameVec, contentVec] = await Promise.all([
@@ -53,14 +55,18 @@ export class Notes {
     );
 
     try {
-      await getQdrantClient().upsert(`Note:${noteName}`, { nameVec, contentVec, sparseVec }, {
-        node_type: "Note",
-        kind: "node",
-        object_id: `Note:${noteName}`,
-        text: contentText,
-        name: noteName,
-        content,
-      });
+      await getQdrantClient().upsert(
+        `Note:${noteName}`,
+        { nameVec, contentVec, sparseVec },
+        {
+          node_type: "Note",
+          kind: "node",
+          object_id: `Note:${noteName}`,
+          text: contentText,
+          name: noteName,
+          content,
+        },
+      );
     } catch (err) {
       console.warn(
         "[notes] Qdrant upsert failed:",
@@ -89,26 +95,32 @@ export class Notes {
       try {
         const { NodeManager: NM } = await import("@/server/nodeManager");
         const nodeManager = NM.getCachedInstance();
-        const nameText = nodeManager.getEmbeddingNameText("Note", { name: noteName }) || `[Note] ${noteName}`;
-        const contentText = nodeManager.getEmbeddingContentText("Note", { name: noteName, content }) || content;
+        const nameText =
+          nodeManager.getEmbeddingNameText("Note", { name: noteName }) || `[Note] ${noteName}`;
+        const contentText =
+          nodeManager.getEmbeddingContentText("Note", { name: noteName, content }) || content;
 
         const [nameVec, contentVec] = await Promise.all([
           this.embedder.embed(nameText),
           this.embedder.embed(contentText),
         ]);
 
-        await getQdrantClient().upsert(`Note:${noteName}`, {
-          nameVec,
-          contentVec,
-          sparseVec: encodeSparse(nameText),
-        }, {
-          node_type: "Note",
-          kind: "node",
-          object_id: `Note:${noteName}`,
-          text: contentText,
-          name: noteName,
-          content,
-        });
+        await getQdrantClient().upsert(
+          `Note:${noteName}`,
+          {
+            nameVec,
+            contentVec,
+            sparseVec: encodeSparse(nameText),
+          },
+          {
+            node_type: "Note",
+            kind: "node",
+            object_id: `Note:${noteName}`,
+            text: contentText,
+            name: noteName,
+            content,
+          },
+        );
       } catch (err) {
         console.warn(
           "[notes] Qdrant upsert failed:",
