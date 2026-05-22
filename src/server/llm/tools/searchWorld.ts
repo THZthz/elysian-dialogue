@@ -104,7 +104,7 @@ Do not forget to use parameter \`limit\` wisely, if the search should be exact, 
       .array(z.string())
       .optional()
       .describe(
-        "Node labels or relationship types to search (e.g. ['Character', 'Location', 'Message', 'ALLIED_WITH']). Omit to search all searchable types.",
+        "Node labels or relationship types to search (e.g. ['Character', 'Location', 'Message', 'LOCATED_AT']). Omit to search all searchable types.",
       ),
     limit: z.number().default(3).describe("Max results per domain."),
   }),

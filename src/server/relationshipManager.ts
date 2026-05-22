@@ -188,34 +188,6 @@ const PREDEFINED_TYPES: {
     ],
   },
   {
-    name: "ALLIED_WITH",
-    description: "A character is allied with or friendly toward another character.",
-    sourceLabel: "Character",
-    targetLabel: "Character",
-    properties: [
-      {
-        name: "brief",
-        description:
-          "Reason or motive for the alliance (e.g., 'shared hatred of the Magistrate', 'family loyalty').",
-        tags: ["string", "embedded_content"],
-      },
-    ],
-  },
-  {
-    name: "HOSTILE_TOWARDS",
-    description: "A character is hostile toward or in conflict with another character.",
-    sourceLabel: "Character",
-    targetLabel: "Character",
-    properties: [
-      {
-        name: "brief",
-        description:
-          "Reason or motive for the hostility (e.g., 'unpaid debt of 200 coins', 'territorial dispute').",
-        tags: ["string", "embedded_content"],
-      },
-    ],
-  },
-  {
     name: "LOCATED_IN",
     description: "A location is contained within a larger location (e.g., a basement inside a tavern).",
     sourceLabel: "Location",

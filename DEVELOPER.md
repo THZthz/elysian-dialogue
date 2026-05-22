@@ -231,7 +231,7 @@ All defined in `src/server/llm/tools/`. Registered in `generateTurn()`.
 | Tool               | Purpose                                                                                                                                                                     |
 |--------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `editNode`         | CREATE/UPDATE/DELETE any node. Validates properties against NodeManager schema. Auto-generates embeddings. Use for Entity and Disposition; not for Note or Plot.            |
-| `editRelationship` | CREATE/UPDATE/DELETE relationships. LOCATED_AT, CARRIES, ALLIED_WITH, HOSTILE_TOWARDS, LOCATED_IN now have `description` (string, embedded) property for narrative context. |
+| `editRelationship` | CREATE/UPDATE/DELETE relationships. LOCATED_AT, CARRIES, LOCATED_IN have `brief` (string, embedded) property for narrative context. Character attitudes use Disposition nodes instead. |
 | `manageSchema`     | Register/unregister node types and relationship types. Must be called before creating instances of new types.                                                               |
 | `advanceTime`      | Advance in-game clock by hours/days. Always include reason. Stored on NEXT_TIMEPOINT.reason.                                                                                |
 
@@ -423,7 +423,7 @@ Relationship types declared via `[[relationshipTypes]]` with `name`, `descriptio
 11. **COLE+O entity model** — CHARACTER, OBJECT, LOCATION, ORGANIZATION, EVENT with dynamic Neo4j sub-labels.
 12. **Skill checks resolved server-side** — dice rolls computed automatically, result injected into prompt.
 13. **Compact 4-layer GM prompt** — SENSE (getContext/searchWorld/queryWorld READ) → ACT (editNode/editRelationship/manageSchema/queryWorld WRITE/advanceTime) → TRACK (editNote/editPlot) → SPEAK (generateDialogueStep). Tool descriptions carry operational detail; prompt carries the mental model.
-14. **Relationship description properties** — LOCATED_AT, CARRIES, ALLIED_WITH, HOSTILE_TOWARDS, and LOCATED_IN have `description` (string, embedded) for narrative context. Vector-indexed for semantic search via searchWorld.
+14. **Relationship brief properties** — LOCATED_AT, CARRIES, and LOCATED_IN have `brief` (string, embedded) for narrative context. Character attitudes and alliances use Disposition nodes instead of relationships.
 15. **Schema dump from memory** — `getContext SCHEMA_DUMP` reads type definitions directly from `NodeManager`/`RelationshipManager` registries (no Neo4j round-trip), presenting full property schemas with tags and descriptions.
 16. **MCP server** — `src/server/mcp.ts` exposes all 10 GM tools over stdio via `@modelcontextprotocol/sdk`. Wraps each tool's `execute(args) => Promise<string>` into MCP's `{ content: [{ type: "text", text }] }`. Two factory-based tools (`generateDialogueStep`, `advanceTime`) are instantiated with MCP-appropriate options.
 17. **Turn checkpoints** — at the end of each successful turn, the full Neo4j graph is serialized via `apoc.export.json.all` and the Qdrant collection is snapshotted via the native snapshot API. Both files are saved to `data/checkpoints/`. Restoring a checkpoint wipes both databases and reimports the checkpoint data, then deletes all later checkpoints (linear undo only).

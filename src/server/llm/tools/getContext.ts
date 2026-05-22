@@ -81,7 +81,13 @@ async function buildSchemaDump(): Promise<string> {
   const rels = relManager
     .getAll()
     .filter((r) => r.type !== "INTERNAL")
-    .sort((a, b) => a.name.localeCompare(b.name));
+    .sort((a, b) => {
+      const srcCmp = (a.sourceLabel || "").localeCompare(b.sourceLabel || "");
+      if (srcCmp !== 0) return srcCmp;
+      const tgtCmp = (a.targetLabel || "").localeCompare(b.targetLabel || "");
+      if (tgtCmp !== 0) return tgtCmp;
+      return a.name.localeCompare(b.name);
+    });
   for (const rel of rels) {
     const src = rel.sourceLabel || "?";
     const tgt = rel.targetLabel || "?";

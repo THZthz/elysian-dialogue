@@ -31,7 +31,7 @@ export interface SeedEntity {
 export interface SeedRelationship {
   sourceName: string;
   targetName: string;
-  type: string; // e.g., "LOCATED_AT", "CARRIES", "HOSTILE_TOWARDS"
+  type: string; // e.g., "LOCATED_AT", "CARRIES", "CONNECTED_TO"
   description?: string;
 }
 

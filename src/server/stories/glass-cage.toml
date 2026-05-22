@@ -442,61 +442,61 @@ targetName = "Lounge Car"
 type = "CONNECTED_TO"
 description = "Rearmost compartments give way to the lounge."
 
-# Interpersonal Relationships (ALLIED_WITH / HOSTILE_TOWARDS)
+# Interpersonal Dispositions (formerly ALLIED_WITH / HOSTILE_TOWARDS)
 
-[[relationships]]
+[[dispositions]]
 sourceName = "Crystal vi Elaris"
 targetName = "Player"
-type = "ALLIED_WITH"
-description = "Crystal was the only passenger who approached the player after the body was discovered. She sits near them in the observation car. Her lyre hums when they are present."
+sentiment = "attracted"
+summary = "Crystal was the only passenger who approached the player after the body was discovered. She sits near them in the observation car. Her lyre hums when they are present."
 
-[[relationships]]
+[[dispositions]]
 sourceName = "Doctor Cassian Vale"
 targetName = "Player"
-type = "ALLIED_WITH"
-description = "Vale examined the player after the body was found, cleaned the blood from their hands, and stated he believed them. His surgical kit contains blades matching the wound profile."
+sentiment = "allied"
+summary = "Vale examined the player after the body was found, cleaned the blood from their hands, and stated he believed them. His surgical kit contains blades matching the wound profile."
 
-[[relationships]]
+[[dispositions]]
 sourceName = "Magistra Iris Korr"
 targetName = "Player"
-type = "HOSTILE_TOWARDS"
-description = "Korr has been observing the player since the body was discovered. She has noted the amnesia, the blood on their hands, and their presence next to the crime scene."
+sentiment = "hostile"
+summary = "Korr has been observing the player since the body was discovered. She has noted the amnesia, the blood on their hands, and their presence next to the crime scene."
 
-[[relationships]]
+[[dispositions]]
 sourceName = "Lord Aldric Vane"
 targetName = "Elias Crowne"
-type = "HOSTILE_TOWARDS"
-description = "Crowne possessed documents detailing Vane's financial irregularities and had communicated a demand for payment before boarding."
+sentiment = "hostile"
+summary = "Crowne possessed documents detailing Vane's financial irregularities and had communicated a demand for payment before boarding."
 
-[[relationships]]
+[[dispositions]]
 sourceName = "Silas"
 targetName = "Elias Crowne"
-type = "ALLIED_WITH"
-description = "Crowne was Silas's source of information from Valdris. Crowne's last message to Silas was urgent — he claimed to have something significant and promised delivery on the conveyor."
+sentiment = "allied"
+summary = "Crowne was Silas's source of information from Valdris. Crowne's last message to Silas was urgent — he claimed to have something significant and promised delivery on the conveyor."
 
-[[relationships]]
+[[dispositions]]
 sourceName = "Lady Mireille Tessier"
 targetName = "Elias Crowne"
-type = "ALLIED_WITH"
-description = "Tessier fed Crowne information from diplomatic circles for years. She knew the contents of his ledger better than most — half of it originated with her."
+sentiment = "allied"
+summary = "Tessier fed Crowne information from diplomatic circles for years. She knew the contents of his ledger better than most — half of it originated with her."
 
-[[relationships]]
+[[dispositions]]
 sourceName = "Garrick"
 targetName = "Elias Crowne"
-type = "ALLIED_WITH"
-description = "Crowne bought Garrick a drink hours before the murder and questioned him about his military posting in the northern provinces."
+sentiment = "allied"
+summary = "Crowne bought Garrick a drink hours before the murder and questioned him about his military posting in the northern provinces."
 
-[[relationships]]
+[[dispositions]]
 sourceName = "Thea"
 targetName = "Player"
-type = "ALLIED_WITH"
-description = "Thea was making rounds near Passenger Car A at midnight. She has observed the player since the murder but has not reported what she saw to the conductor or the Magistra."
+sentiment = "protective"
+summary = "Thea was making rounds near Passenger Car A at midnight. She has observed the player since the murder but has not reported what she saw to the conductor or the Magistra."
 
-[[relationships]]
+[[dispositions]]
 sourceName = "Ysara va Keth"
 targetName = "Kest Winder"
-type = "ALLIED_WITH"
-description = "Ysara understands the Aethon's arcane engines. Her resonator readings align with Kest's stabilizer logs. Together they could identify the interference source."
+sentiment = "allied"
+summary = "Ysara understands the Aethon's arcane engines. Her resonator readings align with Kest's stabilizer logs. Together they could identify the interference source."
 
 # ═══════════════════════════════════════════════════════════════════
 # DISPOSITIONS — NPC internal feelings toward targets.

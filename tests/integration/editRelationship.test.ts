@@ -127,8 +127,8 @@ describe("editRelationship", () => {
   it("reports error when source node does not exist", async () => {
     const result = await exec(editRelationship, {
       action: "CREATE",
-      relationshipType: "ALLIED_WITH",
-      sourceLabel: "Character",
+      relationshipType: "ABOUT_ENTITY",
+      sourceLabel: "Note",
       sourceMatch: { name: "NonexistentEntityXYZ" },
       targetLabel: "Character",
       targetMatch: { name: "Player" },
@@ -139,8 +139,8 @@ describe("editRelationship", () => {
   it("rejects empty sourceMatch", async () => {
     const result = await exec(editRelationship, {
       action: "CREATE",
-      relationshipType: "ALLIED_WITH",
-      sourceLabel: "Character",
+      relationshipType: "ABOUT_ENTITY",
+      sourceLabel: "Note",
       sourceMatch: {},
       targetLabel: "Character",
       targetMatch: { name: "Player" },
@@ -151,8 +151,8 @@ describe("editRelationship", () => {
   it("rejects empty targetMatch", async () => {
     const result = await exec(editRelationship, {
       action: "CREATE",
-      relationshipType: "ALLIED_WITH",
-      sourceLabel: "Character",
+      relationshipType: "ABOUT_ENTITY",
+      sourceLabel: "Note",
       sourceMatch: { name: "Player" },
       targetLabel: "Character",
       targetMatch: {},
@@ -245,8 +245,8 @@ describe("editRelationship", () => {
     it("reports error when UPDATE relationship not found", async () => {
       const result = await exec(editRelationship, {
         action: "UPDATE",
-        relationshipType: "ALLIED_WITH",
-        sourceLabel: "Character",
+        relationshipType: "ABOUT_ENTITY",
+        sourceLabel: "Note",
         sourceMatch: { name: "Player" },
         targetLabel: "Character",
         targetMatch: { name: "NonexistentEntityXYZ" },

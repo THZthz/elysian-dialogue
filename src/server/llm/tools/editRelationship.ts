@@ -34,7 +34,7 @@ const inputSchema = z.object({
   relationshipType: z
     .string()
     .describe(
-      `The relationship type (e.g. 'LOCATED_AT', 'ALLIED_WITH', 'HOSTILE_TOWARDS', or GM-defined). Must be registered in the world schema and writable. Discover available types via \`${TOOL_NAMES.GET_CONTEXT}\` SCHEMA_DUMP.`,
+      `The relationship type (e.g. 'LOCATED_AT', 'CARRIES', 'LOCATED_IN', or GM-defined). Must be registered in the world schema and writable. Use Disposition nodes for character attitudes instead of relationships. Discover available types via \`${TOOL_NAMES.GET_CONTEXT}\` SCHEMA_DUMP.`,
     ),
   sourceLabel: z
     .string()
@@ -79,7 +79,7 @@ Relationship properties for spatial/tactical context:
 - LOCATED_AT.brief — spatial position detail (e.g. "hiding behind crates")
 - LOCATED_IN.brief — access/containment detail (e.g. "accessed through a trapdoor behind the bar")
 - CARRIES.brief — how an item is carried (e.g. "concealed in a boot")
-- ALLIED_WITH.brief / HOSTILE_TOWARDS.brief — motive or reason
+- CARRIES.brief — how/where an item is carried
 
 Convention: use LOCATED_AT for characters/objects at a specific spot. Use LOCATED_IN for
 sub-locations nested within a larger location (e.g., a basement inside a tavern).

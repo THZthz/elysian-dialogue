@@ -78,7 +78,7 @@ In convention, property "brief" is for one-liners, "description" is for full tex
 Rule:
 - \`OPTIONAL MATCH\` for 1-to-1 links only. \`CALL { MATCH ... COLLECT {} }\` for 1-to-many lists. Chaining multiple \`OPTIONAL MATCH\` creates Cartesian Products — use \`CALL\` subqueries instead.
 - When deleting or transferring a relationship, if the old relationship may not exist, you must use OPTIONAL MATCH; otherwise, the entire query will silently fail.
-- For unique relationships (e.g., LOCATED_AT, where an entity can only be located somewhere), use MERGE or delete before creating. For repeatable relationships (e.g., ALLIED_WITH, which allows bidirectional coexistence), they can be created repeatedly, but business constraints still need to be considered. When creating entities, use MERGE to ensure idempotency and avoid duplicate nodes.
+- For unique relationships (e.g., LOCATED_AT, where a character/object can only be located at one place), use MERGE or delete old before creating new. For character attitudes, use Disposition nodes (not relationships). When creating entities, use MERGE to ensure idempotency and avoid duplicate nodes.
 - DETACH DELETE will remove all relationships, but it will not clean up nodes like Disposition that reference the entity's name string. After deletion, these dangling references need to be manually cleaned up, or retrieved and cleaned up before deletion.
 
 ### Lookups
@@ -148,9 +148,10 @@ MATCH (npc:Character {name: $npcName})
 MERGE (npc)-[:HAS_DISPOSITION]->(d:Disposition {source_name: $npcName, target_name: $targetName})
 SET d.sentiment = $sentiment, d.summary = $summary
 
-// Create relationship
-MATCH (a:Character {name: "Veyla"}), (b:Character {name: "Harbor Rats"})
-MERGE (a)-[:HOSTILE_TOWARDS {brief: "Unpaid debt of 200 coins."}]->(b)
+// Set character disposition (for attitudes/alliances, use Disposition nodes instead of relationships)
+MATCH (a:Character {name: "Veyla"})
+MERGE (a)-[:HAS_DISPOSITION]->(d:Disposition {source_name: "Veyla", target_name: "Harbor Rats"})
+SET d.sentiment = "hostile", d.summary = "Unpaid debt of 200 coins."
 
 // Delete object
 MATCH (e:Object {name: "Broken Bottle"})
