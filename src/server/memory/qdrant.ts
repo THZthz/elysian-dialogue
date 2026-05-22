@@ -1,10 +1,11 @@
 import { getEmbedder } from "@/server/memory/embedder";
 import { v5 as uuidv5 } from "uuid";
+import type { SparseVector } from "@/server/memory/sparseEncoder";
 
 const COLLECTION_NAME = "chorus_embeddings";
 const UUID_NAMESPACE = "6ba7b810-9dad-11d1-80b4-00c04fd430c8"; // DNS namespace
 
-// WARNING: We shoudld not use the official library @qdrant/js-client-rest since undici is not compatible with our env (rather new node.js)!
+// WARNING: We should not use the official library @qdrant/js-client-rest since undici is not compatible with our env (rather new node.js)!
 
 /** Convert a deterministic string key to a UUID v5 for use as Qdrant point ID. */
 function toPointId(key: string): string {
@@ -25,13 +26,27 @@ export interface QdrantSearchResult {
   payload: Record<string, unknown>;
 }
 
+export interface PointVectors {
+  nameVec?: number[];
+  contentVec?: number[];
+  sparseVec?: SparseVector;
+}
+
+export interface MultiSearchResult {
+  nameResults: Map<string, { id: string | number; score: number; payload: Record<string, unknown> }>;
+  contentResults: Map<string, { id: string | number; score: number; payload: Record<string, unknown> }>;
+  sparseResults: Map<string, { id: string | number; score: number; payload: Record<string, unknown> }>;
+}
+
 class QdrantVectorClient {
   private readonly baseUrl: string;
   private readonly dimensions: number;
+  private readonly ef: number;
 
   private constructor(url: string) {
     this.baseUrl = url.replace(/\/$/, "");
     this.dimensions = getEmbedder().dimensions;
+    this.ef = parseInt(process.env.QDRANT_EF || "128", 10);
   }
 
   private async fetchApi<T>(
@@ -69,16 +84,20 @@ class QdrantVectorClient {
   }
 
   async ensureCollection(): Promise<void> {
-    const info = await this.fetchApiOk<{ result: { status?: string; config?: { params?: { vectors?: { size?: number } } } } }>(
+    const info = await this.fetchApiOk<{ result: { status?: string; config?: { params?: { vectors?: Record<string, unknown> } } } }>(
       `/collections/${COLLECTION_NAME}`,
     );
     if (info) {
       if (info.result?.status === "green" || info.result?.status === "yellow") {
-        const existingSize = info.result?.config?.params?.vectors?.size;
-        if (existingSize !== undefined && existingSize !== this.dimensions) {
-          console.warn(
-            `[qdrant] dimension mismatch: collection has ${existingSize}, embedder has ${this.dimensions}. Recreate collection or update EMBEDDING_DIMENSIONS.`,
-          );
+        const vectors = info.result?.config?.params?.vectors;
+        if (vectors && typeof vectors === "object") {
+          const nameVec = vectors["name_vec"] as { size?: number } | undefined;
+          const existingSize = nameVec?.size ?? (vectors as { size?: number }).size;
+          if (existingSize !== undefined && existingSize !== this.dimensions) {
+            console.warn(
+              `[qdrant] dimension mismatch: collection has ${existingSize}, embedder has ${this.dimensions}. Recreate collection or update EMBEDDING_DIMENSIONS.`,
+            );
+          }
         }
         console.log(`[qdrant] collection ${COLLECTION_NAME} ready`);
         return;
@@ -92,7 +111,24 @@ class QdrantVectorClient {
     await this.fetchApi(`/collections/${COLLECTION_NAME}`, {
       method: "PUT",
       body: {
-        vectors: { size: this.dimensions, distance: "Cosine" },
+        vectors: {
+          name_vec: { size: this.dimensions, distance: "Cosine" },
+          content_vec: { size: this.dimensions, distance: "Cosine" },
+        },
+        sparse_vectors: {
+          sparse_vec: { modifier: "idf" },
+        },
+        hnsw_config: {
+          m: 16,
+          ef_construct: 100,
+          on_disk: true,
+        },
+        optimizers_config: {
+          default_segment_number: 2,
+        },
+        quantization_config: {
+          scalar: { type: "int8", quantile: 0.99, always_ram: true },
+        },
         on_disk_payload: true,
       },
     });
@@ -105,19 +141,24 @@ class QdrantVectorClient {
       });
     }
 
-    console.log(`[qdrant] collection ${COLLECTION_NAME} created (${this.dimensions}d Cosine)`);
+    console.log(`[qdrant] collection ${COLLECTION_NAME} created (${this.dimensions}d Cosine with named vectors + sparse)`);
   }
 
   async upsert(
     key: string,
-    embedding: number[],
+    vectors: PointVectors,
     payload: Record<string, unknown>,
   ): Promise<void> {
     const id = toPointId(key);
+    const vector: Record<string, unknown> = {};
+    if (vectors.nameVec) vector["name_vec"] = vectors.nameVec;
+    if (vectors.contentVec) vector["content_vec"] = vectors.contentVec;
+    if (vectors.sparseVec) vector["sparse_vec"] = vectors.sparseVec;
+
     await this.fetchApi(`/collections/${COLLECTION_NAME}/points`, {
       method: "PUT",
       body: {
-        points: [{ id, vector: embedding, payload }],
+        points: [{ id, vector, payload }],
         wait: false,
       },
     });
@@ -131,29 +172,87 @@ class QdrantVectorClient {
     });
   }
 
-  async searchVector(
-    embedding: number[],
-    options: { filter: QdrantSearchOptions["filter"]; limit: number; scoreThreshold?: number },
-  ): Promise<QdrantSearchResult[]> {
-    const body: Record<string, unknown> = {
-      vector: embedding,
-      filter: options.filter,
-      limit: options.limit,
-      with_payload: true,
-      with_vector: false,
-    };
-    if (options.scoreThreshold) {
-      body["score_threshold"] = options.scoreThreshold;
+  async searchMultiVector(
+    nameVec: number[] | null,
+    contentVec: number[],
+    sparseVec: SparseVector,
+    filter: QdrantSearchOptions["filter"],
+    limit: number,
+  ): Promise<MultiSearchResult> {
+    const searches: Promise<Array<{ id: string | number; score: number; payload?: Record<string, unknown> }>>[] = [];
+
+    // Dense name search
+    if (nameVec) {
+      searches.push(
+        this.fetchApi<{ result: Array<{ id: string | number; score: number; payload?: Record<string, unknown> }> }>(
+          `/collections/${COLLECTION_NAME}/points/search`,
+          {
+            method: "POST",
+            body: {
+              vector: { name: "name_vec", vector: nameVec },
+              filter,
+              limit,
+              with_payload: true,
+              with_vector: false,
+              params: { ef: this.ef },
+            },
+          },
+        ).then(r => r.result || []),
+      );
+    } else {
+      searches.push(Promise.resolve([]));
     }
-    const res = await this.fetchApi<{ result: Array<{ id: string | number; score: number; payload?: Record<string, unknown> }> }>(
-      `/collections/${COLLECTION_NAME}/points/search`,
-      { method: "POST", body },
+
+    // Dense content search
+    searches.push(
+      this.fetchApi<{ result: Array<{ id: string | number; score: number; payload?: Record<string, unknown> }> }>(
+        `/collections/${COLLECTION_NAME}/points/search`,
+        {
+          method: "POST",
+          body: {
+            vector: { name: "content_vec", vector: contentVec },
+            filter,
+            limit,
+            with_payload: true,
+            with_vector: false,
+            params: { ef: this.ef },
+          },
+        },
+      ).then(r => r.result || []),
     );
-    return (res.result || []).map((r) => ({
-      id: r.id,
-      score: r.score,
-      payload: r.payload ?? {},
-    }));
+
+    // Sparse search
+    searches.push(
+      this.fetchApi<{ result: Array<{ id: string | number; score: number; payload?: Record<string, unknown> }> }>(
+        `/collections/${COLLECTION_NAME}/points/search`,
+        {
+          method: "POST",
+          body: {
+            vector: { name: "sparse_vec", vector: sparseVec },
+            filter,
+            limit,
+            with_payload: true,
+            with_vector: false,
+          },
+        },
+      ).then(r => r.result || []),
+    );
+
+    const [nameRes, contentRes, sparseRes] = await Promise.all(searches);
+
+    const toMap = (arr: Array<{ id: string | number; score: number; payload?: Record<string, unknown> }>) => {
+      const m = new Map<string, { id: string | number; score: number; payload: Record<string, unknown> }>();
+      for (const r of arr) {
+        m.set(String(r.id), { id: r.id, score: r.score, payload: r.payload ?? {} });
+      }
+      return m;
+    };
+
+    return {
+      nameResults: toMap(nameRes),
+      contentResults: toMap(contentRes),
+      sparseResults: toMap(sparseRes),
+    };
   }
 
   async deleteByFilter(filter: QdrantSearchOptions["filter"]): Promise<void> {
