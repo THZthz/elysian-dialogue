@@ -31,22 +31,22 @@ describe("searchWorld", () => {
     if (!embedderAvailable) return;
     const result = await exec(searchWorld, {
       query: "player amnesia identity",
-      domains: ["Entity"],
+      domains: ["Character"],
       limit: 5,
     });
     const data = parseToolOutput(result);
-    expect(Array.isArray(data.Entity)).toBe(true);
+    expect(Array.isArray(data.Character)).toBe(true);
   });
 
   it("searches multiple types at once", async () => {
     if (!embedderAvailable) return;
     const result = await exec(searchWorld, {
       query: "murder investigation",
-      domains: ["Entity", "Plot"],
+      domains: ["Character", "Plot"],
       limit: 5,
     });
     const data = parseToolOutput(result);
-    expect(data).toHaveProperty("Entity");
+    expect(data).toHaveProperty("Character");
     expect(data).toHaveProperty("Plot");
   });
 
@@ -54,11 +54,11 @@ describe("searchWorld", () => {
     if (!embedderAvailable) return;
     const result = await exec(searchWorld, {
       query: "zzxyznonexistentword98765",
-      domains: ["Entity"],
+      domains: ["Character"],
       limit: 2,
     });
     const data = parseToolOutput(result);
-    expect(Array.isArray(data.Entity)).toBe(true);
+    expect(Array.isArray(data.Character)).toBe(true);
   });
 
   // Default target is now ["node", "relationship"] — both are searched unless
@@ -77,10 +77,10 @@ describe("searchWorld", () => {
   it("succeeds without embedder (returns empty or minimal results)", async () => {
     const result = await exec(searchWorld, {
       query: "test query",
-      domains: ["Entity"],
+      domains: ["Character"],
       limit: 2,
     });
     const data = parseToolOutput(result);
-    expect(Array.isArray(data.Entity)).toBe(true);
+    expect(Array.isArray(data.Character)).toBe(true);
   });
 });

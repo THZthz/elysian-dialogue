@@ -63,7 +63,6 @@ describe("getContext", () => {
   it("returns SCHEMA_DUMP", async () => {
     const result = await exec(getContext, { types: ["SCHEMA_DUMP"] });
     expect(result).toContain("## Schema");
-    expect(result).toContain("Entity");
     expect(result).toContain("LOCATED_AT");
   });
 

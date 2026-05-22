@@ -60,6 +60,17 @@ function getVectorSearchable(type: "relationship" | "label"): {
       labelToCanonical.set(def.name, existing);
     }
   }
+
+  // Character, Object, Location share the same property fingerprint but
+  // must be independently searchable (each has its own Qdrant node_type).
+  for (const name of ["Character", "Object", "Location"]) {
+    if (labelToCanonical.has(name) && labelToCanonical.get(name) !== name) {
+      canonical.delete(name);
+      canonical.add(name);
+      labelToCanonical.set(name, name);
+    }
+  }
+
   return { canonical, labelToCanonical };
 }
 
@@ -70,7 +81,7 @@ export const searchWorld = tool({
 Search the archive by semantic MEANING (vector similarity search with reranking).
 
 Use 'target' to restrict to only nodes or only relationships. Pass one or more domains (node labels
-or relationship types) via 'domains' to scope the search (e.g. ["Entity", "Message"], ["LOCATED_AT"]).
+or relationship types) via 'domains' to scope the search (e.g. ["Character", "Location", "Message"], ["LOCATED_AT"]).
 Omit to search all searchable types.
 
 Search your notes at the start of every turn with domains: ["Note"].
@@ -93,7 +104,7 @@ Do not forget to use parameter \`limit\` wisely, if the search should be exact, 
       .array(z.string())
       .optional()
       .describe(
-        "Node labels or relationship types to search (e.g. ['Entity', 'Message', 'ALLIED_WITH']). Omit to search all searchable types.",
+        "Node labels or relationship types to search (e.g. ['Character', 'Location', 'Message', 'ALLIED_WITH']). Omit to search all searchable types.",
       ),
     limit: z.number().default(3).describe("Max results per domain."),
   }),
@@ -111,7 +122,7 @@ Do not forget to use parameter \`limit\` wisely, if the search should be exact, 
 
     // Resolve domains: filter user-provided values to what's searchable.
     // If none provided, use all canonical (non-subtype) node labels and relationship types.
-    // Subtype labels (Character, Location, Object) map to their canonical parent (Entity).
+    // Character, Object, Location are independent searchable domains.
     const nodeDomains: string[] = [];
     const relDomains: string[] = [];
 

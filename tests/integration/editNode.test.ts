@@ -171,9 +171,9 @@ describe("editNode", () => {
     const TEST_ENTITY = `test_json_entity_editNode`;
 
     beforeAll(async () => {
-      // Create an Entity with initial metadata for JSON merge tests
+      // Create a Character with initial metadata for JSON merge tests
       await exec(editNode, {
-        nodeLabel: "Entity",
+        nodeLabel: "Character",
         action: "CREATE",
         properties: {
           name: TEST_ENTITY,
@@ -187,7 +187,7 @@ describe("editNode", () => {
 
     afterAll(async () => {
       await exec(editNode, {
-        nodeLabel: "Entity",
+        nodeLabel: "Character",
         action: "DELETE",
         match: { name: TEST_ENTITY },
       });
@@ -196,7 +196,7 @@ describe("editNode", () => {
     it("shallow-merges json-tagged property and preserves existing keys", async () => {
       // Update only one top-level key inside metadata
       const result = await exec(editNode, {
-        nodeLabel: "Entity",
+        nodeLabel: "Character",
         action: "UPDATE",
         match: { name: TEST_ENTITY },
         properties: { metadata: { stats: { power: 99, speed: 5 } } },
@@ -207,7 +207,7 @@ describe("editNode", () => {
       // and metadata.attributes should still exist (not clobbered)
       const verify = await exec(queryWorld, {
         action: "READ",
-        query: `MATCH (n:Entity {name: '${TEST_ENTITY}'}) RETURN n.metadata`,
+        query: `MATCH (n:Character {name: '${TEST_ENTITY}'}) RETURN n.metadata`,
       });
       const data = parseToolOutput(verify);
       const row = data.rows[0] as Record<string, unknown>;
@@ -219,7 +219,7 @@ describe("editNode", () => {
 
     it("shallow-merges a new top-level key into json-tagged property", async () => {
       const result = await exec(editNode, {
-        nodeLabel: "Entity",
+        nodeLabel: "Character",
         action: "UPDATE",
         match: { name: TEST_ENTITY },
         properties: { metadata: { conditions: { Broken: true } } },
@@ -228,7 +228,7 @@ describe("editNode", () => {
 
       const verify = await exec(queryWorld, {
         action: "READ",
-        query: `MATCH (n:Entity {name: '${TEST_ENTITY}'}) RETURN n.metadata`,
+        query: `MATCH (n:Character {name: '${TEST_ENTITY}'}) RETURN n.metadata`,
       });
       const data = parseToolOutput(verify);
       const row = data.rows[0] as Record<string, unknown>;

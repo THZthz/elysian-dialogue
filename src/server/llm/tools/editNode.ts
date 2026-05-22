@@ -41,7 +41,7 @@ function visibleProps(node: Record<string, unknown> | undefined): Record<string,
 const inputSchema = z.object({
   nodeLabel: z.string().describe(
     `
-Node label to operate on (e.g. \`Entity\`, \`Character\`, \`Location\`, or a GM-defined label).
+Node label to operate on (e.g. \`Character\`, \`Object\`, \`Location\`, or a GM-defined label).
 Must be registered in the world schema and writable. Discover available types and their property
 schemas via \`${TOOL_NAMES.GET_CONTEXT}\` (SCHEMA_DUMP).
 `.trim(),
@@ -57,7 +57,7 @@ schemas via \`${TOOL_NAMES.GET_CONTEXT}\` (SCHEMA_DUMP).
     .describe(
       `
 Key-value pairs to locate exactly one node, used by "WHERE" clause of Cypher query. Required for UPDATE/DELETE.
-e.g. { name: 'Tavern' } for an Entity, or { source_name: 'Guard', target_name: 'Player' } for an Disposition.
+e.g. { name: 'Tavern' } for a Location, or { source_name: 'Guard', target_name: 'Player' } for a Disposition.
 `.trim(),
     ),
   properties: z
@@ -78,7 +78,7 @@ export const editNode = tool({
   description: `
 ## Brief
 CREATE, UPDATE, or DELETE a single node in the Neo4j database using an node type already registered
-by \`${TOOL_NAMES.MANAGE_SCHEMA}\`. Can be used for Entity (Character, Object, Location) and
+by \`${TOOL_NAMES.MANAGE_SCHEMA}\`. Can be used for Character, Object, Location, and
 Disposition nodes. It is not recommended to use this tool to directly edit Note or Plot.
 
 ## CREATE

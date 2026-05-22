@@ -104,7 +104,7 @@ describe("manageSchema", () => {
       const result = await exec(manageSchema, {
         target: "NODE",
         action: "UNREGISTER",
-        name: "Entity",
+        name: "Character",
       });
       expect(result).toContain("Cannot unregister");
     });
@@ -117,12 +117,12 @@ describe("manageSchema", () => {
         action: "REGISTER",
         name: "TEST_CONNECTS_TO",
         description: "Test connection between entities",
-        sourceLabel: "Entity",
+        sourceLabel: "Character",
         targetLabel: "Location",
       });
       expect(result).toContain("Registered relationship type");
       expect(result).toContain("TEST_CONNECTS_TO");
-      expect(result).toContain("(Entity)→(Location)");
+      expect(result).toContain("(Character)→(Location)");
     });
 
     it("rejects registration without sourceLabel and targetLabel", async () => {
@@ -142,16 +142,16 @@ describe("manageSchema", () => {
         action: "REGISTER",
         name: "TEST_TEMP_REL",
         description: "Temporary",
-        sourceLabel: "Entity",
-        targetLabel: "Entity",
+        sourceLabel: "Character",
+        targetLabel: "Character",
       });
 
       const result = await exec(manageSchema, {
         target: "RELATIONSHIP",
         action: "UNREGISTER",
         name: "TEST_TEMP_REL",
-        sourceLabel: "Entity",
-        targetLabel: "Entity",
+        sourceLabel: "Character",
+        targetLabel: "Character",
       });
       expect(result).toContain("Unregistered relationship type");
     });
@@ -162,8 +162,8 @@ describe("manageSchema", () => {
         action: "REGISTER",
         name: "TEST_DUAL",
         description: "First variant",
-        sourceLabel: "Entity",
-        targetLabel: "Entity",
+        sourceLabel: "Character",
+        targetLabel: "Character",
       });
       expect(r1).toContain("Registered relationship type");
 
@@ -172,11 +172,11 @@ describe("manageSchema", () => {
         action: "REGISTER",
         name: "TEST_DUAL",
         description: "Second variant",
-        sourceLabel: "Entity",
+        sourceLabel: "Character",
         targetLabel: "Location",
       });
       expect(r2).toContain("Registered relationship type");
-      expect(r2).toContain("(Entity)→(Location)");
+      expect(r2).toContain("(Character)→(Location)");
     });
 
     it("rejects unregister without sourceLabel/targetLabel", async () => {
@@ -193,7 +193,7 @@ describe("manageSchema", () => {
         target: "RELATIONSHIP",
         action: "UNREGISTER",
         name: "LOCATED_AT",
-        sourceLabel: "Entity",
+        sourceLabel: "Character",
         targetLabel: "Location",
       });
       expect(result).toContain("Cannot unregister");
@@ -207,8 +207,8 @@ describe("manageSchema", () => {
         action: "REGISTER",
         name: "TEST_TAGGED_REL",
         description: "Relationship with full property tags",
-        sourceLabel: "Entity",
-        targetLabel: "Entity",
+        sourceLabel: "Character",
+        targetLabel: "Character",
         properties: [
           {
             name: "summary",
@@ -242,8 +242,8 @@ describe("manageSchema", () => {
         target: "RELATIONSHIP",
         action: "UNREGISTER",
         name: "TEST_TAGGED_REL",
-        sourceLabel: "Entity",
-        targetLabel: "Entity",
+        sourceLabel: "Character",
+        targetLabel: "Character",
       });
     });
   });

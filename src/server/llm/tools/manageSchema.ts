@@ -32,7 +32,7 @@ export const manageSchema = tool({
 Register or unregister node types and relationship types in the world schema.
 
 Must be called BEFORE creating a node with a new label or a relationship with a new type.
-PREDEFINED types (Entity, Plot, Note, Disposition, etc.) are already registered —
+PREDEFINED types (Character, Object, Location, Plot, Note, Disposition, etc.) are already registered —
 you don't need to re-register them.
 
 Node types — provide name (PascalCase) + optional property schema with tags.
@@ -99,7 +99,7 @@ Only GM_DEFINED types can be unregistered. PREDEFINED and INTERNAL types are per
       .string()
       .optional()
       .describe(
-        "The node label that sits at the source (tail) of this relationship. E.g. 'Entity'. Required for relationship registration.",
+        "The node label that sits at the source (tail) of this relationship. E.g. 'Character'. Required for relationship registration.",
       ),
     targetLabel: z
       .string()

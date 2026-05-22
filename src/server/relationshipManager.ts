@@ -149,23 +149,35 @@ const PREDEFINED_TYPES: {
   },
   {
     name: "LOCATED_AT",
-    description:
-      "An entity is physically present at a location. Use for characters and objects at a specific spot.",
-    sourceLabel: "Entity",
+    description: "A character is physically present at a location.",
+    sourceLabel: "Character",
     targetLabel: "Location",
     properties: [
       {
         name: "brief",
         description:
-          "Spatial position detail — how/where exactly the entity is located (e.g., 'hiding behind crates', 'slumped at the bar').",
+          "Spatial position detail — how/where exactly the character is located (e.g., 'hiding behind crates', 'slumped at the bar').",
+        tags: ["string", "embedded_content"],
+      },
+    ],
+  },
+  {
+    name: "LOCATED_AT",
+    description: "An object is physically present at a location.",
+    sourceLabel: "Object",
+    targetLabel: "Location",
+    properties: [
+      {
+        name: "brief",
+        description: "Spatial position detail — where exactly the object is located.",
         tags: ["string", "embedded_content"],
       },
     ],
   },
   {
     name: "CARRIES",
-    description: "An entity is carrying or in possession of an object.",
-    sourceLabel: "Entity",
+    description: "A character is carrying or in possession of an object.",
+    sourceLabel: "Character",
     targetLabel: "Object",
     properties: [
       {
@@ -177,9 +189,9 @@ const PREDEFINED_TYPES: {
   },
   {
     name: "ALLIED_WITH",
-    description: "An entity is allied with or friendly toward another entity.",
-    sourceLabel: "Entity",
-    targetLabel: "Entity",
+    description: "A character is allied with or friendly toward another character.",
+    sourceLabel: "Character",
+    targetLabel: "Character",
     properties: [
       {
         name: "brief",
@@ -191,9 +203,9 @@ const PREDEFINED_TYPES: {
   },
   {
     name: "HOSTILE_TOWARDS",
-    description: "An entity is hostile toward or in conflict with another entity.",
-    sourceLabel: "Entity",
-    targetLabel: "Entity",
+    description: "A character is hostile toward or in conflict with another character.",
+    sourceLabel: "Character",
+    targetLabel: "Character",
     properties: [
       {
         name: "brief",
@@ -205,9 +217,8 @@ const PREDEFINED_TYPES: {
   },
   {
     name: "LOCATED_IN",
-    description:
-      "A location or entity is contained within a larger location. Use for sub-locations nested within a larger location (e.g., a basement inside a tavern).",
-    sourceLabel: "Entity",
+    description: "A location is contained within a larger location (e.g., a basement inside a tavern).",
+    sourceLabel: "Location",
     targetLabel: "Location",
     properties: [
       {
@@ -220,15 +231,27 @@ const PREDEFINED_TYPES: {
   },
   {
     name: "HAS_DISPOSITION",
-    description: "Links an Entity (NPC) to its Disposition node.",
-    sourceLabel: "Entity",
+    description: "Links a Character to its Disposition node.",
+    sourceLabel: "Character",
     targetLabel: "Disposition",
   },
   {
     name: "ABOUT_ENTITY",
-    description: `A Note is about or references an Entity. Automatically written by \`${TOOL_NAMES.EDIT_NOTE}\`.`,
+    description: `A Note is about or references a Character. Automatically written by \`${TOOL_NAMES.EDIT_NOTE}\`.`,
     sourceLabel: "Note",
-    targetLabel: "Entity",
+    targetLabel: "Character",
+  },
+  {
+    name: "ABOUT_ENTITY",
+    description: `A Note is about or references an Object. Automatically written by \`${TOOL_NAMES.EDIT_NOTE}\`.`,
+    sourceLabel: "Note",
+    targetLabel: "Object",
+  },
+  {
+    name: "ABOUT_ENTITY",
+    description: `A Note is about or references a Location. Automatically written by \`${TOOL_NAMES.EDIT_NOTE}\`.`,
+    sourceLabel: "Note",
+    targetLabel: "Location",
   },
   {
     name: "ABOUT_MESSAGE",

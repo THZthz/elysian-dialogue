@@ -64,7 +64,7 @@ describe("editPlot", () => {
       plotName: TEST_PLOT,
       action: "CREATE",
     });
-    expect(result).toContain('"description" is required');
+    expect(result).toContain("description` is required");
   });
 
   it("UPDATEs description, brief, and status", async () => {
@@ -135,10 +135,10 @@ describe("editPlot", () => {
     const result = await exec(editPlot, {
       plotName: TEST_PLOT,
       action: "UPDATE",
-      removeFlag: "temp_flag",
+      removeFlags: ["temp_flag"],
     });
     expect(result).toContain("updated");
-    expect(result).toContain('flag "temp_flag" removed');
+    expect(result).toContain("removed");
 
     const verify = await exec(queryWorld, {
       action: "READ",

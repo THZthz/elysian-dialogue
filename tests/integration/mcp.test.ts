@@ -110,7 +110,7 @@ describe("MCP Server", () => {
     it("queryWorld: reads entities from seed data", async () => {
       const result = await client.callTool({
         name: "queryWorld",
-        arguments: { action: "READ", query: "MATCH (e:Entity) RETURN e.name, e.type LIMIT 3" },
+        arguments: { action: "READ", query: "MATCH (e:Character) RETURN e.name, e.type LIMIT 3" },
       });
 
       const text = (result as any).content?.[0]?.text;
@@ -135,14 +135,14 @@ describe("MCP Server", () => {
     it("searchWorld: searches entities via vector search", async () => {
       const result = await client.callTool({
         name: "searchWorld",
-        arguments: { query: "tavern", target: ["NODE"], domains: ["Entity"], limit: 3 },
+        arguments: { query: "tavern", target: ["NODE"], domains: ["Character"], limit: 3 },
       });
 
       const text = (result as any).content?.[0]?.text;
       expect(text).toBeTruthy();
       // searchWorld returns JSON mapping domain→results
       const data = JSON.parse(text!);
-      expect(data).toHaveProperty("Entity");
+      expect(data).toHaveProperty("Character");
     });
 
     it("manageSchema: rejects duplicate PREDEFINED type registration", async () => {
@@ -151,7 +151,7 @@ describe("MCP Server", () => {
         arguments: {
           target: "NODE",
           action: "REGISTER",
-          name: "Entity",
+          name: "Character",
           description: "Should fail",
         },
       });
@@ -187,7 +187,7 @@ describe("MCP Server", () => {
     it("tool results follow MCP content format", async () => {
       const result = await client.callTool({
         name: "queryWorld",
-        arguments: { action: "READ", query: "MATCH (e:Entity) RETURN e.name LIMIT 1" },
+        arguments: { action: "READ", query: "MATCH (e:Character) RETURN e.name LIMIT 1" },
       });
 
       const r = result as any;
@@ -202,7 +202,7 @@ describe("MCP Server", () => {
         arguments: {
           action: "WRITE",
           query:
-            "MERGE (e:Entity {_id: 'test-mcp-entity', name: 'MCP Test', type: 'Object'}) SET e.description = 'Created by MCP test'",
+            "MERGE (e:Character {_id: 'test-mcp-entity', name: 'MCP Test', type: 'Object'}) SET e.description = 'Created by MCP test'",
         },
       });
 

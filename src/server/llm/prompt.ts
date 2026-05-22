@@ -85,17 +85,17 @@ Rule:
 
 \`\`\`cypher
 // Combine queries, apply for same label queries as well
-//  MATCH (npc:Entity {name: \"Tom\"}) RETURN npc.description, npc.brief, npc.metadata
+//  MATCH (npc:Character {name: \"Tom\"}) RETURN npc.description, npc.brief, npc.metadata
 // and
-//  MATCH (loc:Entity {name: \"Tom\"}) RETURN loc.description, loc.brief
+//  MATCH (loc:Location {name: \"Tom\"}) RETURN loc.description, loc.brief
 // can be:
-MATCH (npc:Entity {name: "Tom"})
+MATCH (npc:Character {name: "Tom"})
 RETURN "Tom" AS name,
        npc.description AS description,
        npc.brief AS brief,
        npc.metadata AS metadata
 UNION ALL
-MATCH (loc:Entity {name: "Tom"})
+MATCH (loc:Location {name: "Tom"})
 RETURN "Tom" AS name,
        loc.description AS description,
        loc.brief AS brief,
@@ -111,7 +111,7 @@ RETURN tp.day, tp.hour, tp.label, r.reason
 ORDER BY tp.day, tp.hour LIMIT 10
 
 // Search entities by name
-MATCH (e:Entity) WHERE e.name CONTAINS "guard"
+MATCH (e) WHERE (e:Character OR e:Object OR e:Location) AND e.name CONTAINS "guard"
 RETURN e.name, e.type, e.brief LIMIT 10
 
 // Recent messages
@@ -124,36 +124,36 @@ ORDER BY m.timestamp DESC LIMIT 20
 
 \`\`\`cypher
 // Move entity (LOCATED_AT = character/object at a spot), this succeeds even if the entity has no LOCATED_AT before
-MATCH (e:Entity {name: "Guard"})
+MATCH (e:Character {name: "Guard"})
 OPTIONAL MATCH (e)-[old:LOCATED_AT]->()
 DELETE old
 WITH e
-MATCH (dest:Entity {name: "Courtyard"})
+MATCH (dest:Location {name: "Courtyard"})
 CREATE (e)-[:LOCATED_AT {brief: "Pacing the east wall."}]->(dest)
 
 // Contain a sub-location (LOCATED_IN = sub-location within a larger location)
-MATCH (basement:Entity {name: "Cellar"})
-MATCH (tavern:Entity {name: "The Rusty Nail"})
+MATCH (basement:Location {name: "Cellar"})
+MATCH (tavern:Location {name: "The Rusty Nail"})
 MERGE (basement)-[:LOCATED_IN {brief: "Accessed through a trapdoor behind the bar."}]->(tavern)
 
 // Transfer item
-MATCH (item:Entity {name: "Key"})
+MATCH (item:Object {name: "Key"})
 OPTIONAL MATCH ()-[r:CARRIES]->(item) DELETE r
 WITH item
-MATCH (to:Entity {name: "Veyla"})
+MATCH (to:Character {name: "Veyla"})
 CREATE (to)-[:CARRIES {brief: "Slipped into a pocket."}]->(item)
 
 // Set NPC disposition
-MATCH (npc:Entity {name: $npcName})
+MATCH (npc:Character {name: $npcName})
 MERGE (npc)-[:HAS_DISPOSITION]->(d:Disposition {source_name: $npcName, target_name: $targetName})
 SET d.sentiment = $sentiment, d.summary = $summary
 
 // Create relationship
-MATCH (a:Entity {name: "Veyla"}), (b:Entity {name: "Harbor Rats"})
+MATCH (a:Character {name: "Veyla"}), (b:Character {name: "Harbor Rats"})
 MERGE (a)-[:HOSTILE_TOWARDS {brief: "Unpaid debt of 200 coins."}]->(b)
 
-// Delete entity
-MATCH (e:Entity {name: "Broken Bottle"}) WHERE e.type = "OBJECT"
+// Delete object
+MATCH (e:Object {name: "Broken Bottle"})
 DETACH DELETE e
 \`\`\`
 

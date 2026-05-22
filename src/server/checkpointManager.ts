@@ -6,8 +6,8 @@ import { RelationshipManager } from "@/server/relationshipManager";
 import { NodeManager } from "@/server/nodeManager";
 
 const CHECKPOINT_DIR = "data/checkpoints";
-const SENTINEL_FILE = "data/.restore_in_progress";
-const INDEX_FILE = "data/index.json";
+const SENTINEL_FILE = ".restore_in_progress";
+const INDEX_FILE = "index.json";
 
 interface CheckpointEntry {
   turnNumber: number;

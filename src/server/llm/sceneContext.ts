@@ -44,18 +44,17 @@ interface DispositionRow {
 // ── Queries ──
 
 const SCENE_QUERY = `
-MATCH (player:Entity {name: "Player"})
-OPTIONAL MATCH (player)-[:LOCATED_AT]->(loc:Entity)
+MATCH (player:Character {name: "Player"})
+OPTIONAL MATCH (player)-[:LOCATED_AT]->(loc:Location)
 RETURN player, loc,
-  COLLECT { MATCH (player)-[:CARRIES]->(inv:Entity)
+  COLLECT { MATCH (player)-[:CARRIES]->(inv:Object)
             RETURN { name: inv.name, type: inv.type, description: inv.description,
                      brief: inv.brief } } AS inventory,
-  COLLECT { MATCH (npc:Entity)-[:LOCATED_AT]->(loc)
-            WHERE npc.type = "CHARACTER" AND npc.name <> "Player"
+  COLLECT { MATCH (npc:Character)-[:LOCATED_AT]->(loc)
+            WHERE npc.name <> "Player"
             RETURN { name: npc.name, type: npc.type, description: npc.description,
                      brief: npc.brief, subtype: npc.subtype } } AS npcs,
-  COLLECT { MATCH (obj:Entity)-[:LOCATED_AT]->(loc)
-            WHERE obj.type = "OBJECT"
+  COLLECT { MATCH (obj:Object)-[:LOCATED_AT]->(loc)
             RETURN { name: obj.name, type: obj.type, description: obj.description,
                      brief: obj.brief } } AS objects
 `;
@@ -203,9 +202,8 @@ export async function buildSceneContext(): Promise<string> {
 // ── CHARACTERS_BRIEF ──
 
 const CHARACTERS_QUERY = `
-MATCH (c:Entity)
-WHERE c.type = "CHARACTER"
-OPTIONAL MATCH (c)-[:LOCATED_AT]->(loc:Entity)
+MATCH (c:Character)
+OPTIONAL MATCH (c)-[:LOCATED_AT]->(loc:Location)
 OPTIONAL MATCH (c)-[:HAS_DISPOSITION]->(d:Disposition {target_name: "Player"})
 RETURN c.name AS name, c.brief AS brief, c.description AS description,
        loc.name AS location, d.sentiment AS disposition
@@ -240,8 +238,7 @@ export async function buildCharactersBrief(): Promise<string> {
 // ── LOCATIONS_BRIEF ──
 
 const LOCATIONS_QUERY = `
-MATCH (l:Entity)
-WHERE l.type = "LOCATION"
+MATCH (l:Location)
 RETURN l.name AS name, l.brief AS brief, l.description AS description
 ORDER BY name
 `;
@@ -270,10 +267,9 @@ export async function buildLocationsBrief(): Promise<string> {
 // ── OBJECTS_BRIEF ──
 
 const OBJECTS_QUERY = `
-MATCH (o:Entity)
-WHERE o.type = "OBJECT"
-OPTIONAL MATCH (carrier:Entity)-[:CARRIES]->(o)
-OPTIONAL MATCH (o)-[:LOCATED_AT]->(loc:Entity)
+MATCH (o:Object)
+OPTIONAL MATCH (carrier:Character)-[:CARRIES]->(o)
+OPTIONAL MATCH (o)-[:LOCATED_AT]->(loc:Location)
   WHERE carrier IS NULL
 RETURN o.name AS name, o.brief AS brief, o.description AS description,
        carrier.name AS carrier, loc.name AS location

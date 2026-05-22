@@ -93,7 +93,7 @@ async function addEntity(
 
   const entityId = id === "#player#" ? id : uuidv4();
 
-  // Build dynamic labels: e.g. :Entity:Character
+  // Build primary label from entity type
   const typeLabel = pascalCase(finalType);
   const subtypeLabel = finalSubtype ? pascalCase(finalSubtype) : null;
 
@@ -103,13 +103,13 @@ async function addEntity(
   if (generateEmbedding) {
     const nodeManager = NodeManager.getCachedInstance();
     const nameText =
-      nodeManager.getEmbeddingNameText("Entity", {
+      nodeManager.getEmbeddingNameText(typeLabel, {
         name,
         type: finalType,
         description: description ?? "",
         brief: brief ?? "",
-      }) || `[Entity] ${name}`;
-    embedText = nodeManager.getEmbeddingContentText("Entity", {
+      }) || `[${typeLabel}] ${name}`;
+    embedText = nodeManager.getEmbeddingContentText(typeLabel, {
       name,
       type: finalType,
       description: description ?? "",
@@ -133,18 +133,17 @@ async function addEntity(
   }
 
   const rows = await client.neo4j.executeWrite(
-    `MERGE (e:Entity {name: $name})
+    `MERGE (e:\`${typeLabel}\` {name: $name})
        ON CREATE SET
          e._id = $id,
-         e._created_at = datetime()
-       SET
+         e._created_at = datetime(),
          e.type = $type,
-         e.subtype = $subtype,
+         e.subtype = $subtype
+       SET
          e.brief = $brief,
          e.description = $description,
          e.metadata = $metadata
-       SET e:${typeLabel}
-       ${subtypeLabel ? `SET e:${subtypeLabel}` : ""}
+       ${subtypeLabel ? `SET e:\`${subtypeLabel}\`` : ""}
        RETURN e, e._id = $id AS isNew`,
     {
       id: entityId,
@@ -164,14 +163,14 @@ async function addEntity(
     try {
       const nodeManager = NodeManager.getCachedInstance();
       const nameText =
-        nodeManager.getEmbeddingNameText("Entity", {
+        nodeManager.getEmbeddingNameText(typeLabel, {
           name,
           type: finalType,
-        }) || `[Entity] ${name}`;
+        }) || `[${typeLabel}] ${name}`;
       const payload: Record<string, unknown> = {
-        node_type: "Entity",
+        node_type: typeLabel,
         kind: "node",
-        object_id: `Entity:${name}`,
+        object_id: `${typeLabel}:${name}`,
         text: embedText,
         name,
         type: finalType,
@@ -180,7 +179,7 @@ async function addEntity(
         description: description || null,
       };
       await getQdrantClient().upsert(
-        `Entity:${name}`,
+        `${typeLabel}:${name}`,
         {
           nameVec: nameVec ?? undefined,
           contentVec: contentVec ?? undefined,
@@ -227,7 +226,7 @@ async function setDisposition(
   const id = uuidv4();
   const now = new Date().toISOString();
   const rows = await neo4j.executeWrite(
-    `MATCH (npc:Entity {name: $npcName})
+    `MATCH (npc:Character {name: $npcName})
        MERGE (npc)-[r:HAS_DISPOSITION]->(d:Disposition {source_name: $npcName, target_name: $targetName})
        ON CREATE SET d._id = $id, d._created_at = datetime($now), r._created_at = datetime()
        SET d.sentiment = $sentiment, d.summary = $summary, d._updated_at = datetime($now)
@@ -256,7 +255,9 @@ export async function seedDatabase(): Promise<void> {
   await validator.auditRelationshipDescriptions(client.neo4j);
 
   // Skip if database already has data (prevents duplicate injection on restart)
-  const existing = await client.neo4j.executeRead("MATCH (e:Entity) RETURN count(e) AS count");
+  const existing = await client.neo4j.executeRead(
+    "MATCH (e) WHERE e:Character OR e:Object OR e:Location RETURN count(e) AS count",
+  );
   if ((existing[0]?.count as number) > 0) {
     console.log(`[seedDatabase] database already has ${existing[0].count} entities, skipping`);
     return;
@@ -290,12 +291,20 @@ export async function seedDatabase(): Promise<void> {
     await manager.syncToNeo4j(client.neo4j);
   }
 
+  // Build name-to-label map for relationship endpoint resolution
+  const nameToLabel = new Map<string, string>();
+  for (const entity of story.entities) {
+    nameToLabel.set(entity.name, pascalCase(String(entity.type)));
+  }
+
   for (const rel of story.relationships) {
+    const srcLabel = nameToLabel.get(rel.sourceName) ?? "Character";
+    const tgtLabel = nameToLabel.get(rel.targetName) ?? "Location";
     await client.neo4j.mergeRelationship(
-      "Entity",
+      srcLabel,
       "name",
       rel.sourceName,
-      "Entity",
+      tgtLabel,
       "name",
       rel.targetName,
       rel.type,

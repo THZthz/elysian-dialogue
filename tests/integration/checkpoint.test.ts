@@ -73,7 +73,7 @@ describe("checkpointManager", () => {
       action: "REGISTER",
       name: TEST_REL_TYPE,
       description: "A guard is posted at a location.",
-      sourceLabel: "Entity",
+      sourceLabel: "Character",
       targetLabel: "Location",
     });
     expect(msResult).toContain("Registered");
@@ -345,7 +345,7 @@ describe("checkpointManager", () => {
 
     // GM_DEFINED relationship type should be reloaded in registry
     const relManager = RelationshipManager.getCachedInstance();
-    expect(relManager.get(TEST_REL_TYPE, "Entity", "Location")).toBeDefined();
+    expect(relManager.get(TEST_REL_TYPE, "Character", "Location")).toBeDefined();
 
     // Only 1 checkpoint remains
     const checkpoints = await listCheckpoints();

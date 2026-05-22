@@ -173,7 +173,7 @@ export async function generateTurn(
         "",
         `Explore with \`${TOOL_NAMES.QUERY_WORLD}\ (note: should combine multiple structural-similar Cypher query into one).`,
         "",
-        `Check any notes or plots by \`${TOOL_NAMES.SEARCH_WORLD}\`. Note is linked to Entity and Plot, you can use this. Also, search note with "opening scene" is recommended.`,
+        `Check any notes or plots by \`${TOOL_NAMES.SEARCH_WORLD}\`. Note is linked to Characters, Objects, Locations, and Plots, you can use this. Also, search note with "opening scene" is recommended.`,
         "",
         "---",
         "",

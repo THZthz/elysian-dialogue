@@ -86,14 +86,14 @@ describe("Entity Lifecycle Scenario", () => {
     expect(row["c.found_by"]).toBe("Elias Crowne");
     expect(row["c.location_found"]).toBe("Engine Car");
 
-    // 6. Register a relationship type for TestClue→Entity
+    // 6. Register a relationship type for TestClue→Location
     await exec(manageSchema, {
       target: "RELATIONSHIP",
       action: "REGISTER",
       name: "LOCATED_AT",
       description: "A test clue is located at an entity",
       sourceLabel: CLUE_TYPE,
-      targetLabel: "Entity",
+      targetLabel: "Location",
     });
 
     // 7. Create a relationship: locate clue at Engine Car
@@ -102,7 +102,7 @@ describe("Entity Lifecycle Scenario", () => {
       relationshipType: "LOCATED_AT",
       sourceLabel: CLUE_TYPE,
       sourceMatch: { name: CLUE_NAME },
-      targetLabel: "Entity",
+      targetLabel: "Location",
       targetMatch: { name: "Engine Car" },
     });
     expect(relResult).toContain("created successfully");
@@ -110,7 +110,7 @@ describe("Entity Lifecycle Scenario", () => {
     // 8. Verify relationship exists
     const read3 = await exec(queryWorld, {
       action: "READ",
-      query: `MATCH (c:${CLUE_TYPE} {name: '${CLUE_NAME}'})-[r:LOCATED_AT]->(e:Entity) RETURN e.name`,
+      query: `MATCH (c:${CLUE_TYPE} {name: '${CLUE_NAME}'})-[r:LOCATED_AT]->(e:Location) RETURN e.name`,
     });
     const data3 = parseToolOutput(read3);
     expect(data3.rowCount).toBe(1);
@@ -137,7 +137,7 @@ describe("Entity Lifecycle Scenario", () => {
       action: "UNREGISTER",
       name: "LOCATED_AT",
       sourceLabel: CLUE_TYPE,
-      targetLabel: "Entity",
+      targetLabel: "Location",
     });
 
     // 12. Unregister the node type

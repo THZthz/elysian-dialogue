@@ -204,7 +204,7 @@ const INTERNAL_TYPES: { name: string; description: string; properties: NodePrope
     properties: [
       {
         name: "name",
-        description: "Node label (e.g. 'Entity', 'Artifact').",
+        description: "Node label (e.g. 'Character', 'Artifact').",
         tags: ["string", "unique"],
       },
       {
@@ -226,24 +226,18 @@ const INTERNAL_TYPES: { name: string; description: string; properties: NodePrope
 
 const PREDEFINED_TYPES: { name: string; description: string; properties: NodePropertyDef[] }[] = [
   {
-    name: "Entity",
-    description:
-      "A world entity (CHARACTER, OBJECT, LOCATION). Core building block of the world model.",
-    properties: [...ENTITY_PROPS, ...INTERNAL_PROPS],
-  },
-  {
     name: "Character",
-    description: "Dynamic sub-label of Entity for CHARACTER type. Inherits all Entity properties.",
+    description: "A world character (NPC or player). Primary node type.",
     properties: [...ENTITY_PROPS, ...INTERNAL_PROPS],
   },
   {
     name: "Object",
-    description: "Dynamic sub-label of Entity for OBJECT type. Inherits all Entity properties.",
+    description: "A world object (items, artifacts, weapons). Primary node type.",
     properties: [...ENTITY_PROPS, ...INTERNAL_PROPS],
   },
   {
     name: "Location",
-    description: "Dynamic sub-label of Entity for LOCATION type. Inherits all Entity properties.",
+    description: "A world location (rooms, buildings, areas). Primary node type.",
     properties: [...ENTITY_PROPS, ...INTERNAL_PROPS],
   },
   {
@@ -330,7 +324,7 @@ const PREDEFINED_TYPES: { name: string; description: string; properties: NodePro
   {
     name: "Disposition",
     description:
-      "A Character's sentiment and summary toward a target entity. Stored as a NODE (not a relationship). Match via (npc:Entity)-[:HAS_DISPOSITION]->(d:Disposition {target_name: '...'}). Can have multiple nodes for a single (source_name, target_name) pair.",
+      "A Character's sentiment and summary toward a target entity. Stored as a NODE (not a relationship). Match via (npc:Character)-[:HAS_DISPOSITION]->(d:Disposition {target_name: '...'}). Can have multiple nodes for a single (source_name, target_name) pair.",
     properties: [
       {
         name: "source_name",

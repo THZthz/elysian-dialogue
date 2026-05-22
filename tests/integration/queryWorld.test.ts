@@ -28,7 +28,7 @@ describe("queryWorld READ", () => {
   it("reads entities from seed data", async () => {
     const result = await exec(queryWorld, {
       action: "READ",
-      query: "MATCH (e:Entity) RETURN e.name, e.type LIMIT 3",
+      query: "MATCH (e:Character) RETURN e.name, e.type LIMIT 3",
     });
     const data = parseToolOutput(result);
     expect(data.rowCount).toBeGreaterThan(0);
@@ -38,7 +38,7 @@ describe("queryWorld READ", () => {
   it("auto-applies LIMIT when missing", async () => {
     const result = await exec(queryWorld, {
       action: "READ",
-      query: "MATCH (e:Entity) RETURN e.name",
+      query: "MATCH (e:Character) RETURN e.name",
     });
     const data = parseToolOutput(result);
     expect((data.rows as unknown[]).length).toBeLessThanOrEqual(50);
@@ -47,7 +47,7 @@ describe("queryWorld READ", () => {
   it("respects explicit LIMIT", async () => {
     const result = await exec(queryWorld, {
       action: "READ",
-      query: "MATCH (e:Entity) RETURN e.name LIMIT 2",
+      query: "MATCH (e:Character) RETURN e.name LIMIT 2",
     });
     const data = parseToolOutput(result);
     expect(data.rowCount).toBe(2);
@@ -56,7 +56,7 @@ describe("queryWorld READ", () => {
   it("hides internal _-prefixed properties", async () => {
     const result = await exec(queryWorld, {
       action: "READ",
-      query: "MATCH (e:Entity {name: 'Player'}) RETURN e LIMIT 1",
+      query: "MATCH (e:Character {name: 'Player'}) RETURN e LIMIT 1",
     });
     const data = parseToolOutput(result);
     const entity = data.rows[0] as Record<string, unknown>;
@@ -78,7 +78,7 @@ describe("queryWorld READ", () => {
   it("rejects write clause in READ mode", async () => {
     const result = await exec(queryWorld, {
       action: "READ",
-      query: "CREATE (n:Entity {name: 'hack'})",
+      query: "CREATE (n:Character {name: 'hack'})",
     });
     expect(result).toContain("VALIDATION FAILED");
   });
@@ -86,7 +86,7 @@ describe("queryWorld READ", () => {
   it("rejects unbounded path patterns", async () => {
     const result = await exec(queryWorld, {
       action: "READ",
-      query: "MATCH (e:Entity)-[*]->(o) RETURN e, o",
+      query: "MATCH (e:Character)-[*]->(o) RETURN e, o",
     });
     expect(result).toContain("VALIDATION FAILED");
     expect(result).toContain("unbounded");
@@ -99,7 +99,7 @@ describe("queryWorld WRITE", () => {
   afterEach(async () => {
     const client = getMemoryClient();
     try {
-      await client.neo4j.executeWrite(`MATCH (e:Entity {name: '${TEST_NAME}'}) DETACH DELETE e`);
+      await client.neo4j.executeWrite(`MATCH (e:Character {name: '${TEST_NAME}'}) DETACH DELETE e`);
     } catch {
       // Ignore cleanup failures
     }
@@ -108,7 +108,7 @@ describe("queryWorld WRITE", () => {
   it("creates and verifies an entity via MERGE", async () => {
     const writeResult = await exec(queryWorld, {
       action: "WRITE",
-      query: `MERGE (e:Entity {name: '${TEST_NAME}'}) SET e.type = 'CHARACTER', e.brief = 'Test entity'`,
+      query: `MERGE (e:Character {name: '${TEST_NAME}'}) SET e.type = 'CHARACTER', e.brief = 'Test entity'`,
     });
     expect(writeResult).toContain("Success");
     expect(writeResult).toContain("row(s) affected");
@@ -116,7 +116,7 @@ describe("queryWorld WRITE", () => {
     // Verify via READ
     const readResult = await exec(queryWorld, {
       action: "READ",
-      query: `MATCH (e:Entity {name: '${TEST_NAME}'}) RETURN e.name, e.type`,
+      query: `MATCH (e:Character {name: '${TEST_NAME}'}) RETURN e.name, e.type`,
     });
     const data = parseToolOutput(readResult);
     expect(data.rowCount).toBe(1);
@@ -125,7 +125,7 @@ describe("queryWorld WRITE", () => {
   it("rejects DELETE without WHERE clause", async () => {
     const result = await exec(queryWorld, {
       action: "WRITE",
-      query: "MATCH (n:Entity) DETACH DELETE n",
+      query: "MATCH (n:Character) DETACH DELETE n",
     });
     expect(result).toContain("VALIDATION FAILED");
   });
@@ -141,19 +141,19 @@ describe("queryWorld WRITE", () => {
   it("allows UPDATE via SET on existing entity", async () => {
     await exec(queryWorld, {
       action: "WRITE",
-      query: `MERGE (e:Entity {name: '${TEST_NAME}'}) SET e.type = 'OBJECT', e.brief = 'Before update'`,
+      query: `MERGE (e:Character {name: '${TEST_NAME}'}) SET e.type = 'OBJECT', e.brief = 'Before update'`,
     });
 
     const updateResult = await exec(queryWorld, {
       action: "WRITE",
-      query: `MATCH (e:Entity {name: '${TEST_NAME}'}) SET e.brief = 'After update'`,
+      query: `MATCH (e:Character {name: '${TEST_NAME}'}) SET e.brief = 'After update'`,
     });
     expect(updateResult).toContain("Success");
 
     // Verify update
     const readResult = await exec(queryWorld, {
       action: "READ",
-      query: `MATCH (e:Entity {name: '${TEST_NAME}'}) RETURN e.brief`,
+      query: `MATCH (e:Character {name: '${TEST_NAME}'}) RETURN e.brief`,
     });
     const data = parseToolOutput(readResult);
     const row = data.rows[0] as Record<string, unknown>;
@@ -163,7 +163,7 @@ describe("queryWorld WRITE", () => {
   it("reports CYPHER SYNTAX ERROR for malformed write query", async () => {
     const result = await exec(queryWorld, {
       action: "WRITE",
-      query: "MOOCH (e:Entity) SET e.x = 1",
+      query: "MOOCH (e:Character) SET e.x = 1",
     });
     expect(result).toContain("CYPHER SYNTAX ERROR");
   });

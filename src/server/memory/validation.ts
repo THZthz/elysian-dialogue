@@ -130,7 +130,7 @@ export class CypherValidator {
     return { valid: errors.length === 0, errors };
   }
 
-  // Extract node labels from a Cypher query (e.g. :Entity, :Message).
+  // Extract node labels from a Cypher query (e.g. :Character, :Message).
   // Only matches labels outside of square brackets to avoid conflating relationship types.
   private extractNodeLabels(query: string): string[] {
     const cleaned = query.replace(/"[^"]*"/g, '""').replace(/'[^']*'/g, "''");

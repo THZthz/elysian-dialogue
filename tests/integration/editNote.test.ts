@@ -103,7 +103,7 @@ describe("editNote", () => {
 
       const verify = await exec(queryWorld, {
         action: "READ",
-        query: `MATCH (n:Note {name: '${noteName}'})-[:ABOUT_ENTITY]->(e:Entity) RETURN e.name ORDER BY e.name`,
+        query: `MATCH (n:Note {name: '${noteName}'})-[:ABOUT_ENTITY]->(e:Character) RETURN e.name ORDER BY e.name`,
       });
       const data = parseToolOutput(verify);
       expect(data.rowCount).toBe(2);
@@ -191,7 +191,7 @@ describe("editNote", () => {
       // Verify link exists
       const before = await exec(queryWorld, {
         action: "READ",
-        query: `MATCH (n:Note {name: '${noteName}'})-[:ABOUT_ENTITY]->(e:Entity) RETURN e.name`,
+        query: `MATCH (n:Note {name: '${noteName}'})-[:ABOUT_ENTITY]->(e:Character) RETURN e.name`,
       });
       expect(parseToolOutput(before).rowCount).toBe(1);
 
@@ -205,7 +205,7 @@ describe("editNote", () => {
 
       const verify = await exec(queryWorld, {
         action: "READ",
-        query: `MATCH (n:Note {name: '${noteName}'})-[:ABOUT_ENTITY]->(e:Entity) RETURN e.name`,
+        query: `MATCH (n:Note {name: '${noteName}'})-[:ABOUT_ENTITY]->(e:Character) RETURN e.name`,
       });
       expect(parseToolOutput(verify).rowCount).toBe(0);
     } finally {
@@ -234,7 +234,7 @@ describe("editNote", () => {
       // Links still there
       const verify = await exec(queryWorld, {
         action: "READ",
-        query: `MATCH (n:Note {name: '${noteName}'})-[:ABOUT_ENTITY]->(e:Entity) RETURN e.name`,
+        query: `MATCH (n:Note {name: '${noteName}'})-[:ABOUT_ENTITY]->(e:Character) RETURN e.name`,
       });
       expect(parseToolOutput(verify).rowCount).toBe(1);
     } finally {

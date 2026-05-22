@@ -38,10 +38,10 @@ const inputSchema = z.object({
     ),
   sourceLabel: z
     .string()
-    .describe("Label of the source node (e.g. 'Entity', 'Character', 'Location')."),
+    .describe("Label of the source node (e.g. 'Character', 'Object', 'Location')."),
   sourceMatch: z
     .record(z.string(), z.string())
-    .describe("Key-value pairs to locate the source node (e.g. { name: 'Tavern' } for an Entity)."),
+    .describe("Key-value pairs to locate the source node (e.g. { name: 'Tavern' } for a Location)."),
   targetLabel: z.string().describe("Label of the target node."),
   targetMatch: z
     .record(z.string(), z.string())

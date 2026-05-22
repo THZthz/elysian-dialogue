@@ -275,7 +275,7 @@ export class Plots {
     const existing = await this.getPlot(plotName);
     if (!existing) return null;
 
-    const flags = existing.flags.filter((f) => flagIds.includes(f.flagId));
+    const flags = existing.flags.filter((f) => !flagIds.includes(f.flagId));
     const now = new Date().toISOString();
 
     await this.client.executeWrite(

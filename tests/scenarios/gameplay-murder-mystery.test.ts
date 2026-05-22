@@ -51,17 +51,17 @@ describe("Gameplay: Murder Mystery Investigation", () => {
     // 4. Search for clues related to the ledger
     const searchResult = await exec(searchWorld, {
       query: "ledger",
-      labels: ["Entity", "Note"],
+      labels: ["Character", "Note"],
       limit: 5,
     });
     const searchData = parseToolOutput(searchResult);
-    expect(Array.isArray(searchData.Entity)).toBe(true);
+    expect(Array.isArray(searchData.Character)).toBe(true);
 
     // 5. Find all entities in Passenger Car A (6 characters located here in seed data)
     const locQuery = await exec(queryWorld, {
       action: "READ",
       query:
-        "MATCH (e:Entity)-[:LOCATED_AT]->(loc:Entity {name: 'Passenger Car A'}) RETURN e.name, e.type",
+        "MATCH (e:Character)-[:LOCATED_AT]->(loc:Location {name: 'Passenger Car A'}) RETURN e.name, e.type",
     });
     const locData = parseToolOutput(locQuery);
     expect(locData.rowCount).toBeGreaterThan(0);
@@ -84,7 +84,7 @@ describe("Gameplay: Murder Mystery Investigation", () => {
       relationshipType: "ABOUT_ENTITY",
       sourceLabel: "Note",
       sourceMatch: { name: "Investigation Notes - Turn 1" },
-      targetLabel: "Entity",
+      targetLabel: "Character",
       targetMatch: { name: "Lord Aldric Vane" },
     });
     expect(linkResult).toContain("created successfully");

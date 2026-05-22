@@ -136,7 +136,7 @@ function parseEntity(data: Record<string, unknown>): MemoryEntity {
 
 async function getPlayerStats(): Promise<Record<string, number> | null> {
   const client = getMemoryClient();
-  const rows = await client.neo4j.executeRead('MATCH (e:Entity {id: "#player#"}) RETURN e LIMIT 1');
+  const rows = await client.neo4j.executeRead('MATCH (e:Character {_id: "#player#"}) RETURN e LIMIT 1');
   if (rows.length === 0) return null;
   const entity = parseEntity(rows[0].e as Record<string, unknown>);
 

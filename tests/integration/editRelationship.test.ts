@@ -67,7 +67,7 @@ describe("editRelationship", () => {
       relationshipType: "ABOUT_ENTITY",
       sourceLabel: "Note",
       sourceMatch: { name: NOTE_A },
-      targetLabel: "Entity",
+      targetLabel: "Character",
       targetMatch: { name: "Player" },
     });
     expect(result).toContain("created successfully");
@@ -75,7 +75,7 @@ describe("editRelationship", () => {
     // Verify
     const verify = await exec(queryWorld, {
       action: "READ",
-      query: `MATCH (n:Note {name: '${NOTE_A}'})-[r:ABOUT_ENTITY]->(e:Entity {name: 'Player'}) RETURN type(r)`,
+      query: `MATCH (n:Note {name: '${NOTE_A}'})-[r:ABOUT_ENTITY]->(e:Character {name: 'Player'}) RETURN type(r)`,
     });
     const data = parseToolOutput(verify);
     expect(data.rowCount).toBe(1);
@@ -89,7 +89,7 @@ describe("editRelationship", () => {
       relationshipType: "ABOUT_ENTITY",
       sourceLabel: "Note",
       sourceMatch: { name: NOTE_A },
-      targetLabel: "Entity",
+      targetLabel: "Character",
       targetMatch: { name: "Player" },
     });
 
@@ -98,7 +98,7 @@ describe("editRelationship", () => {
       relationshipType: "ABOUT_ENTITY",
       sourceLabel: "Note",
       sourceMatch: { name: NOTE_A },
-      targetLabel: "Entity",
+      targetLabel: "Character",
       targetMatch: { name: "Player" },
     });
     expect(result).toContain("deleted");
@@ -106,7 +106,7 @@ describe("editRelationship", () => {
     // Verify deletion
     const verify = await exec(queryWorld, {
       action: "READ",
-      query: `MATCH (n:Note {name: '${NOTE_A}'})-[r:ABOUT_ENTITY]->(e:Entity {name: 'Player'}) RETURN r`,
+      query: `MATCH (n:Note {name: '${NOTE_A}'})-[r:ABOUT_ENTITY]->(e:Character {name: 'Player'}) RETURN r`,
     });
     const data = parseToolOutput(verify);
     expect(data.rowCount).toBe(0);
@@ -116,9 +116,9 @@ describe("editRelationship", () => {
     const result = await exec(editRelationship, {
       action: "CREATE",
       relationshipType: "FAKE_TYPE_XYZ",
-      sourceLabel: "Entity",
+      sourceLabel: "Character",
       sourceMatch: { name: "Player" },
-      targetLabel: "Entity",
+      targetLabel: "Character",
       targetMatch: { name: "Veyla" },
     });
     expect(result).toContain("is not registered");
@@ -128,9 +128,9 @@ describe("editRelationship", () => {
     const result = await exec(editRelationship, {
       action: "CREATE",
       relationshipType: "ALLIED_WITH",
-      sourceLabel: "Entity",
+      sourceLabel: "Character",
       sourceMatch: { name: "NonexistentEntityXYZ" },
-      targetLabel: "Entity",
+      targetLabel: "Character",
       targetMatch: { name: "Player" },
     });
     expect(result).toContain("ERROR");
@@ -140,9 +140,9 @@ describe("editRelationship", () => {
     const result = await exec(editRelationship, {
       action: "CREATE",
       relationshipType: "ALLIED_WITH",
-      sourceLabel: "Entity",
+      sourceLabel: "Character",
       sourceMatch: {},
-      targetLabel: "Entity",
+      targetLabel: "Character",
       targetMatch: { name: "Player" },
     });
     expect(result).toContain("sourceMatch must not be empty");
@@ -152,23 +152,23 @@ describe("editRelationship", () => {
     const result = await exec(editRelationship, {
       action: "CREATE",
       relationshipType: "ALLIED_WITH",
-      sourceLabel: "Entity",
+      sourceLabel: "Character",
       sourceMatch: { name: "Player" },
-      targetLabel: "Entity",
+      targetLabel: "Character",
       targetMatch: {},
     });
     expect(result).toContain("targetMatch must not be empty");
   });
 
   it("rejects CREATE when endpoint labels don't match the registered definition", async () => {
-    // Register TEST_STRICT_REL with (Entity→Entity)
+    // Register TEST_STRICT_REL with (Character→Character)
     await exec(manageSchema, {
       target: "RELATIONSHIP",
       action: "REGISTER",
       name: "TEST_STRICT_REL",
       description: "Strict endpoint relationship",
-      sourceLabel: "Entity",
-      targetLabel: "Entity",
+      sourceLabel: "Character",
+      targetLabel: "Character",
     });
 
     await createTestNotes();
@@ -177,7 +177,7 @@ describe("editRelationship", () => {
       relationshipType: "TEST_STRICT_REL",
       sourceLabel: "Note",
       sourceMatch: { name: NOTE_A },
-      targetLabel: "Entity",
+      targetLabel: "Character",
       targetMatch: { name: "Player" },
     });
     expect(result).toContain("not registered");
@@ -186,9 +186,9 @@ describe("editRelationship", () => {
     const ok = await exec(editRelationship, {
       action: "CREATE",
       relationshipType: "TEST_STRICT_REL",
-      sourceLabel: "Entity",
+      sourceLabel: "Character",
       sourceMatch: { name: "Player" },
-      targetLabel: "Entity",
+      targetLabel: "Character",
       targetMatch: { name: "Player" },
     });
     expect(ok).toContain("created successfully");
@@ -198,8 +198,8 @@ describe("editRelationship", () => {
       target: "RELATIONSHIP",
       action: "UNREGISTER",
       name: "TEST_STRICT_REL",
-      sourceLabel: "Entity",
-      targetLabel: "Entity",
+      sourceLabel: "Character",
+      targetLabel: "Character",
     });
   });
 
@@ -215,7 +215,7 @@ describe("editRelationship", () => {
         relationshipType: "ABOUT_ENTITY",
         sourceLabel: "Note",
         sourceMatch: { name: NOTE_A },
-        targetLabel: "Entity",
+        targetLabel: "Character",
         targetMatch: { name: "Player" },
         properties: { confidence: 0.8, reason: "initial reason" },
       });
@@ -225,7 +225,7 @@ describe("editRelationship", () => {
         relationshipType: "ABOUT_ENTITY",
         sourceLabel: "Note",
         sourceMatch: { name: NOTE_A },
-        targetLabel: "Entity",
+        targetLabel: "Character",
         targetMatch: { name: "Player" },
         properties: { confidence: 0.9 },
       });
@@ -234,7 +234,7 @@ describe("editRelationship", () => {
       // Verify: confidence updated, reason preserved
       const verify = await exec(queryWorld, {
         action: "READ",
-        query: `MATCH (n:Note {name: '${NOTE_A}'})-[r:ABOUT_ENTITY]->(e:Entity {name: 'Player'}) RETURN r.confidence, r.reason`,
+        query: `MATCH (n:Note {name: '${NOTE_A}'})-[r:ABOUT_ENTITY]->(e:Character {name: 'Player'}) RETURN r.confidence, r.reason`,
       });
       const data = parseToolOutput(verify);
       const row = data.rows[0] as Record<string, unknown>;
@@ -246,9 +246,9 @@ describe("editRelationship", () => {
       const result = await exec(editRelationship, {
         action: "UPDATE",
         relationshipType: "ALLIED_WITH",
-        sourceLabel: "Entity",
+        sourceLabel: "Character",
         sourceMatch: { name: "Player" },
-        targetLabel: "Entity",
+        targetLabel: "Character",
         targetMatch: { name: "NonexistentEntityXYZ" },
         properties: { confidence: 1 },
       });
@@ -261,7 +261,7 @@ describe("editRelationship", () => {
         relationshipType: "ABOUT_ENTITY",
         sourceLabel: "Note",
         sourceMatch: { name: NOTE_A },
-        targetLabel: "Entity",
+        targetLabel: "Character",
         targetMatch: { name: "Player" },
         properties: {},
       });
@@ -274,7 +274,7 @@ describe("editRelationship", () => {
         relationshipType: "ABOUT_ENTITY",
         sourceLabel: "Note",
         sourceMatch: { name: NOTE_A },
-        targetLabel: "Entity",
+        targetLabel: "Character",
         targetMatch: { name: "Player" },
         properties: { _hack: "bad" },
       });
@@ -298,14 +298,14 @@ describe("editRelationship", () => {
           { name: "confidence", description: "Trust confidence (0-1)", tags: ["number"] },
           { name: "reason", description: "Why this trust exists", tags: ["string"] },
         ],
-        sourceLabel: "Entity",
-        targetLabel: "Entity",
+        sourceLabel: "Character",
+        targetLabel: "Character",
       });
 
       // Create two test entities
       for (const name of [ENT_A, ENT_B]) {
         await exec(editNode, {
-          nodeLabel: "Entity",
+          nodeLabel: "Character",
           action: "CREATE",
           properties: {
             name,
@@ -320,9 +320,9 @@ describe("editRelationship", () => {
       await exec(editRelationship, {
         action: "CREATE",
         relationshipType: GM_REL,
-        sourceLabel: "Entity",
+        sourceLabel: "Character",
         sourceMatch: { name: ENT_A },
-        targetLabel: "Entity",
+        targetLabel: "Character",
         targetMatch: { name: ENT_B },
         properties: { confidence: 0.7, reason: "shared history" },
       });
@@ -333,15 +333,15 @@ describe("editRelationship", () => {
       await exec(editRelationship, {
         action: "DELETE",
         relationshipType: GM_REL,
-        sourceLabel: "Entity",
+        sourceLabel: "Character",
         sourceMatch: { name: ENT_A },
-        targetLabel: "Entity",
+        targetLabel: "Character",
         targetMatch: { name: ENT_B },
       });
       // Clean up entities
       for (const name of [ENT_A, ENT_B]) {
         await exec(editNode, {
-          nodeLabel: "Entity",
+          nodeLabel: "Character",
           action: "DELETE",
           match: { name },
         });
@@ -357,9 +357,9 @@ describe("editRelationship", () => {
       const result = await exec(editRelationship, {
         action: "CREATE",
         relationshipType: GM_REL,
-        sourceLabel: "Entity",
+        sourceLabel: "Character",
         sourceMatch: { name: ENT_A },
-        targetLabel: "Entity",
+        targetLabel: "Character",
         targetMatch: { name: "Player" },
         properties: { confidence: 0.5, bad_prop: "should fail" },
       });
@@ -370,9 +370,9 @@ describe("editRelationship", () => {
       const result = await exec(editRelationship, {
         action: "UPDATE",
         relationshipType: GM_REL,
-        sourceLabel: "Entity",
+        sourceLabel: "Character",
         sourceMatch: { name: ENT_A },
-        targetLabel: "Entity",
+        targetLabel: "Character",
         targetMatch: { name: ENT_B },
         properties: { bad_prop: "should fail" },
       });
@@ -383,9 +383,9 @@ describe("editRelationship", () => {
       const result = await exec(editRelationship, {
         action: "UPDATE",
         relationshipType: GM_REL,
-        sourceLabel: "Entity",
+        sourceLabel: "Character",
         sourceMatch: { name: ENT_A },
-        targetLabel: "Entity",
+        targetLabel: "Character",
         targetMatch: { name: ENT_B },
         properties: { confidence: 0.95 },
       });
@@ -407,7 +407,7 @@ describe("editRelationship", () => {
         description: "Relationship with JSON metadata",
         properties: [{ name: "meta", description: "JSON metadata blob", tags: ["json"] }],
         sourceLabel: "Note",
-        targetLabel: "Entity",
+        targetLabel: "Character",
       });
 
       // Create with initial JSON
@@ -416,7 +416,7 @@ describe("editRelationship", () => {
         relationshipType: "HAS_METADATA",
         sourceLabel: "Note",
         sourceMatch: { name: NOTE_A },
-        targetLabel: "Entity",
+        targetLabel: "Character",
         targetMatch: { name: "Player" },
         properties: { meta: { x: 1, y: 2 } },
       });
@@ -427,7 +427,7 @@ describe("editRelationship", () => {
         relationshipType: "HAS_METADATA",
         sourceLabel: "Note",
         sourceMatch: { name: NOTE_A },
-        targetLabel: "Entity",
+        targetLabel: "Character",
         targetMatch: { name: "Player" },
         properties: { meta: { y: 99 } },
       });
@@ -436,7 +436,7 @@ describe("editRelationship", () => {
       // Verify: x should still be 1, y should be 99
       const verify = await exec(queryWorld, {
         action: "READ",
-        query: `MATCH (n:Note {name: '${NOTE_A}'})-[r:HAS_METADATA]->(e:Entity {name: 'Player'}) RETURN r.meta`,
+        query: `MATCH (n:Note {name: '${NOTE_A}'})-[r:HAS_METADATA]->(e:Character {name: 'Player'}) RETURN r.meta`,
       });
       const data = parseToolOutput(verify);
       const row = data.rows[0] as Record<string, unknown>;
@@ -471,7 +471,7 @@ describe("editRelationship", () => {
           },
         ],
         sourceLabel: "Note",
-        targetLabel: "Entity",
+        targetLabel: "Character",
       });
     });
 
@@ -481,7 +481,7 @@ describe("editRelationship", () => {
         action: "UNREGISTER",
         name: EMBED_REL,
         sourceLabel: "Note",
-        targetLabel: "Entity",
+        targetLabel: "Character",
       });
     });
 
@@ -502,7 +502,7 @@ describe("editRelationship", () => {
         relationshipType: EMBED_REL,
         sourceLabel: "Note",
         sourceMatch: { name: NOTE_A },
-        targetLabel: "Entity",
+        targetLabel: "Character",
         targetMatch: { name: "Player" },
         properties: { summary: "Test summary for embedding", detail: "Test detail" },
       });
@@ -528,7 +528,7 @@ describe("editRelationship", () => {
         relationshipType: EMBED_REL,
         sourceLabel: "Note",
         sourceMatch: { name: NOTE_A },
-        targetLabel: "Entity",
+        targetLabel: "Character",
         targetMatch: { name: "Player" },
         properties: { summary: "Original summary", detail: "Original detail" },
       });
@@ -541,7 +541,7 @@ describe("editRelationship", () => {
         relationshipType: EMBED_REL,
         sourceLabel: "Note",
         sourceMatch: { name: NOTE_A },
-        targetLabel: "Entity",
+        targetLabel: "Character",
         targetMatch: { name: "Player" },
         properties: { summary: "Changed summary" },
       });

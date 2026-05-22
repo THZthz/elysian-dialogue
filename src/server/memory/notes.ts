@@ -160,11 +160,24 @@ export class Notes {
 
   async linkToEntity(noteName: string, entityName: string): Promise<void> {
     try {
+      // Discover which label the target entity has
+      const rows = await this.client.executeRead(
+        `MATCH (e) WHERE (e:Character OR e:Object OR e:Location) AND e.name = $name
+         RETURN labels(e) AS labels LIMIT 1`,
+        { name: entityName },
+      );
+      const entityLabel =
+        rows.length > 0
+          ? ((rows[0].labels as string[]).find((l) =>
+              ["Character", "Object", "Location"].includes(l),
+            ) ?? "Character")
+          : "Character";
+
       await this.client.mergeRelationship(
         "Note",
         "name",
         noteName,
-        "Entity",
+        entityLabel,
         "name",
         entityName,
         "ABOUT_ENTITY",
@@ -225,7 +238,9 @@ export class Notes {
 
   async getLinkedEntities(noteName: string): Promise<string[]> {
     const rows = await this.client.executeRead(
-      `MATCH (n:Note {name: $noteName})-[:ABOUT_ENTITY]->(e:Entity) RETURN e.name AS name`,
+      `MATCH (n:Note {name: $noteName})-[:ABOUT_ENTITY]->(e)
+       WHERE e:Character OR e:Object OR e:Location
+       RETURN e.name AS name`,
       { noteName },
     );
     return rows.map((r) => r.name as string);
