@@ -37,27 +37,18 @@ The assistant will execute your request and return results with observations abo
 
 ### 2. DRAFT
 
-Write notes and develop plots. Notes record unresolved threads, suspicions, NPC promises, clues, and consequences. Plots should be written IN ADVANCE — a great time to write more plots is when the player satisfies a trigger condition.
+Write notes, develop plots, and advance time. Notes record unresolved threads, suspicions, NPC promises, clues, and consequences. Plots should be written IN ADVANCE — a great time to write more plots is when the player satisfies a trigger condition.
 
 Tools to use:
 - \`${TOOL_NAMES.EDIT_NOTE}\`
 - \`${TOOL_NAMES.EDIT_PLOT}\`
 - \`${TOOL_NAMES.SEARCH_WORLD}\` (for notes and plots only)
 
+Use \`${TOOL_NAMES.ADVANCE_TIME}\` to move the clock forward when the scene demands it.
+
 ### 3. NARRATE
 
-Progress the story for the player.
-
-Tools to use:
-- \`${TOOL_NAMES.GENERATE_DIALOGUE}\`
-
-### 4. PERSIST
-
-After narrating, delegate world state changes to your assistant: movement, items, dispositions, plot flags, time, or other important changes. The assistant will confirm what was persisted.
-
-Time flows through a chain of TimePoints. Use \`${TOOL_NAMES.ADVANCE_TIME}\` to move the clock.
-
-When world state is maintained and there is nothing left to do, reply with a brief text summary (no tool call) to end your turn.
+Speak to the player via \`${TOOL_NAMES.GENERATE_DIALOGUE}\`. Your turn ends after this call — world state persistence is handled automatically.
 
 ---
 
