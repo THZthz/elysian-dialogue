@@ -40,6 +40,7 @@ let streamingMessages: Message[] = [];
 let isRetrying = false;
 let sseClient: ConsoleSseClient | null = null;
 let messageIdCounter = 0;
+let currentPhase: string | null = null;
 
 const BASE_URL = process.env.CHORUS_URL ?? "http://localhost:3000";
 
@@ -149,6 +150,24 @@ function renderBanner() {
   console.log("");
 }
 
+function phaseDisplay(phase: string): string {
+  switch (phase) {
+    case "GM_DRAFTING":
+    case "START":
+      return "[GM thinking...]";
+    case "GM_DELEGATING":
+      return "[Assistant thinking...]";
+    case "DIALOGUE_SENDING":
+      return "[Dialogue...]";
+    case "PERSISTING":
+      return "[Persisting world...]";
+    case "COMPLETE":
+      return "[Ready]";
+    default:
+      return `[${phase}]`;
+  }
+}
+
 // ── SSE Callbacks ──
 
 function createSseCallbacks(): SseCallbacks {
@@ -233,6 +252,11 @@ function createSseCallbacks(): SseCallbacks {
       process.stdout.write("\n");
       process.stdout.write(formatMessage(rollMsg));
       console.log("");
+    },
+    onPhaseChange: (phase) => {
+      currentPhase = phase;
+      if (state !== "WAITING") return;
+      logUpdate(`${chalk.dim(phaseDisplay(phase))}\n`);
     },
   };
 }
