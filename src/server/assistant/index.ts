@@ -123,3 +123,101 @@ export async function delegateToAssistant(
     return `ERROR: Assistant failed: ${message}. The GM can retry or proceed without this information.`;
   }
 }
+
+export async function autoPersist(
+  turnState: import("@/server/turnState").TurnStateMachine,
+  turnNumber: number,
+): Promise<void> {
+  const systemPrompt = buildAssistantSystemPrompt();
+  const dialogueParams = turnState.getDialogueParams();
+  const toolCalls = turnState.getToolCallsForAssistant(true);
+
+  const toolCallsText = toolCalls
+    .map((tc) => {
+      if (tc.params && Object.keys(tc.params).length > 0) {
+        return `- ${tc.name}:\n    ${JSON.stringify(tc.params, null, 2).replace(/\n/g, "\n    ")}`;
+      }
+      return `- ${tc.name}`;
+    })
+    .join("\n");
+
+  let dialogueText = "(no dialogue output)";
+  if (dialogueParams) {
+    const parts: string[] = [];
+    if (dialogueParams.messages && dialogueParams.messages.length > 0) {
+      parts.push("Messages:");
+      for (const msg of dialogueParams.messages) {
+        parts.push(`  - [${msg.speaker}] (${msg.type}): ${msg.text}`);
+      }
+    }
+    if (dialogueParams.options && dialogueParams.options.length > 0) {
+      parts.push("Options:");
+      for (const opt of dialogueParams.options) {
+        parts.push(`  - ${opt.text}${opt.check ? ` [${opt.check.skill} check, difficulty ${opt.check.difficulty}]` : ""}`);
+      }
+    }
+    dialogueText = parts.join("\n");
+  }
+
+  const persistPrompt = [
+    `## TURN ${turnNumber} — AUTO PERSIST`,
+    "",
+    "## GM's Activity This Turn",
+    toolCallsText || "(no tool calls)",
+    "",
+    "## Dialogue Output",
+    dialogueText,
+    "",
+    "## Instructions",
+    "Review the GM's dialogue and tool calls above. Identify and persist world state changes:",
+    "- Location changes (entities moved between places)",
+    "- Item movements (objects picked up, dropped, transferred)",
+    "- Disposition shifts (character attitudes toward the player or each other)",
+    "- Plot triggers and status changes (flags set, branches activated)",
+    "- Time-sensitive events that should be recorded",
+    "",
+    "Inspect current state with your tools, then create, update, or delete as needed.",
+    "Confirm what you persisted at the end.",
+  ].join("\n");
+
+  let previousMessages: ModelMessage[] = [];
+  try {
+    previousMessages = await loadAssistantMessages();
+  } catch (err) {
+    console.error("[autoPersist] Failed to load message history:", err);
+  }
+
+  const { model } = getModel("assistant");
+
+  const result = streamText({
+    model,
+    system: systemPrompt,
+    messages: [...previousMessages, { role: "user" as const, content: persistPrompt }],
+    tools: assistantTools,
+    stopWhen: [stepCountIs(MAX_ASSISTANT_STEPS)],
+    experimental_repairToolCall: async ({ toolCall, error }) => {
+      if (NoSuchToolError.isInstance(error)) return null;
+      try {
+        const inputStr =
+          typeof toolCall.input === "string"
+            ? toolCall.input
+            : JSON.stringify(toolCall.input);
+        const repaired = jsonrepair(inputStr);
+        console.log(`[autoPersist] repaired ${toolCall.toolName} JSON`);
+        return { ...toolCall, input: repaired };
+      } catch {
+        return null;
+      }
+    },
+  });
+
+  const response = await result.response;
+
+  try {
+    const prevCount = previousMessages.length;
+    const newMessages = (response.messages as ModelMessage[]).slice(prevCount);
+    await saveAssistantMessages(newMessages, turnNumber);
+  } catch (err) {
+    console.error("[autoPersist] Failed to save message history:", err);
+  }
+}
