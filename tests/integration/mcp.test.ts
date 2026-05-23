@@ -70,12 +70,13 @@ describe("MCP Server", () => {
   // ── Tool registration ──
 
   describe("tool registration", () => {
-    it("registers all 10 GM tools", async () => {
+    it("registers all 11 GM tools", async () => {
       const { tools } = await client.listTools();
       const names = tools.map((t: any) => t.name).sort();
 
       expect(names).toEqual([
         TOOL_NAMES.ADVANCE_TIME,
+        TOOL_NAMES.DELEGATE_TO_ASSISTANT,
         TOOL_NAMES.EDIT_NODE,
         TOOL_NAMES.EDIT_NOTE,
         TOOL_NAMES.EDIT_PLOT,
