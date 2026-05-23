@@ -43,4 +43,5 @@ export const TOOL_NAMES = {
   EDIT_NOTE: "editNote",
   EDIT_PLOT: "editPlot",
   GET_CONTEXT: "getContext",
+  DELEGATE_TO_ASSISTANT: "delegateToAssistant",
 } as const;

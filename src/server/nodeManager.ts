@@ -143,6 +143,19 @@ const INTERNAL_TYPES: { name: string; description: string; properties: NodePrope
     ],
   },
   {
+    name: "AssistantMessage",
+    description:
+      "Stores AI SDK messages for multi-turn Assistant continuity. Internal bookkeeping — not visible to GM.",
+    properties: [
+      { name: "role", description: "Message role: user, assistant, or tool.", tags: ["string"] },
+      { name: "content", description: "JSON-stringified message content.", tags: ["json"] },
+      { name: "turn_number", description: "Turn when this message was created.", tags: ["number"] },
+      { name: "message_index", description: "Order within the message sequence.", tags: ["number"] },
+      ...INTERNAL_PROPS,
+      ...TIMESTAMP_PROPS,
+    ],
+  },
+  {
     name: "IdCounter",
     description: "Atomic counter for generating short message IDs. Internal bookkeeping.",
     properties: [
