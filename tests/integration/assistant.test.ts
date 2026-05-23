@@ -61,7 +61,6 @@ describe("delegateToAssistant", () => {
   }, 30000);
 
   it("handles empty context gracefully", async () => {
-    // @ts-expect-error — testing runtime behavior with missing context
     const result = await delegateToAssistant("list all characters", {} as AssistantContext);
     expect(typeof result).toBe("string");
     // Should handle missing fields without crashing

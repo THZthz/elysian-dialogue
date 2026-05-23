@@ -10,119 +10,10 @@ Architecture, core systems, and data structures of the **Chorus** application.
 
 - **Stack:** TypeScript, Node.js
 - **Backend:** Express + Neo4j (graph storage) + Qdrant (vector storage)
-- **AI:** Single-LLM Game Master (Gemini/DeepSeek via Vercel AI SDK)
+- **AI:** Dual-LLM — Game Master (narrative) + Database Assistant (graph ops), both via Vercel AI SDK
 - **SSE:** Server-Sent Events for real-time streaming of LLM output
 - **Console client:** Standalone Node.js REPL with chalk rendering
 - **Deployment:** Local-only — runs on localhost, no authentication required
-
-### Files Overview
-
-```
-src/
-├── console/                              # REPL client
-│   ├── main.ts                           # Entry point, SSE listener, chalk rendering, REPL loop
-│   ├── SseClient.ts                      # SSE stream parser for server events
-│   └── markdown.ts                       # Terminal markdown rendering
-│
-├── server/
-│   ├── main.ts                           # Express server entry point (port 3000)
-│   ├── mcp.ts                            # MCP server entry point — exposes GM tools via stdio
-│   ├── api.ts                            # Routes: /api/chat/stream, /api/history, /api/reset, /api/checkpoints, /api/checkpoint/restore/:turn, /api/debug/tools/*
-│   ├── nodeManager.ts                    # Node label registry: schemas, embedding text, Neo4j sync
-│   ├── relationshipManager.ts            # Rel type registry: composite key (name, sourceLabel, targetLabel)
-│   ├── gameState.ts                      # Persists dialogue options on :Conversation node
-│   ├── checkpointManager.ts              # Turn checkpoint save/restore via APOC + Qdrant snapshots
-│   ├── idGenerator.ts                    # Monotonic integer ID generator for Neo4j
-│   ├── validation.ts                     # Zod schemas for API request validation
-│   │
-│   ├── llm/                              # Game Master AI
-│   │   ├── index.ts                      # generateTurn(): streamText orchestration, stopWhen, prepareStep
-│   │   ├── prompt.ts                     # System prompt: toolbox, turn rhythm, memory, plots, dialogue rules
-│   │   ├── model.ts                      # LLM provider/model selection via env vars
-│   │   ├── events.ts                     # TurnEventEmitter — SSE event emission
-│   │   ├── gmMessages.ts                 # Persists/loads GM turn messages for multi-turn continuity
-│   │   ├── sceneContext.ts               # Builds scene context, entity briefs, plot trees, relationship dumps
-│   │   ├── conditionEvaluator.ts         # Evaluates skill-check conditional expressions
-│   │   ├── rollSkillCheck.ts             # performSkillCheck(): dice roll + stat bonus resolution
-│   │   │
-│   │   └── tools/                        # LLM tool implementations
-│   │       ├── queryWorld.ts             # Cypher READ/WRITE with schema-aware validation
-│   │       ├── searchWorld.ts            # Dynamic vector search across node/relationship types
-│   │       ├── editNode.ts               # CREATE/UPDATE/DELETE any node
-│   │       ├── editRelationship.ts       # CREATE/UPDATE/DELETE any relationship
-│   │       ├── editNote.ts               # CREATE/UPDATE/DELETE GM scratchpad notes; entity/message/plot linking
-│   │       ├── editPlot.ts               # CREATE/UPDATE/DELETE plots; flags, branching, status transitions
-│   │       ├── manageSchema.ts           # Register/unregister node types and relationship types
-│   │       ├── getContext.ts             # Fetch scene context, briefs, schema/relationship dumps
-│   │       ├── generateDialogueStep.ts   # Structured narrative output + player options
-│   │       ├── advanceTime.ts            # Advance in-game clock
-│   │       └── shared.ts                 # wrapSafe error wrapper, extractInternalAndUnknownKeys
-│   │
-│   ├── memory/                           # Persistence layer (Neo4j + Qdrant)
-│   │   ├── client.ts                     # MemoryClient singleton facade composing all subsystems
-│   │   ├── neo4j.ts                      # Neo4j driver wrapper with value normalization
-│   │   ├── qdrant.ts                     # Qdrant vector client: upsert, delete, search, clearAll
-│   │   ├── shortTerm.ts                  # Conversation + :Message nodes as ordered linked list
-│   │   ├── notes.ts                      # :Note CRUD with embedding, entity/message linking
-│   │   ├── plots.ts                      # :Plot lifecycle: beats, branches, flags, time relationships
-│   │   ├── search.ts                     # Vector search by label/rel-type via Qdrant, optional reranking
-│   │   ├── embedder.ts                   # llama-server embedding (default: localhost:8080)
-│   │   ├── sparseEncoder.ts              # FNV-1a token hashing for sparse TF vectors
-│   │   ├── reranker.ts                   # Cross-encoder reranking (optional, via LLAMA_RERANK_URL)
-│   │   ├── validation.ts                 # CypherValidator: schema-aware Cypher validation
-│   │   ├── reset.ts                      # clearNeo4jDatabase(): DETACH DELETE all nodes + Qdrant clear
-│   │   └── types.ts                      # Shared types: MemoryEntity, MemoryNote, MemoryPlot, PlotFlag, etc.
-│   │
-│   ├── stories/                          # World seeding
-│   │   ├── index.ts                      # Active seed story selection, getActiveSeedStory()
-│   │   ├── seed.ts                       # seedDatabase(): idempotent entity/relationship/plot seeding
-│   │   ├── types.ts                      # TOML story format types
-│   │   ├── glass-cage.toml               # Default seed story (29 entities, 35 relationships)
-│   │   └── magic-awakening.toml          # Alternate seed story
-│   │
-│   └── models/                           # Domain models
-│       ├── entity.ts                     # Entity CRUD helpers
-│       ├── plot.ts                       # Plot CRUD helpers
-│       └── time.ts                       # Game time model: 12 segments/day, advanceGameTime()
-│
-├── shared/                               # Shared constants & types
-│   ├── constants.ts                      # TOOL_NAMES, SKILL_NAMES, SEGMENT_LABELS, SEGMENT_HOURS
-│   ├── events.ts                         # SSE event type definitions
-│   ├── sse.ts                            # SSE formatting helpers
-│   └── colors.ts                         # Chalk color wrappers for console output
-│
-└── types/                                # Frontend types
-    └── dialogue.ts                       # Message, DialogueOption interfaces
-
-tests/
-├── setup.ts                              # Global test setup: init MemoryClient + seed
-├── helpers.ts                            # resetDb(), exec(), parseToolOutput()
-│
-├── integration/                          # Integration tests (Neo4j-backed)
-│   ├── editNode.test.ts                  # editNode CRUD + validation
-│   ├── editNote.test.ts                  # editNote CRUD + entity/message linking
-│   ├── editPlot.test.ts                  # editPlot CRUD + flags, branching, status transitions
-│   ├── editRelationship.test.ts          # editRelationship CRUD
-│   ├── queryWorld.test.ts                # queryWorld Cypher execution
-│   ├── searchWorld.test.ts               # searchWorld vector search
-│   ├── manageSchema.test.ts              # manageSchema node/rel-type registration
-│   ├── getContext.test.ts                # getContext scene context fetch
-│   └── advanceTime.test.ts               # advanceTime clock progression
-│
-├── scenarios/                            # End-to-end scenario tests
-│   ├── correction-workflow.test.ts       # generateDialogueStep correction workflow
-│   ├── entity-lifecycle.test.ts          # Entity creation → update → linking → deletion
-│   └── gameplay-murder-mystery.test.ts   # Full gameplay scenario
-│
-└── unit/                                 # Unit tests (no Neo4j)
-    ├── generateDialogueStep.test.ts      # generateDialogueStep validation rules
-    └── shared.test.ts                    # Shared utility tests
-
-scripts/
-├── debug-endpoints.sh                    # curl examples for each GM tool debug endpoint
-├── inspect-devtools.sh                   # LLM interaction viewer from .devtools/generations.json
-└── add-license-header.mjs                # License header injection for source files
-```
 
 ---
 
@@ -214,43 +105,59 @@ scripts/
 
 ---
 
-## 3. LLM Tools
+## 3. LLM Tools (Split: GM + Assistant)
 
-All defined in `src/server/llm/tools/`. Registered in `generateTurn()`.
+GM tools defined in `src/server/llm/tools/`, registered in `generateTurn()`. Assistant tools are the same implementations but registered in `src/server/assistant/index.ts` within the Assistant's `streamText` call.
 
-### GM tools — SENSE (understanding the world)
+### GM tools — 6 tools for narrative
 
-| Tool          | Purpose                                                                                                                                                                                   |
-|---------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `getContext`  | Fetch scene context, character/location/object briefs, plot tree, schema dump, relationship dump. Schema dump now served from in-memory NodeManager/RelationshipManager (no Neo4j query). |
-| `searchWorld` | Dynamic vector search across any node type or relationship type with `_embedding`. Pass `domains` (labels/types) and optional `target` (`"node"`/`"relationship"`); omit to search all.   |
-| `queryWorld`  | Cypher READ/WRITE validated via CypherValidator. READ auto-limited to 50 rows. WRITE with MERGE/SET/DELETE.                                                                               |
+| Tool                   | Purpose                                                       |
+|------------------------|---------------------------------------------------------------|
+| `generateDialogueStep` | Produce narrative messages + player options                   |
+| `advanceTime`          | Advance in-game clock                                         |
+| `editNote`             | CREATE/UPDATE/DELETE notes (no entity/message/plot linking)   |
+| `editPlot`             | CREATE/UPDATE/DELETE plots                                    |
+| `searchWorld`          | Vector search scoped to Note and Plot domains only            |
+| `delegateToAssistant`  | Natural-language delegation to the Database Assistant          |
 
-### GM tools — ACT (changing the world)
+### Assistant tools — 7 tools for database operations
 
-| Tool               | Purpose                                                                                                                                                                     |
-|--------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `editNode`         | CREATE/UPDATE/DELETE any node. Validates properties against NodeManager schema. Auto-generates embeddings. Use for Entity and Disposition; not for Note or Plot.            |
-| `editRelationship` | CREATE/UPDATE/DELETE relationships. LOCATED_AT, CARRIES, LOCATED_IN have `brief` (string, embedded) property for narrative context. Character attitudes use Disposition nodes instead. |
-| `manageSchema`     | Register/unregister node types and relationship types. Must be called before creating instances of new types.                                                               |
-| `advanceTime`      | Advance in-game clock by hours/days. Always include reason. Stored on NEXT_TIMEPOINT.reason.                                                                                |
-
-### GM tools — TRACK (memory & plans)
-
-| Tool       | Purpose                                                                                                                                                                         |
-|------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `editNote` | CREATE/UPDATE/DELETE a GM scratchpad note. Links to entities, messages, and plots for cross-referencing to world state, timeline, and story arcs. Partial overwrite on UPDATE.  |
-| `editPlot` | CREATE/UPDATE/DELETE a plot. Manages status transitions (PENDING→ACTIVE→COMPLETED/ABANDONED), flags, and branching. Auto-wires time relationships on status change. |
-
-### GM tools — SPEAK (player output)
-
-| Tool                   | Purpose                                                                                        | SSE Event                                 |
-|------------------------|------------------------------------------------------------------------------------------------|-------------------------------------------|
-| `generateDialogueStep` | Produce narrative messages + player options; supports `isCorrection` flag for targeted retries | `streaming_messages`, `options`, `parsed` |
+| Tool               | Purpose                                                          |
+|--------------------|------------------------------------------------------------------|
+| `queryWorld`       | Full Cypher READ/WRITE                                           |
+| `searchWorld`      | Full vector search across all node/relationship types            |
+| `editNode`         | Full node CRUD                                                   |
+| `editRelationship` | Full relationship CRUD                                           |
+| `editNote`         | Full note CRUD with entity/message/plot linking                  |
+| `getContext`       | Scene context, entity briefs, schema/relationship dumps          |
+| `manageSchema`     | Register/unregister node types and relationship types            |
 
 ---
 
-## 4. Relationship Type Registry
+## 4. Database Assistant
+
+The Assistant is a second LLM that manages Neo4j + Qdrant on behalf of the GM.
+
+- **Module**: `src/server/assistant/`
+- **Interface**: `delegateToAssistant(request: string, context: AssistantContext): Promise<string>`
+- **Context**: receives recent conversation + GM's tool calls this turn for enrichment
+- **Persistence**: `:AssistantMessage` nodes in Neo4j, trimmed to last 20 messages, linked via `NEXT_ASSISTANT_MESSAGE`
+- **Model**: configured via `ASSISTANT_PROVIDER` and `ASSISTANT_MODEL` env vars; falls back to GM model
+
+### Tool Flow
+
+```
+GM calls delegateToAssistant({ request: "..." })
+  → loads :AssistantMessage history
+  → builds context (conversation + GM tool calls)
+  → streamText(Assistant) with 7 tools
+  → saves new :AssistantMessage nodes
+  → returns result + enrichment to GM
+```
+
+---
+
+## 5. Relationship Type Registry
 
 `relationshipManager.ts` — singleton registry. Keyed by composite `(name, sourceLabel, targetLabel)`. Same name with different endpoint labels creates separate entries.
 
@@ -260,7 +167,7 @@ All defined in `src/server/llm/tools/`. Registered in `generateTurn()`.
 - **Neo4j sync**: stored as `:RelationshipType` nodes with `source_label`/`target_label` (singular scalars). Also creates property indexes, composite indexes, and vector indexes for relationship types that have `_embedding`.
 - **Property tags**: `string`, `number`, `number[]`, `json`, `embedded`, `index`, `composite_index_1`, `composite_index_2`, `composite_index_3`. (`unique` is excluded — Neo4j does not support uniqueness constraints on relationship properties.)
 
-## 5. Node Type Registry
+## 6. Node Type Registry
 
 `nodeManager.ts` — singleton registry mirroring RelationshipManager for node labels.
 
@@ -270,7 +177,7 @@ All defined in `src/server/llm/tools/`. Registered in `generateTurn()`.
 - **Vector indexes**: created dynamically in `syncToNeo4j` for any type with `_embedding` property.
 - **Embedded properties** (tag `"embedded"`): Entity.{name,description,brief}, Plot.{name,description,brief}, Note.{content}, Message.{content}.
 
-## 6. Dynamic Vector Search
+## 7. Dynamic Vector Search
 
 `searchWorld` discovers searchable node types and relationship types at runtime via `NodeManager` and `RelationshipManager`. Types with `_embedding` property are searchable. Subtype labels (Character, Location, Object, etc.) are mapped to their canonical parent label (Entity) since they share the same Qdrant `node_type`.
 
@@ -280,7 +187,7 @@ All defined in `src/server/llm/tools/`. Registered in `generateTurn()`.
 
 ---
 
-## 7. Turn Lifecycle
+## 8. Turn Lifecycle
 
 ```
 POST /api/chat/stream
@@ -308,7 +215,7 @@ POST /api/chat/stream
 
 ---
 
-## 8. SSE Events
+## 9. SSE Events
 
 Defined in `src/shared/events.ts`:
 
@@ -326,7 +233,7 @@ Defined in `src/shared/events.ts`:
 
 ---
 
-## 9. API Endpoints
+## 10. API Endpoints
 
 | Method | Path                            | Purpose                            |
 |--------|---------------------------------|------------------------------------|
@@ -341,7 +248,7 @@ Defined in `src/shared/events.ts`:
 
 ---
 
-## 10. Memory Architecture
+## 11. Memory Architecture
 
 `MemoryClient` (`client.ts`) is the singleton facade composing all subsystems: `neo4j`, `shortTerm`, `search`, `notes`, `plots`.
 
@@ -375,7 +282,7 @@ Defined in `src/shared/events.ts`:
 
 ---
 
-## 11. Game Time
+## 12. Game Time
 
 Minimum unit: 30 minutes (0.5 hours). Day is integer, hour is 0–23.5 in 0.5 increments. Only advances via `advanceTime`.
 
@@ -385,7 +292,7 @@ Minimum unit: 30 minutes (0.5 hours). Day is integer, hour is 0–23.5 in 0.5 in
 
 ---
 
-## 12. Seed Story System
+## 13. Seed Story System
 
 Stories under `src/server/stories/` (TOML format, `types.ts` interface). Active story set via `ACTIVE_SEED_STORY` in `index.ts`.
 
@@ -395,7 +302,7 @@ Relationship types declared via `[[relationshipTypes]]` with `name`, `descriptio
 
 ---
 
-## 13. Internal Voices (Inner Skills)
+## 14. Internal Voices (Inner Skills)
 
 12 skills: LOGIC, RHETORIC, EMPATHY, PERCEPTION, VOLITION, ENDURANCE, SORCERY, SUGGESTION, INSTINCT, MIGHT, CLOCKWORK, ALCHEMY.
 
@@ -408,7 +315,7 @@ Relationship types declared via `[[relationshipTypes]]` with `name`, `descriptio
 
 ---
 
-## 14. Key Design Decisions
+## 15. Key Design Decisions
 
 1. **World state in Neo4j** — entities, messages, plots, notes, game time all persisted.
 2. **Singleton memory layer** — `MemoryClient`, `RelationshipManager`, `NodeManager`.
@@ -430,7 +337,7 @@ Relationship types declared via `[[relationshipTypes]]` with `name`, `descriptio
 
 ---
 
-## 15. Checkpoint System
+## 16. Checkpoint System
 
 `checkpointManager.ts` provides save/restore for turn-level rollback.
 
