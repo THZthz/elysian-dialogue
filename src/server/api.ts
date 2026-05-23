@@ -31,6 +31,7 @@ import { editPlot } from "@/server/llm/tools/editPlot";
 import { manageSchema } from "@/server/llm/tools/manageSchema";
 import type { Message } from "@/types/dialogue";
 import { getContext } from "@/server/llm/tools/getContext";
+import { delegateToAssistant, type AssistantContext } from "@/server/assistant";
 import { listCheckpoints, restoreCheckpoint } from "@/server/checkpointManager";
 
 const debugToolRegistry: Record<string, { execute: (args: any) => Promise<string> }> = {
@@ -42,6 +43,16 @@ const debugToolRegistry: Record<string, { execute: (args: any) => Promise<string
   editNote: editNote as any,
   editPlot: editPlot as any,
   getContext: getContext as any,
+  delegateToAssistant: {
+    execute: async (args: any) => {
+      const ctx: AssistantContext = {
+        recentConversation: "",
+        gmToolCalls: [],
+        turnNumber: 0,
+      };
+      return delegateToAssistant(args.request ?? "", ctx);
+    },
+  },
 };
 
 const apiRouter = express.Router();

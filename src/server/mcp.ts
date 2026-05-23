@@ -18,6 +18,8 @@
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { z } from "zod";
+import { delegateToAssistant, type AssistantContext } from "@/server/assistant";
 
 // Plain singleton tools — no factory needed
 import { queryWorld } from "@/server/llm/tools/queryWorld";
@@ -101,6 +103,21 @@ export function setupServer(server: McpServer, dialogueStepTool: any, advanceTim
     advanceTimeTool.description!,
     advanceTimeTool.inputSchema,
     advanceTimeTool.execute as any,
+  );
+  reg(
+    "delegateToAssistant",
+    "Delegate database operations to the assistant. Describe what you need in natural language.",
+    z.object({
+      request: z.string().describe("Natural language request for the database assistant."),
+    }),
+    async (args: any) => {
+      const ctx: AssistantContext = {
+        recentConversation: "",
+        gmToolCalls: [],
+        turnNumber: 0,
+      };
+      return delegateToAssistant(args.request, ctx);
+    },
   );
 }
 
