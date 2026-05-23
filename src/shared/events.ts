@@ -72,6 +72,10 @@ export interface RollResultEvent {
   }>;
 }
 
+export interface PhaseEvent {
+  phase: string;
+}
+
 export interface SseEventMap {
   step_start: StepStartEvent;
   streaming_messages: StreamingMessagesEvent;
@@ -82,6 +86,7 @@ export interface SseEventMap {
   done: DoneEvent;
   time_update: TimeUpdateEvent;
   roll_result: RollResultEvent;
+  phase: PhaseEvent;
 }
 
 export type SseEventName = keyof SseEventMap;

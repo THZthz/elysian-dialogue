@@ -30,6 +30,7 @@ export interface SseCallbacks {
   onError?: (message: CallbackData<"error">["message"]) => void;
   onDone?: () => void;
   onRollResult?: (data: CallbackData<"roll_result">) => void;
+  onPhaseChange?: (data: CallbackData<"phase">["phase"]) => void;
 }
 
 export class ConsoleSseClient {
@@ -98,6 +99,9 @@ export class ConsoleSseClient {
         break;
       case "roll_result":
         cb.onRollResult?.(data);
+        break;
+      case "phase":
+        cb.onPhaseChange?.(data.phase);
         break;
       // World/plot/time/time_update events ignored for console client
     }

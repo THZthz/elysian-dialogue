@@ -81,6 +81,10 @@ export class TurnEventEmitter {
     this.send("time_update", { day, hour, hoursAdvanced });
   }
 
+  emitPhaseChange(phase: string) {
+    this.send("phase", { phase });
+  }
+
   emitRollResult(data: {
     skill: string;
     difficulty: number;
