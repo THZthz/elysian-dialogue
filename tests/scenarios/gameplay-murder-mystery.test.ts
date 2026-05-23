@@ -16,12 +16,12 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { getContext } from "@/server/llm/tools/getContext";
-import { queryWorld } from "@/server/llm/tools/queryWorld";
-import { searchWorld } from "@/server/llm/tools/searchWorld";
-import { editNode } from "@/server/llm/tools/editNode";
-import { editRelationship } from "@/server/llm/tools/editRelationship";
-import { createAdvanceTimeTool } from "@/server/llm/tools/advanceTime";
+import { getContext } from "@/server/tools/getContext";
+import { queryWorld } from "@/server/tools/queryWorld";
+import { searchWorld } from "@/server/tools/searchWorld";
+import { editNode } from "@/server/tools/editNode";
+import { editRelationship } from "@/server/tools/editRelationship";
+import { createAdvanceTimeTool } from "@/server/tools/advanceTime";
 import { exec, parseToolOutput, createMockEventEmitter, resetDb, resetObserver } from "../helpers";
 
 describe("Gameplay: Murder Mystery Investigation", () => {

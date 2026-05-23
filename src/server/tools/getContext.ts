@@ -19,7 +19,7 @@
 import { tool } from "ai";
 import { z } from "zod";
 import { TOOL_NAMES } from "@/shared/constants";
-import { wrapSafe } from "@/server/llm/tools/shared";
+import { wrapSafe } from "@/server/tools/shared";
 import {
   buildSceneContext,
   buildCharactersBrief,
@@ -27,7 +27,7 @@ import {
   buildObjectsBrief,
   buildPlotsBrief,
   buildRelationshipDump,
-} from "@/server/llm/sceneContext";
+} from "@/server/assistant/sceneContext";
 import { getNodeManager } from "@/server/nodeManager";
 import { RelationshipManager } from "@/server/relationshipManager";
 import { getMemoryClient } from "@/server/memory/client";

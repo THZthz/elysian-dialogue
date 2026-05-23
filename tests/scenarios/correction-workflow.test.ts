@@ -16,7 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { createGenerateDialogueStepTool } from "@/server/llm/tools/generateDialogueStep";
+import { createGenerateDialogueStepTool } from "@/server/tools/generateDialogueStep";
 import { exec } from "../helpers";
 
 describe("Correction Workflow Scenario", () => {

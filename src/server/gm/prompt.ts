@@ -44,7 +44,7 @@ Tools to use:
 - \`${TOOL_NAMES.EDIT_PLOT}\`
 - \`${TOOL_NAMES.SEARCH_WORLD}\` (for notes and plots only)
 
-### 3. SPEAK
+### 3. NARRATE
 
 Progress the story for the player.
 

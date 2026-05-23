@@ -19,8 +19,8 @@
 import { tool } from "ai";
 import { z } from "zod";
 import { advanceGameTime, describeTime } from "@/server/models/time";
-import type { EventEmitter } from "@/server/llm/events";
-import { wrapSafe } from "@/server/llm/tools/shared";
+import type { EventEmitter } from "@/server/events";
+import { wrapSafe } from "@/server/tools/shared";
 import { TOOL_NAMES } from "@/shared/constants";
 
 // NB: .nullable() on optional fields prevents Zod rejection when the LLM

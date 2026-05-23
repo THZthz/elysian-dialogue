@@ -16,7 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { searchWorld } from "@/server/llm/tools/searchWorld";
+import { searchWorld } from "@/server/tools/searchWorld";
 import { exec, parseToolOutput, isEmbedderAvailable, resetDb } from "../helpers";
 
 describe("searchWorld", () => {

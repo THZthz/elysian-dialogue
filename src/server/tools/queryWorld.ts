@@ -21,7 +21,7 @@ import { z } from "zod";
 import { getMemoryClient, MemoryClient } from "@/server/memory/client";
 import { CypherValidator } from "@/server/memory/validation";
 import { stripHiddenProperties } from "@/server/memory/neo4j";
-import { wrapSafe } from "@/server/llm/tools/shared";
+import { wrapSafe } from "@/server/tools/shared";
 import { TOOL_NAMES } from "@/shared/constants";
 
 const validator = new CypherValidator();

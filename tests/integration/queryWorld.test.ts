@@ -16,7 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { queryWorld } from "@/server/llm/tools/queryWorld";
+import { queryWorld } from "@/server/tools/queryWorld";
 import { getMemoryClient, MemoryClient } from "@/server/memory/client";
 import { exec, parseToolOutput, resetDb } from "../helpers";
 

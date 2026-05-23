@@ -16,9 +16,9 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { editNote } from "@/server/llm/tools/editNote";
-import { editPlot } from "@/server/llm/tools/editPlot";
-import { queryWorld } from "@/server/llm/tools/queryWorld";
+import { editNote } from "@/server/tools/editNote";
+import { editPlot } from "@/server/tools/editPlot";
+import { queryWorld } from "@/server/tools/queryWorld";
 import { exec, parseToolOutput, resetDb } from "../helpers";
 import { getMemoryClient, MemoryClient } from "@/server/memory/client";
 

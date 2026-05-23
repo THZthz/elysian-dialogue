@@ -56,7 +56,7 @@ export async function saveAssistantMessages(
   // Find the last message to link from
   const lastRows = await client.neo4j.executeRead(
     `MATCH (m:AssistantMessage)
-     WHERE NOT (m)-[:NEXT_ASSISTANT_MESSAGE]->(:AssistantMessage)
+     WHERE NOT (m)-[:_NEXT_ASSISTANT_MESSAGE]->(:AssistantMessage)
      RETURN m._id AS id ORDER BY m._created_at DESC LIMIT 1`
   );
   const previousLastId = lastRows.length > 0 ? (lastRows[0].id as string) : null;
@@ -91,14 +91,14 @@ export async function saveAssistantMessages(
     await client.neo4j.createRelationship(
       "AssistantMessage", "_id", previousLastId,
       "AssistantMessage", "_id", ids[0],
-      "NEXT_ASSISTANT_MESSAGE",
+      "_NEXT_ASSISTANT_MESSAGE",
     );
   }
   for (let i = 0; i < ids.length - 1; i++) {
     await client.neo4j.createRelationship(
       "AssistantMessage", "_id", ids[i],
       "AssistantMessage", "_id", ids[i + 1],
-      "NEXT_ASSISTANT_MESSAGE",
+      "_NEXT_ASSISTANT_MESSAGE",
     );
   }
 }

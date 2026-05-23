@@ -17,20 +17,20 @@
  */
 
 import express from "express";
-import { generateTurn, isGenerating } from "@/server/llm";
+import { generateTurn, isGenerating } from "@/server/gm";
 import { chatStreamSchema } from "@/server/validation";
 import { getMemoryClient, MemoryClient } from "@/server/memory/client";
 import { RelationshipManager } from "@/server/relationshipManager";
 import { getCurrentOptions } from "@/server/gameState";
-import { queryWorld } from "@/server/llm/tools/queryWorld";
-import { searchWorld } from "@/server/llm/tools/searchWorld";
-import { editNode } from "@/server/llm/tools/editNode";
-import { editRelationship } from "@/server/llm/tools/editRelationship";
-import { editNote } from "@/server/llm/tools/editNote";
-import { editPlot } from "@/server/llm/tools/editPlot";
-import { manageSchema } from "@/server/llm/tools/manageSchema";
+import { queryWorld } from "@/server/tools/queryWorld";
+import { searchWorld } from "@/server/tools/searchWorld";
+import { editNode } from "@/server/tools/editNode";
+import { editRelationship } from "@/server/tools/editRelationship";
+import { editNote } from "@/server/tools/editNote";
+import { editPlot } from "@/server/tools/editPlot";
+import { manageSchema } from "@/server/tools/manageSchema";
 import type { Message } from "@/types/dialogue";
-import { getContext } from "@/server/llm/tools/getContext";
+import { getContext } from "@/server/tools/getContext";
 import { delegateToAssistant, type AssistantContext } from "@/server/assistant";
 import { listCheckpoints, restoreCheckpoint } from "@/server/checkpointManager";
 

@@ -23,7 +23,7 @@ import logUpdate from "log-update";
 import wrapAnsi from "wrap-ansi";
 import { renderMarkdown } from "@/console/markdown";
 import type { Message, DialogueOption } from "@/types/dialogue";
-import type { StreamingMessage } from "@/server/llm/events";
+import type { StreamingMessage } from "@/server/events";
 import { ConsoleSseClient, type SseCallbacks } from "@/console/SseClient";
 import { VOICE_COLORS } from "@/shared/colors";
 import type { SkillName } from "@/shared/constants";

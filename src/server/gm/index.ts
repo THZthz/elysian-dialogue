@@ -21,21 +21,21 @@ import { parse as parsePartial } from "partial-json";
 import { jsonrepair } from "jsonrepair";
 import type { Response } from "express";
 import type { Message, DialogueOption } from "@/types/dialogue";
-import { TurnEventEmitter } from "@/server/llm/events";
-import { buildSystemPrompt, MAX_GM_STEPS } from "@/server/llm/prompt";
-import { getModel } from "@/server/llm/model";
+import { TurnEventEmitter } from "@/server/events";
+import { buildSystemPrompt, MAX_GM_STEPS } from "@/server/gm/prompt";
+import { getModel } from "@/server/model";
 import { getMemoryClient, MemoryClient } from "@/server/memory/client";
-import { createSearchWorldTool } from "@/server/llm/tools/searchWorld";
-import { editNoteGm } from "@/server/llm/tools/editNote";
-import { editPlot } from "@/server/llm/tools/editPlot";
-import { createDelegateToAssistantTool } from "@/server/llm/tools/delegateToAssistant";
+import { createSearchWorldTool } from "@/server/tools/searchWorld";
+import { editNoteGm } from "@/server/tools/editNote";
+import { editPlot } from "@/server/tools/editPlot";
+import { createDelegateToAssistantTool } from "@/server/tools/delegateToAssistant";
 import type { AssistantContext } from "@/server/assistant";
 import { saveCurrentOptions } from "@/server/gameState";
 import { saveCheckpoint } from "@/server/checkpointManager";
-import { loadGMMessages, saveGMMessages, getNextTurnNumber } from "@/server/llm/gmMessages";
-import { createGenerateDialogueStepTool } from "@/server/llm/tools/generateDialogueStep";
-import { createAdvanceTimeTool } from "@/server/llm/tools/advanceTime";
-import { performSkillCheck } from "@/server/llm/rollSkillCheck";
+import { loadGMMessages, saveGMMessages, getNextTurnNumber } from "@/server/gm/message";
+import { createGenerateDialogueStepTool } from "@/server/tools/generateDialogueStep";
+import { createAdvanceTimeTool } from "@/server/tools/advanceTime";
+import { performSkillCheck } from "@/server/gm/rollSkillCheck";
 import { type SkillName, TOOL_NAMES } from "@/shared/constants";
 import { DeepSeekLanguageModelOptions } from "@ai-sdk/deepseek";
 
@@ -186,7 +186,7 @@ export async function generateTurn(
       "",
     ].join("\n");
 
-    const { model } = getModel();
+    const { model } = getModel("gm");
 
     let finalMessages: Record<string, unknown>[] = [];
     let finalOptions: DialogueOption[] = [];

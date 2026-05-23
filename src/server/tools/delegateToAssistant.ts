@@ -1,6 +1,6 @@
 import { tool } from "ai";
 import { z } from "zod";
-import { wrapSafe } from "@/server/llm/tools/shared";
+import { wrapSafe } from "@/server/tools/shared";
 import { delegateToAssistant, type AssistantContext } from "@/server/assistant";
 import { TOOL_NAMES } from "@/shared/constants";
 

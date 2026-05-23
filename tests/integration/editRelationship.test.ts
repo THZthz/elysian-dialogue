@@ -16,10 +16,10 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { editRelationship } from "@/server/llm/tools/editRelationship";
-import { editNode } from "@/server/llm/tools/editNode";
-import { manageSchema } from "@/server/llm/tools/manageSchema";
-import { queryWorld } from "@/server/llm/tools/queryWorld";
+import { editRelationship } from "@/server/tools/editRelationship";
+import { editNode } from "@/server/tools/editNode";
+import { manageSchema } from "@/server/tools/manageSchema";
+import { queryWorld } from "@/server/tools/queryWorld";
 import { getMemoryClient, MemoryClient } from "@/server/memory/client";
 import { exec, resetDb, parseToolOutput, isEmbedderAvailable } from "../helpers";
 

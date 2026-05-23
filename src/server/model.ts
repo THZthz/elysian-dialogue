@@ -82,7 +82,7 @@ function getDeepSeekModel(): LanguageModel | null {
   return deepseekModelInstance;
 }
 
-export function getModel(): { model: LanguageModel; name: string } {
+export function getModel(type: "assistant" | "gm"): { model: LanguageModel; name: string } {
   const deepseek = getDeepSeekModel();
   if (deepseek) return { model: deepseek, name: deepseekModel };
   const google = getGoogleModel();

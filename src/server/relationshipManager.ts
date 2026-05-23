@@ -77,6 +77,12 @@ const INTERNAL_TYPES: {
     sourceLabel: "GMTurnMessage",
     targetLabel: "GMTurnMessage",
   },
+  {
+    name: "_NEXT_ASSISTANT_MESSAGE",
+    description: "Sequentially links AssistantMessage nodes in conversation order.",
+    sourceLabel: "AssistantMessage",
+    targetLabel: "AssistantMessage",
+  },
 ];
 
 const PREDEFINED_TYPES: {

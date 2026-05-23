@@ -6,12 +6,12 @@ import { clearNeo4jDatabase } from "@/server/memory/reset";
 import { saveCheckpoint, restoreCheckpoint, listCheckpoints } from "@/server/checkpointManager";
 import { getNodeManager } from "@/server/nodeManager";
 import { RelationshipManager } from "@/server/relationshipManager";
-import { manageSchema } from "@/server/llm/tools/manageSchema";
-import { editNode } from "@/server/llm/tools/editNode";
-import { editNote } from "@/server/llm/tools/editNote";
-import { editPlot } from "@/server/llm/tools/editPlot";
-import { queryWorld } from "@/server/llm/tools/queryWorld";
-import { createAdvanceTimeTool } from "@/server/llm/tools/advanceTime";
+import { manageSchema } from "@/server/tools/manageSchema";
+import { editNode } from "@/server/tools/editNode";
+import { editNote } from "@/server/tools/editNote";
+import { editPlot } from "@/server/tools/editPlot";
+import { queryWorld } from "@/server/tools/queryWorld";
+import { createAdvanceTimeTool } from "@/server/tools/advanceTime";
 import { exec, parseToolOutput, createMockEventEmitter, resetDb } from "../helpers";
 
 const CHECKPOINT_DIR = path.resolve("data/checkpoints");

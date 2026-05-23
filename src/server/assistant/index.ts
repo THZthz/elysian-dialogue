@@ -1,15 +1,15 @@
 import { streamText, stepCountIs, type ModelMessage, NoSuchToolError } from "ai";
 import { jsonrepair } from "jsonrepair";
-import { getAssistantModel } from "@/server/assistant/model";
+import { getModel } from "@/server/model";
 import { buildAssistantSystemPrompt } from "@/server/assistant/prompt";
 import { loadAssistantMessages, saveAssistantMessages } from "@/server/assistant/messages";
-import { queryWorld } from "@/server/llm/tools/queryWorld";
-import { searchWorld } from "@/server/llm/tools/searchWorld";
-import { editNode } from "@/server/llm/tools/editNode";
-import { editRelationship } from "@/server/llm/tools/editRelationship";
-import { editNote } from "@/server/llm/tools/editNote";
-import { getContext } from "@/server/llm/tools/getContext";
-import { manageSchema } from "@/server/llm/tools/manageSchema";
+import { queryWorld } from "@/server/tools/queryWorld";
+import { searchWorld } from "@/server/tools/searchWorld";
+import { editNode } from "@/server/tools/editNode";
+import { editRelationship } from "@/server/tools/editRelationship";
+import { editNote } from "@/server/tools/editNote";
+import { getContext } from "@/server/tools/getContext";
+import { manageSchema } from "@/server/tools/manageSchema";
 import { TOOL_NAMES } from "@/shared/constants";
 
 export interface AssistantContext {
@@ -60,7 +60,7 @@ export async function delegateToAssistant(
     console.error("[assistant] Failed to load message history:", err);
   }
 
-  const { model } = getAssistantModel();
+  const { model } = getModel("assistant");
 
   try {
     const result = streamText({
@@ -99,10 +99,9 @@ export async function delegateToAssistant(
         .join("\n")
         .trim();
 
-    // Detect truncation: stepCountIs stops with finishReason "stop", so check step count
+    // Detect truncation: stepCountIs(8) stops with finishReason "stop", so check step count
     const stepCount = (response as any).steps?.length ?? 0;
-    const wasTruncated =
-      response.finishReason === "length" || stepCount >= MAX_ASSISTANT_STEPS;
+    const wasTruncated = stepCount >= MAX_ASSISTANT_STEPS;
 
     const finalText = wasTruncated
       ? (responseText || "(no output)") + "\n\n[Assistant was truncated — result may be incomplete]"
