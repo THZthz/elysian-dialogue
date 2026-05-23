@@ -281,8 +281,12 @@ export async function buildPlotsBrief(): Promise<string> {
                                brief: child.brief, status: child.status } } AS children
      ORDER BY name`,
   )) as Array<{
-    name: string; description: string; brief: string | null;
-    status: string; flags: unknown; triggerCondition: string | null;
+    name: string;
+    description: string;
+    brief: string | null;
+    status: string;
+    flags: unknown;
+    triggerCondition: string | null;
     children: Array<{ name: string; description: string; brief: string | null; status: string }>;
   }>;
 
@@ -294,9 +298,7 @@ export async function buildPlotsBrief(): Promise<string> {
     brief: p.brief || null,
     status: p.status,
     triggerCondition: p.triggerCondition,
-    children: (p.children || [])
-      .filter((c) => c && c.name)
-      .map((c) => ({ ...c, children: [] })),
+    children: (p.children || []).filter((c) => c && c.name).map((c) => ({ ...c, children: [] })),
   }));
 
   // Cross-reference: replace shallow child refs (from parent's COLLECT) with
@@ -315,7 +317,8 @@ export async function buildPlotsBrief(): Promise<string> {
     "",
     "\`\`\`",
     tree,
-    "\`\`\`"];
+    "\`\`\`",
+  ];
   return lines.join("\n");
 }
 

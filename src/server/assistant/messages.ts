@@ -1,3 +1,21 @@
+/**
+ * Chorus — cinematic dialogue engine
+ * Copyright (C) 2026 Amias
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
 import type { ModelMessage } from "ai";
 import { getMemoryClient } from "@/server/memory/client";
 
@@ -7,7 +25,7 @@ export async function loadAssistantMessages(): Promise<ModelMessage[]> {
   const client = getMemoryClient();
   const rows = await client.neo4j.executeRead(
     `MATCH (m:AssistantMessage)
-     RETURN m ORDER BY m._created_at, m.message_index`
+     RETURN m ORDER BY m._created_at, m.message_index`,
   );
 
   if (rows.length === 0) return [];
@@ -36,7 +54,7 @@ export async function saveAssistantMessages(
 
   // Count existing messages so we assign correct message_index offsets
   const countRows = await client.neo4j.executeRead(
-    `MATCH (m:AssistantMessage) RETURN max(m.message_index) AS maxIdx`
+    `MATCH (m:AssistantMessage) RETURN max(m.message_index) AS maxIdx`,
   );
   const existingCount = ((countRows[0]?.maxIdx as number) ?? -1) + 1;
   const totalAfterAdd = existingCount + filtered.length;
@@ -57,7 +75,7 @@ export async function saveAssistantMessages(
   const lastRows = await client.neo4j.executeRead(
     `MATCH (m:AssistantMessage)
      WHERE NOT (m)-[:_NEXT_ASSISTANT_MESSAGE]->(:AssistantMessage)
-     RETURN m._id AS id ORDER BY m._created_at DESC LIMIT 1`
+     RETURN m._id AS id ORDER BY m._created_at DESC LIMIT 1`,
   );
   const previousLastId = lastRows.length > 0 ? (lastRows[0].id as string) : null;
 
@@ -89,15 +107,23 @@ export async function saveAssistantMessages(
   // Chain messages together (linked list)
   if (previousLastId && ids.length > 0) {
     await client.neo4j.createRelationship(
-      "AssistantMessage", "_id", previousLastId,
-      "AssistantMessage", "_id", ids[0],
+      "AssistantMessage",
+      "_id",
+      previousLastId,
+      "AssistantMessage",
+      "_id",
+      ids[0],
       "_NEXT_ASSISTANT_MESSAGE",
     );
   }
   for (let i = 0; i < ids.length - 1; i++) {
     await client.neo4j.createRelationship(
-      "AssistantMessage", "_id", ids[i],
-      "AssistantMessage", "_id", ids[i + 1],
+      "AssistantMessage",
+      "_id",
+      ids[i],
+      "AssistantMessage",
+      "_id",
+      ids[i + 1],
       "_NEXT_ASSISTANT_MESSAGE",
     );
   }

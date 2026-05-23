@@ -87,7 +87,7 @@ flowchart TD
     class API server;
 ```
 
-**Flow:** Player input → GM delegates DB work to Assistant → Assistant queries/modifies Neo4j/Qdrant → returns results with enrichment → GM narrates via `generateDialogueStep` → SSE streams back.
+**Flow:** Player input → GM works (delegates DB queries to Assistant, drafts notes/plots) → GM narrates via `generateDialogueStep` → stream stops → Assistant auto-persists world state → SSE streams back.
 
 ---
 
@@ -118,9 +118,23 @@ GM and Assistant each have their own `streamText` invocation with separate tool 
 | `getContext` | Scene context, entity briefs, schema dumps |
 | `manageSchema` | Register/unregister node and relationship types |
 
+### Turn Lifecycle (TurnStateMachine)
+
+Each turn progresses through phases tracked by `TurnStateMachine` (`src/server/turnState.ts`):
+1. **START/GM_DRAFTING/GM_DELEGATING** — GM calls tools freely (delegate to Assistant, edit notes/plots, advance time)
+2. **DIALOGUE_SENDING** — GM calls `generateDialogueStep`; stream stops when validation passes
+3. **PERSISTING** — Assistant is auto-invoked to persist world state changes
+4. **COMPLETE** — Turn finished
+
+Phase changes are emitted as SSE `phase` events for console display.
+
 ### Database Assistant
 
-The Assistant is a stateful second LLM with its own message history (`:AssistantMessage` nodes, max 20). Each `delegateToAssistant` call loads previous messages, builds context (recent conversation + GM's tool calls this turn), runs `streamText` with 7 tools, saves new messages, and returns the result with enrichment observations.
+The Assistant is a stateful second LLM with its own message history (`:AssistantMessage` nodes, max 20). It serves two roles:
+- **Mid-turn delegation** — GM calls `delegateToAssistant` to query/modify the database. Assistant sees GM tool call names only.
+- **Auto-persist** — After dialogue validation, the assistant is automatically invoked with full GM tool call parameters. It inspects the dialogue output and GM activity, then persists world state changes (locations, items, dispositions, plot flags) using its own judgment.
+
+Both use the same `AssistantMessage` stream for continuity within a turn.
 
 Model configured via `ASSISTANT_PROVIDER` / `ASSISTANT_MODEL` env vars; falls back to the GM's model.
 
@@ -153,7 +167,8 @@ src/
 │   ├── gm/            # Game Master LLM
 │   ├── memory/        # Neo4j + Qdrant client layer
 │   ├── models/        # Domain models (time, entity, plot)
-│   └── stories/       # Seed world TOML files
+│   ├── stories/       # Seed world TOML files
+│   └── turnState.ts   # Turn state machine for phase tracking
 ├── shared/            # Constants, SSE types, utilities
 └── types/             # Frontend dialogue types
 tests/

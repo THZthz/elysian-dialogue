@@ -16,11 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import {
-  getMemoryClient,
-  MemoryClient,
-  type MemoryEntity,
-} from "@/server/memory/client";
+import { getMemoryClient, MemoryClient, type MemoryEntity } from "@/server/memory/client";
 import type { SkillName } from "@/shared/constants";
 
 // TODO: This skill check system should be reworked since current skill check will always succeed.
@@ -133,7 +129,9 @@ function parseEntity(data: Record<string, unknown>): MemoryEntity {
 
 async function getPlayerStats(): Promise<Record<string, number> | null> {
   const client = getMemoryClient();
-  const rows = await client.neo4j.executeRead('MATCH (e:Character {_id: "#player#"}) RETURN e LIMIT 1');
+  const rows = await client.neo4j.executeRead(
+    'MATCH (e:Character {_id: "#player#"}) RETURN e LIMIT 1',
+  );
   if (rows.length === 0) return null;
   const entity = parseEntity(rows[0].e as Record<string, unknown>);
 

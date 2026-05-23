@@ -40,7 +40,9 @@ export async function getCurrentOptions(): Promise<{
   options: DialogueOption[];
 } | null> {
   const client = getMemoryClient();
-  const rows = await client.neo4j.executeRead(`MATCH (c:Conversation) RETURN c._id AS id, c.options AS options`);
+  const rows = await client.neo4j.executeRead(
+    `MATCH (c:Conversation) RETURN c._id AS id, c.options AS options`,
+  );
   if (rows.length === 0) return null;
   const row = rows[0];
   let options: DialogueOption[] = [];

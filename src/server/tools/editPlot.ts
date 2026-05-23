@@ -1,4 +1,22 @@
 /**
+ * Chorus — cinematic dialogue engine
+ * Copyright (C) 2026 Amias
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
+/**
  * Chorus — cinematic RPG-style dialogue engine
  * Copyright (C) 2026  Amias
  *
@@ -37,11 +55,7 @@ const inputSchema = z.object({
       "Plot description. CREATE: required. UPDATE: optional (set to overwrite — should be rare). DELETE: omit.",
     ),
   brief: z.string().nullable().optional().describe("Short one-line summary of the plot."),
-  status: z
-    .enum(PLOT_STATUSES)
-    .nullable()
-    .optional()
-    .describe("Plot status."),
+  status: z.enum(PLOT_STATUSES).nullable().optional().describe("Plot status."),
   triggerCondition: z
     .string()
     .nullable()
@@ -52,7 +66,11 @@ const inputSchema = z.object({
     .nullable()
     .optional()
     .describe("Add or update flags on this plot."),
-  removeFlags: z.array(z.string()).nullable().optional().describe("Array of flag IDs to remove from this plot."),
+  removeFlags: z
+    .array(z.string())
+    .nullable()
+    .optional()
+    .describe("Array of flag IDs to remove from this plot."),
   branchTo: z
     .string()
     .nullable()
@@ -90,7 +108,8 @@ of action or allegiance, not a single line of dialogue.
     }
 
     if (args.action == "CREATE") {
-      if (!args.description) return `ERROR: Parameter \`description\` is required for action CREATE.`;
+      if (!args.description)
+        return `ERROR: Parameter \`description\` is required for action CREATE.`;
       const plot = await client.plots.createPlot(args.plotName, {
         description: args.description,
         brief: args.brief ?? undefined,

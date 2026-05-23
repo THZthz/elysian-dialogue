@@ -566,7 +566,10 @@ export async function generateTurn(
             }
           : undefined,
       }));
-      stateMachine.dialogueValidated({ messages: dialogueMsgs as any, options: dialogueOpts as any });
+      stateMachine.dialogueValidated({
+        messages: dialogueMsgs as any,
+        options: dialogueOpts as any,
+      });
     }
 
     // ── Auto-persist (runs BEFORE events.finish so errors reach the player) ──
@@ -577,7 +580,7 @@ export async function generateTurn(
       console.error("[generateTurn] auto-persist failed:", err);
       events.emitError(
         `World state persistence failed: ${err instanceof Error ? err.message : String(err)}. ` +
-        "You can rewind via /regenerate to retry."
+          "You can rewind via /regenerate to retry.",
       );
       events.finish();
       return;

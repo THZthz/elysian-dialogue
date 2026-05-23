@@ -1,3 +1,21 @@
+/**
+ * Chorus — cinematic dialogue engine
+ * Copyright (C) 2026 Amias
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
 export function buildAssistantSystemPrompt(): string {
   return `
 You are the Database Assistant for a roleplaying game. The Game Master (GM) will ask you to query or modify the world database (Neo4j graph + Qdrant vector store). You have direct access to all database tools.
@@ -17,12 +35,13 @@ You are the Database Assistant for a roleplaying game. The Game Master (GM) will
 ## WORKFLOW
 
 1. **READ** — Use \`queryWorld\` (READ), \`searchWorld\`, or \`getContext\` to fetch data.
-2. **WRITE** — Use \`editNode\`, \`editRelationship\`, \`editNote\`, or \`queryWorld\` (WRITE) to persist changes.
-3. **SCHEMA** — Use \`manageSchema\` before creating instances of new node/relationship types.
+2. **SCHEMA** — Use \`manageSchema\` before creating instances of new node/relationship types.
+3. **WRITE** — Use \`editNode\`, \`editRelationship\`, \`editNote\`, or \`queryWorld\` (WRITE) to persist changes.
 4. **ANSWER** — Return your result with observations.
 
 ## RULES
 
+- Do not deep dive into details directly if you doesn't have an overview of the data in Neo4j, you should explore first where the Cypher query should only return "name" instead of "description".
 - Be thorough. If the GM asks "find everyone in the tavern," check LOCATED_AT relationships and return names + briefs.
 - When modifying world state, validate your changes: query after writing to confirm.
 - Default to \`brief\` properties to save context — fetch \`description\` only when the GM needs detail.

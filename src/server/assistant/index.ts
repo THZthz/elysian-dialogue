@@ -1,3 +1,21 @@
+/**
+ * Chorus — cinematic dialogue engine
+ * Copyright (C) 2026 Amias
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
 import { streamText, stepCountIs, type ModelMessage, NoSuchToolError } from "ai";
 import { jsonrepair } from "jsonrepair";
 import { getModel } from "@/server/model";
@@ -73,9 +91,7 @@ export async function delegateToAssistant(
         if (NoSuchToolError.isInstance(error)) return null;
         try {
           const inputStr =
-            typeof toolCall.input === "string"
-              ? toolCall.input
-              : JSON.stringify(toolCall.input);
+            typeof toolCall.input === "string" ? toolCall.input : JSON.stringify(toolCall.input);
           const repaired = jsonrepair(inputStr);
           console.log(`[assistant] repaired ${toolCall.toolName} JSON`);
           return { ...toolCall, input: repaired };
@@ -86,18 +102,15 @@ export async function delegateToAssistant(
     });
 
     const response = await result.response;
-    const responseText =
-      response.messages
-        .filter((m) => m.role === "assistant")
-        .map((m) =>
-          typeof m.content === "string"
-            ? m.content
-            : (m.content as any[])
-                ?.map((part: any) => part.text ?? "")
-                .join("") ?? "",
-        )
-        .join("\n")
-        .trim();
+    const responseText = response.messages
+      .filter((m) => m.role === "assistant")
+      .map((m) =>
+        typeof m.content === "string"
+          ? m.content
+          : ((m.content as any[])?.map((part: any) => part.text ?? "").join("") ?? ""),
+      )
+      .join("\n")
+      .trim();
 
     // Detect truncation: stepCountIs(8) stops with finishReason "stop", so check step count
     const stepCount = (response as any).steps?.length ?? 0;
@@ -153,7 +166,9 @@ export async function autoPersist(
     if (dialogueParams.options && dialogueParams.options.length > 0) {
       parts.push("Options:");
       for (const opt of dialogueParams.options) {
-        parts.push(`  - ${opt.text}${opt.check ? ` [${opt.check.skill} check, difficulty ${opt.check.difficulty}]` : ""}`);
+        parts.push(
+          `  - ${opt.text}${opt.check ? ` [${opt.check.skill} check, difficulty ${opt.check.difficulty}]` : ""}`,
+        );
       }
     }
     dialogueText = parts.join("\n");
@@ -199,9 +214,7 @@ export async function autoPersist(
       if (NoSuchToolError.isInstance(error)) return null;
       try {
         const inputStr =
-          typeof toolCall.input === "string"
-            ? toolCall.input
-            : JSON.stringify(toolCall.input);
+          typeof toolCall.input === "string" ? toolCall.input : JSON.stringify(toolCall.input);
         const repaired = jsonrepair(inputStr);
         console.log(`[autoPersist] repaired ${toolCall.toolName} JSON`);
         return { ...toolCall, input: repaired };

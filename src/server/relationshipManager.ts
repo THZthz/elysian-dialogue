@@ -195,7 +195,8 @@ const PREDEFINED_TYPES: {
   },
   {
     name: "LOCATED_IN",
-    description: "A location is contained within a larger location (e.g., a basement inside a tavern).",
+    description:
+      "A location is contained within a larger location (e.g., a basement inside a tavern).",
     sourceLabel: "Location",
     targetLabel: "Location",
     properties: [

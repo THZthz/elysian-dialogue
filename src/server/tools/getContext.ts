@@ -51,7 +51,10 @@ async function buildSchemaDump(): Promise<string> {
 
   // ── Pre-fetch counts from Neo4j ──
   const nodeLabelSet = new Set(
-    nodeManager.getAll().filter((n) => n.type !== "INTERNAL").map((n) => n.name),
+    nodeManager
+      .getAll()
+      .filter((n) => n.type !== "INTERNAL")
+      .map((n) => n.name),
   );
   let nodeCounts: Map<string, number> = new Map();
   let relCounts: Map<string, number> = new Map();

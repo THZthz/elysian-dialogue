@@ -39,12 +39,7 @@ export interface MemoryNote {
   content: string;
 }
 
-export const PLOT_STATUSES = [
-  "PENDING",
-  "ACTIVE",
-  "COMPLETED",
-  "ABANDONED",
-] as const;
+export const PLOT_STATUSES = ["PENDING", "ACTIVE", "COMPLETED", "ABANDONED"] as const;
 export type PlotStatus = (typeof PLOT_STATUSES)[number];
 
 export interface PlotFlag {

@@ -41,7 +41,9 @@ const inputSchema = z.object({
     .describe("Label of the source node (e.g. 'Character', 'Object', 'Location')."),
   sourceMatch: z
     .record(z.string(), z.string())
-    .describe("Key-value pairs to locate the source node (e.g. { name: 'Tavern' } for a Location)."),
+    .describe(
+      "Key-value pairs to locate the source node (e.g. { name: 'Tavern' } for a Location).",
+    ),
   targetLabel: z.string().describe("Label of the target node."),
   targetMatch: z
     .record(z.string(), z.string())

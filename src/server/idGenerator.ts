@@ -98,7 +98,7 @@ export async function nextId(client: Neo4jClient): Promise<string> {
     `MERGE (c:IdCounter)
      ON CREATE SET c.value = 0, c._id = randomUUID()
      SET c.value = c.value + 1
-     RETURN c.value AS value`
+     RETURN c.value AS value`,
   );
   const value = Number(rows[0].value);
   if (!Number.isFinite(value)) throw new Error(`nextId: invalid counter value ${rows[0].value}`);
