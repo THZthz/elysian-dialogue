@@ -25,14 +25,11 @@ import { TurnEventEmitter } from "@/server/llm/events";
 import { buildSystemPrompt, MAX_GM_STEPS } from "@/server/llm/prompt";
 import { getModel } from "@/server/llm/model";
 import { getMemoryClient, MemoryClient } from "@/server/memory/client";
-import { queryWorld } from "@/server/llm/tools/queryWorld";
-import { searchWorld } from "@/server/llm/tools/searchWorld";
-import { editNode } from "@/server/llm/tools/editNode";
-import { editRelationship } from "@/server/llm/tools/editRelationship";
-import { editNote } from "@/server/llm/tools/editNote";
+import { createSearchWorldTool } from "@/server/llm/tools/searchWorld";
+import { editNoteGm } from "@/server/llm/tools/editNote";
 import { editPlot } from "@/server/llm/tools/editPlot";
-import { getContext } from "@/server/llm/tools/getContext";
-import { manageSchema } from "@/server/llm/tools/manageSchema";
+import { createDelegateToAssistantTool } from "@/server/llm/tools/delegateToAssistant";
+import type { AssistantContext } from "@/server/assistant";
 import { saveCurrentOptions } from "@/server/gameState";
 import { saveCheckpoint } from "@/server/checkpointManager";
 import { loadGMMessages, saveGMMessages, getNextTurnNumber } from "@/server/llm/gmMessages";
@@ -212,17 +209,29 @@ export async function generateTurn(
     const dialogueStepTool = createGenerateDialogueStepTool(persistMessage);
     const advanceTimeTool = createAdvanceTimeTool(events);
 
+    // Track GM tool calls this turn for Assistant context
+    const gmToolCallsThisTurn: string[] = [];
+
+    const gmSearchWorld = createSearchWorldTool({ restrictDomains: ["Note", "Plot"] });
+
+    const { delegateToAssistant: delegateTool } = createDelegateToAssistantTool(
+      (): AssistantContext => ({
+        recentConversation: history
+          .slice(-6)
+          .map((m) => `${m.speaker} (${m.type}): ${m.text}`)
+          .join("\n"),
+        gmToolCalls: gmToolCallsThisTurn,
+        turnNumber,
+      }),
+    );
+
     const allTools = {
-      queryWorld,
-      searchWorld,
-      manageSchema,
-      editNode,
-      editRelationship,
-      editNote,
+      searchWorld: gmSearchWorld,
+      editNote: editNoteGm,
       editPlot,
-      getContext,
       generateDialogueStep: dialogueStepTool.tool,
       advanceTime: advanceTimeTool,
+      delegateToAssistant: delegateTool,
     };
 
     let streamError: string | null = null;
@@ -316,6 +325,10 @@ export async function generateTurn(
             const names = s.toolCalls?.map((tc) => tc.toolName) ?? [];
             for (const name of names) allToolsUsed.push(name);
           }
+
+          // Update gmToolCallsThisTurn so delegateToAssistant sees what the GM has done
+          gmToolCallsThisTurn.length = 0;
+          for (const name of allToolsUsed) gmToolCallsThisTurn.push(name);
 
           // Group consecutive identical tool names
           const grouped: string[] = [];
