@@ -30,6 +30,8 @@ import { editNoteGm } from "@/server/tools/editNote";
 import { editPlot } from "@/server/tools/editPlot";
 import { createDelegateToAssistantTool } from "@/server/tools/delegateToAssistant";
 import type { AssistantContext } from "@/server/assistant";
+import { TurnStateMachine, TurnPhase } from "@/server/turnState";
+import { autoPersist } from "@/server/assistant";
 import { saveCurrentOptions } from "@/server/gameState";
 import { saveCheckpoint } from "@/server/checkpointManager";
 import { loadGMMessages, saveGMMessages, getNextTurnNumber } from "@/server/gm/message";
@@ -57,9 +59,14 @@ export async function generateTurn(
   }
   generating = true;
 
+  const events = new TurnEventEmitter(res);
+  const stateMachine = new TurnStateMachine();
+  const unsubPhase = stateMachine.on("phaseChange", ({ phase }) => {
+    events.emitPhaseChange(phase);
+  });
+
   try {
     const systemPrompt = await buildSystemPrompt();
-    const events = new TurnEventEmitter(res);
 
     console.log(
       `[generateTurn] historyLen=${history.length} userInput="${String(userInput).slice(0, 80)}"`,
@@ -209,9 +216,6 @@ export async function generateTurn(
     const dialogueStepTool = createGenerateDialogueStepTool(persistMessage);
     const advanceTimeTool = createAdvanceTimeTool(events);
 
-    // Track GM tool calls this turn for Assistant context
-    const gmToolCallsThisTurn: string[] = [];
-
     const gmSearchWorld = createSearchWorldTool({ restrictDomains: ["Note", "Plot"] });
 
     const { delegateToAssistant: delegateTool } = createDelegateToAssistantTool(
@@ -220,7 +224,7 @@ export async function generateTurn(
           .slice(-6)
           .map((m) => `${m.speaker} (${m.type}): ${m.text}`)
           .join("\n"),
-        gmToolCalls: gmToolCallsThisTurn,
+        gmToolCalls: stateMachine.getToolCallsForAssistant(false).map((tc) => tc.name),
         turnNumber,
       }),
     );
@@ -264,73 +268,50 @@ export async function generateTurn(
           reasoningEffort: "xhigh",
         } satisfies DeepSeekLanguageModelOptions,
       },
-      stopWhen: [stepCountIs(MAX_GM_STEPS)],
+      stopWhen: [
+        stepCountIs(MAX_GM_STEPS),
+        () => stateMachine.phase === TurnPhase.DIALOGUE_SENDING && dialogueStepTool.wasValid(),
+      ],
       prepareStep: (
-        (nudgeState: { count: number; dialogueDone: boolean; postDialogueCount: number }) =>
+        (nudgeState: { count: number }) =>
         ({ steps, messages }) => {
           const dialogueCalled = steps.some((s) =>
             s.toolCalls?.some((tc) => tc.toolName === TOOL_NAMES.GENERATE_DIALOGUE),
           );
-          const dialogueValid = dialogueStepTool.wasValid();
+
+          for (const s of steps) {
+            for (const tc of s.toolCalls ?? []) {
+              stateMachine.recordToolCall(
+                tc.toolName,
+                typeof tc.input === "object" ? (tc.input as Record<string, unknown>) : undefined,
+              );
+            }
+          }
+
           console.log(
-            `[prepareStep] stepNumber=${steps.length} nudgeStateCount=${nudgeState.count} dialogueCalled=${dialogueCalled} dialogueValid=${dialogueValid} postDialogueCount=${nudgeState.postDialogueCount} stepToolNames=${JSON.stringify(steps.map((s) => s.toolCalls?.map((tc) => tc.toolName)))}`,
+            `[prepareStep] stepNumber=${steps.length} phase=${stateMachine.phase} stepToolNames=${JSON.stringify(steps.map((s) => s.toolCalls?.map((tc) => tc.toolName)))}`,
           );
 
-          // ── Phase 2: dialogue was valid — guide toward persistence & completion ──
-          if (dialogueValid) {
-            nudgeState.dialogueDone = true;
-            nudgeState.postDialogueCount++;
-
-            // Let the GM work for 1 step after dialogue without interruption
-            if (nudgeState.postDialogueCount <= 1) {
-              return undefined;
-            }
-
-            // Gentle nudge: persist world state
-            if (nudgeState.postDialogueCount === 2) {
-              const msg =
-                `You've spoken to the player via ${TOOL_NAMES.GENERATE_DIALOGUE}. ` +
-                "Now persist any world state changes (movement, items, dispositions, plot flags, time). " +
-                "When done, reply with a brief text (no tool call) to end your turn.";
-              nudgeMessages.push(msg);
-              return { messages: [...messages, { role: "user" as const, content: msg }] };
-            }
-
-            // Stronger nudge: finish up
-            if (nudgeState.postDialogueCount >= 3) {
-              const msg =
-                "If you've finished persisting world state, reply with a brief text (no tool call) to end your turn. The player is waiting.";
-              nudgeMessages.push(msg);
-              return { messages: [...messages, { role: "user" as const, content: msg }] };
-            }
-
-            return undefined;
-          }
-
-          // ── Correction in progress: dialogue called but not yet valid ──
           if (dialogueCalled) {
             nudgeState.count = 0;
+            // Stop stream immediately if dialogue validated
+            if (dialogueStepTool.wasValid()) {
+              return { messages, shouldStop: true };
+            }
             return undefined;
           }
 
-          // ── Phase 1: pre-dialogue — nudge to call generateDialogueStep ──
-          // Don't nudge until step 4 — let the GM work without interruption early on
+          // Pre-dialogue nudge
           if ((turnNumber == 1 && steps.length < 6) || (turnNumber > 1 && steps.length < 4)) {
             return undefined;
           }
 
-          // Collect tool names preserving order
           const allToolsUsed: string[] = [];
           for (const s of steps) {
             const names = s.toolCalls?.map((tc) => tc.toolName) ?? [];
             for (const name of names) allToolsUsed.push(name);
           }
 
-          // Update gmToolCallsThisTurn so delegateToAssistant sees what the GM has done
-          gmToolCallsThisTurn.length = 0;
-          for (const name of allToolsUsed) gmToolCallsThisTurn.push(name);
-
-          // Group consecutive identical tool names
           const grouped: string[] = [];
           let i = 0;
           while (i < allToolsUsed.length) {
@@ -351,7 +332,7 @@ export async function generateTurn(
           nudgeMessages.push(errorMsg);
           return { messages: [...messages, { role: "user" as const, content: errorMsg }] };
         }
-      )({ count: 0, dialogueDone: false, postDialogueCount: 0 }),
+      )({ count: 0 }),
       experimental_repairToolCall: async ({ toolCall, error }) => {
         if (NoSuchToolError.isInstance(error)) {
           return null;
@@ -563,22 +544,63 @@ export async function generateTurn(
       finalOptions,
     );
     events.emitOptions(finalOptions);
-    events.finish();
 
-    // Persist current options so the player can resume from this point
+    // Notify state machine: dialogue is validated
+    {
+      const dialogueMsgs = finalMessages.map((m: any) => ({
+        speaker: m.speaker || "SYSTEM",
+        type: (m.type as any) || "SYSTEM",
+        text: m.text || "",
+        metadata: m.metadata,
+      }));
+      const dialogueOpts = finalOptions.map((o: any) => ({
+        text: o.text || "",
+        hintBefore: o.hintBefore,
+        hintAfter: o.hintAfter,
+        check: o.check
+          ? {
+              skill: o.check.skill,
+              difficulty: o.check.difficulty,
+              difficultyText: o.check.difficultyText || "",
+              diceCount: o.check.diceCount ?? 2,
+            }
+          : undefined,
+      }));
+      stateMachine.dialogueValidated({ messages: dialogueMsgs as any, options: dialogueOpts as any });
+    }
+
+    // ── Auto-persist (runs BEFORE events.finish so errors reach the player) ──
+    stateMachine.startPersist();
+    try {
+      await autoPersist(stateMachine, turnNumber);
+    } catch (err) {
+      console.error("[generateTurn] auto-persist failed:", err);
+      events.emitError(
+        `World state persistence failed: ${err instanceof Error ? err.message : String(err)}. ` +
+        "You can rewind via /regenerate to retry."
+      );
+      events.finish();
+      return;
+    }
+    stateMachine.complete();
+
+    // Persist current options
     if (finalOptions.length > 0) {
       saveCurrentOptions(finalOptions).catch((err) =>
         console.error("[generateTurn] failed to persist options:", err),
       );
     }
 
-    // Save checkpoint at end of successful turn (blocking so next turn doesn't start mid-save)
+    // Save checkpoint at end of successful turn
     try {
       await saveCheckpoint(turnNumber);
     } catch (err) {
       console.error("[generateTurn] failed to save checkpoint:", err);
     }
+
+    events.finish();
   } finally {
+    unsubPhase();
     generating = false;
   }
 }
