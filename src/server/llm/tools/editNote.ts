@@ -132,3 +132,60 @@ or ABOUT_MESSAGE first if you have a clear target.
     return `Note "${args.noteName}" is successfully updated (${updatedFields.join(", ")} is overwritten).`;
   }, TOOL_NAMES.EDIT_NOTE),
 });
+
+const strippedInputSchema = z.object({
+  noteName: z.string().describe("The name of the note (used as lookup key)."),
+  action: z.enum(NOTE_ACTIONS).default("CREATE").describe("Action taken for the note."),
+  content: z
+    .string()
+    .nullable()
+    .optional()
+    .describe(
+      `Note text. CREATE: required. UPDATE: optional (set to overwrite). DELETE: omit.`.trim(),
+    ),
+});
+
+/** GM-scoped: no entity/message/plot linking. Link management is handled by the Assistant. */
+export const editNoteGm = tool({
+  title: TOOL_NAMES.EDIT_NOTE,
+  description: `
+## Brief
+Your scratchpad — CREATE, UPDATE (partial overwrite), or DELETE a note. To link a note to entities, messages, or plots, use \`${TOOL_NAMES.DELEGATE_TO_ASSISTANT}\`.
+
+## Write a note
+Write a note when tracking a suspicion or theory, an NPC made a promise/plan/threat,
+a clue appeared but its meaning is unresolved, a player choice deserves future consequence.
+A good note reads like a concise reminder to yourself, and positively contributes to story progression.
+
+## Search a note
+Use \`${TOOL_NAMES.SEARCH_WORLD}\` with domains: ["Note"] to find notes. You can also search plots with domains: ["Plot"].
+`.trim(),
+  inputSchema: strippedInputSchema,
+  execute: wrapSafe(async (args: z.infer<typeof strippedInputSchema>) => {
+    const client = getMemoryClient();
+
+    if (args.action == "DELETE") {
+      const deleted = await client.notes.deleteNote(args.noteName);
+      return deleted
+        ? `Note "${args.noteName}" is successfully deleted`
+        : `ERROR: Note "${args.noteName}" is not found.`;
+    }
+
+    if (args.action == "CREATE") {
+      if (!args.content) return `ERROR: Parameter "content" is required for CREATE.`;
+      const note = await client.notes.createNote(args.noteName, args.content);
+      return `Note "${note.name}" is successfully created (${note.content.length} chars).`;
+    }
+
+    const existing = await client.notes.getNote(args.noteName);
+    if (!existing) return `ERROR: Note "${args.noteName}" not found.`;
+
+    if (args.content != null) {
+      await client.notes.updateNote(args.noteName, { content: args.content });
+    }
+
+    return args.content != null
+      ? `Note "${args.noteName}" is successfully updated (content overwritten).`
+      : `Note "${args.noteName}" — no changes requested.`;
+  }, TOOL_NAMES.EDIT_NOTE),
+});

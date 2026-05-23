@@ -74,7 +74,10 @@ function getVectorSearchable(type: "relationship" | "label"): {
   return { canonical, labelToCanonical };
 }
 
-export const searchWorld = tool({
+export function createSearchWorldTool(opts?: { restrictDomains?: string[] }) {
+  const restrictDomains = opts?.restrictDomains;
+
+  return tool({
   title: TOOL_NAMES.SEARCH_WORLD,
   description: `
 ## Brief
@@ -126,6 +129,15 @@ Do not forget to use parameter \`limit\` wisely, if the search should be exact, 
     const nodeDomains: string[] = [];
     const relDomains: string[] = [];
 
+    // Apply domain restriction (GM scoping) — rejects unauthorized domains
+    if (restrictDomains && args.domains && args.domains.length > 0) {
+      for (const d of args.domains) {
+        if (!restrictDomains.includes(d)) {
+          return `ERROR: "${d}" is not accessible to the GM. Available domains: ${restrictDomains.join(", ")}. Use delegateToAssistant for other domains.`;
+        }
+      }
+    }
+
     if (args.domains && args.domains.length > 0) {
       for (const d of args.domains) {
         const canonicalNode = searchNodes ? nodeSearchable.labelToCanonical.get(d) : undefined;
@@ -138,9 +150,17 @@ Do not forget to use parameter \`limit\` wisely, if the search should be exact, 
         if (isRel && searchRels) relDomains.push(d);
       }
     } else {
-      // Search all labels and relationships.
-      if (searchNodes) nodeDomains.push(...nodeSearchable.canonical);
-      if (searchRels) relDomains.push(...relSearchable.canonical);
+      if (restrictDomains) {
+        for (const d of restrictDomains) {
+          const canonicalNode = searchNodes ? nodeSearchable.labelToCanonical.get(d) : undefined;
+          const isRel = searchRels ? relSearchable.canonical.has(d) : false;
+          if (canonicalNode && searchNodes) nodeDomains.push(canonicalNode);
+          if (isRel && searchRels) relDomains.push(d);
+        }
+      } else {
+        if (searchNodes) nodeDomains.push(...nodeSearchable.canonical);
+        if (searchRels) relDomains.push(...relSearchable.canonical);
+      }
     }
 
     const client = getMemoryClient();
@@ -170,4 +190,8 @@ Do not forget to use parameter \`limit\` wisely, if the search should be exact, 
 
     return JSON.stringify(result, null, 2);
   }, TOOL_NAMES.SEARCH_WORLD),
-});
+  });
+}
+
+/** Full access — used by Assistant and debug endpoints. */
+export const searchWorld = createSearchWorldTool();
