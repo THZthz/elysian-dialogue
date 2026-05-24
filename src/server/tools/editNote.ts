@@ -207,3 +207,108 @@ Use \`${TOOL_NAMES.SEARCH_WORLD}\` with domains: ["Note"] to find notes. You can
       : `Note "${args.noteName}" — no changes requested.`;
   }, TOOL_NAMES.EDIT_NOTE),
 });
+
+const assistantInputSchema = z.object({
+  noteName: z.string().describe("The name of the note (used as lookup key)."),
+  action: z.enum(NOTE_ACTIONS).default("CREATE").describe("Action taken for the note."),
+  content: z
+    .string()
+    .nullable()
+    .optional()
+    .describe("Note text. Required for CREATE only. Omit for UPDATE — you cannot overwrite note content."),
+  aboutEntities: z
+    .array(z.string())
+    .nullable()
+    .optional()
+    .describe("Entity names to link this note to. Replaces existing links — pass [] to clear all."),
+  aboutMessages: z
+    .array(z.string())
+    .nullable()
+    .optional()
+    .describe("Message IDs to link this note to. Replaces existing links — pass [] to clear all."),
+  aboutPlots: z
+    .array(z.string())
+    .nullable()
+    .optional()
+    .describe("Plot names to link this note to. Replaces existing links — pass [] to clear all."),
+});
+
+/**
+ * Assistant-scoped: manages links only, never overwrites note content.
+ * The GM owns note content; the Assistant enriches notes by linking them
+ * to entities, messages, and plots.
+ */
+export const editNoteAssistant = tool({
+  title: TOOL_NAMES.EDIT_NOTE,
+  description: `
+## Brief
+Manage note links — CREATE, link/unlink, or DELETE a note. You cannot overwrite note content
+(the GM owns that). Use this to connect notes to entities (ABOUT_ENTITY), messages
+(ABOUT_MESSAGE), and plots (ABOUT_PLOT) for cross-referencing.
+
+## CREATE a note
+Use when you discover world state that the GM didn't explicitly note but should be tracked.
+Provide \`content\` for the note body, plus optional \`aboutEntities\`, \`aboutMessages\`, \`aboutPlots\`.
+
+## UPDATE a note (links only)
+Use to add or remove links. Omit \`content\` — you cannot change note text.
+Pass \`aboutEntities\`, \`aboutMessages\`, or \`aboutPlots\` to replace existing links of that type.
+Pass [] to clear all links of that type.
+  `.trim(),
+  inputSchema: assistantInputSchema,
+  execute: wrapSafe(async (args: z.infer<typeof assistantInputSchema>) => {
+    const client = getMemoryClient();
+
+    if (args.action == "DELETE") {
+      const deleted = await client.notes.deleteNote(args.noteName);
+      return deleted
+        ? `Note "${args.noteName}" is successfully deleted`
+        : `ERROR: Note "${args.noteName}" is not found.`;
+    }
+
+    if (args.action == "CREATE") {
+      if (!args.content) return `ERROR: Parameter "content" is required for CREATE.`;
+      const note = await client.notes.createNote(args.noteName, args.content);
+      if (args.aboutEntities) {
+        for (const name of args.aboutEntities) await client.notes.linkToEntity(note.name, name);
+      }
+      if (args.aboutMessages) {
+        for (const id of args.aboutMessages) await client.notes.linkToMessage(note.name, id);
+      }
+      if (args.aboutPlots) {
+        for (const name of args.aboutPlots) await client.notes.linkToPlot(note.name, name);
+      }
+      return `Note "${note.name}" is successfully created (${note.content.length} chars, ${args.aboutEntities?.length ?? 0} entities linked, ${args.aboutMessages?.length ?? 0} messages linked, ${args.aboutPlots?.length ?? 0} plots linked).`;
+    }
+
+    // UPDATE — links only, never content
+    const existing = await client.notes.getNote(args.noteName);
+    if (!existing) return `ERROR: Note "${args.noteName}" not found.`;
+
+    let flags = 0x0;
+    if (args.aboutEntities != null) {
+      flags |= 0x1;
+      await client.notes.clearLinks(args.noteName, "ENTITY");
+      for (const name of args.aboutEntities) await client.notes.linkToEntity(args.noteName, name);
+    }
+    if (args.aboutMessages != null) {
+      flags |= 0x2;
+      await client.notes.clearLinks(args.noteName, "MESSAGE");
+      for (const id of args.aboutMessages) await client.notes.linkToMessage(args.noteName, id);
+    }
+    if (args.aboutPlots != null) {
+      flags |= 0x4;
+      await client.notes.clearLinks(args.noteName, "PLOT");
+      for (const name of args.aboutPlots) await client.notes.linkToPlot(args.noteName, name);
+    }
+
+    const updatedFields: string[] = [];
+    if (flags & 0x1) updatedFields.push("entity links");
+    if (flags & 0x2) updatedFields.push("message links");
+    if (flags & 0x4) updatedFields.push("plot links");
+
+    return flags === 0
+      ? `Note "${args.noteName}" — no changes requested. Use CREATE if you need a new note.`
+      : `Note "${args.noteName}" is successfully updated (${updatedFields.join(", ")} replaced). Content was NOT modified.`;
+  }, TOOL_NAMES.EDIT_NOTE),
+});

@@ -18,6 +18,7 @@
 
 import type { ModelMessage } from "ai";
 import { getMemoryClient } from "@/server/memory/client";
+import { validateMessageChain } from "@/server/validateMessageChain";
 
 const MAX_ASSISTANT_MESSAGES = 20;
 
@@ -32,7 +33,7 @@ export async function loadAssistantMessages(): Promise<ModelMessage[]> {
 
   // Take last N to avoid context bloat
   const recent = rows.slice(-MAX_ASSISTANT_MESSAGES);
-  return recent.map((r) => {
+  const raw = recent.map((r) => {
     const m = r.m as Record<string, unknown>;
     const msg: Record<string, unknown> = {
       role: m.role,
@@ -40,6 +41,8 @@ export async function loadAssistantMessages(): Promise<ModelMessage[]> {
     };
     return msg as unknown as ModelMessage;
   });
+
+  return validateMessageChain(raw);
 }
 
 export async function saveAssistantMessages(

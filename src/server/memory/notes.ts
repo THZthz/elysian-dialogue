@@ -47,7 +47,9 @@ export class Notes {
     const sparseVec = encodeSparse(nameText);
 
     await this.client.executeWrite(
-      `CREATE (n:Note {name: $name, content: $content, _created_at: datetime($now), _updated_at: datetime($now)})`,
+      `MERGE (n:Note {name: $name})
+       ON CREATE SET n.content = $content, n._created_at = datetime($now), n._updated_at = datetime($now)
+       ON MATCH SET n.content = $content, n._updated_at = datetime($now)`,
       { name: noteName, content, now },
     );
 

@@ -25,10 +25,11 @@ import { queryWorld } from "@/server/tools/queryWorld";
 import { searchWorld } from "@/server/tools/searchWorld";
 import { editNode } from "@/server/tools/editNode";
 import { editRelationship } from "@/server/tools/editRelationship";
-import { editNote } from "@/server/tools/editNote";
+import { editNoteAssistant } from "@/server/tools/editNote";
 import { getContext } from "@/server/tools/getContext";
 import { manageSchema } from "@/server/tools/manageSchema";
 import { TOOL_NAMES } from "@/shared/constants";
+import { createDebugOnStepFinish } from "@/server/debugPrint";
 
 export interface AssistantContext {
   recentConversation: string;
@@ -36,14 +37,14 @@ export interface AssistantContext {
   turnNumber: number;
 }
 
-const MAX_ASSISTANT_STEPS = 8;
+const MAX_ASSISTANT_STEPS = 20;
 
 const assistantTools = {
   queryWorld,
   searchWorld,
   editNode,
   editRelationship,
-  editNote,
+  editNote: editNoteAssistant,
   getContext,
   manageSchema,
 };
@@ -87,6 +88,7 @@ export async function delegateToAssistant(
       messages: [...previousMessages, { role: "user" as const, content: contextBlock }],
       tools: assistantTools,
       stopWhen: [stepCountIs(MAX_ASSISTANT_STEPS)],
+      onStepFinish: createDebugOnStepFinish("GM → Assistant"),
       experimental_repairToolCall: async ({ toolCall, error }) => {
         if (NoSuchToolError.isInstance(error)) return null;
         try {
@@ -120,10 +122,12 @@ export async function delegateToAssistant(
       ? (responseText || "(no output)") + "\n\n[Assistant was truncated — result may be incomplete]"
       : responseText || "(no output)";
 
-    // Save only new messages (delta), not the full history re-loaded above
+    // Save only new messages (delta), not the full history re-loaded above.
+    // Filter system messages from response.messages so prevCount aligns correctly.
     try {
       const prevCount = previousMessages.length;
-      const newMessages = (response.messages as ModelMessage[]).slice(prevCount);
+      const nonSystem = (response.messages as ModelMessage[]).filter((m) => m.role !== "system");
+      const newMessages = nonSystem.slice(prevCount);
       await saveAssistantMessages(newMessages, context.turnNumber);
     } catch (err) {
       console.error("[assistant] Failed to save message history:", err);
@@ -210,6 +214,7 @@ export async function autoPersist(
     messages: [...previousMessages, { role: "user" as const, content: persistPrompt }],
     tools: assistantTools,
     stopWhen: [stepCountIs(MAX_ASSISTANT_STEPS)],
+    onStepFinish: createDebugOnStepFinish("AUTO-PERSIST"),
     experimental_repairToolCall: async ({ toolCall, error }) => {
       if (NoSuchToolError.isInstance(error)) return null;
       try {
@@ -228,7 +233,8 @@ export async function autoPersist(
 
   try {
     const prevCount = previousMessages.length;
-    const newMessages = (response.messages as ModelMessage[]).slice(prevCount);
+    const nonSystem = (response.messages as ModelMessage[]).filter((m) => m.role !== "system");
+    const newMessages = nonSystem.slice(prevCount);
     await saveAssistantMessages(newMessages, turnNumber);
   } catch (err) {
     console.error("[autoPersist] Failed to save message history:", err);

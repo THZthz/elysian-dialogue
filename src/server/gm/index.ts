@@ -40,6 +40,7 @@ import { createAdvanceTimeTool } from "@/server/tools/advanceTime";
 import { performSkillCheck } from "@/server/gm/rollSkillCheck";
 import { type SkillName, TOOL_NAMES } from "@/shared/constants";
 import { DeepSeekLanguageModelOptions } from "@ai-sdk/deepseek";
+import { createDebugOnStepFinish } from "@/server/debugPrint";
 
 let generating = false;
 
@@ -262,6 +263,7 @@ export async function generateTurn(
       system: hasCachedSystem ? undefined : systemPrompt,
       messages: [...previousMessages, { role: "user" as const, content: promptText }],
       tools: allTools,
+      onStepFinish: createDebugOnStepFinish("GM"),
       providerOptions: {
         deepseek: {
           thinking: { type: "enabled" },
@@ -294,9 +296,10 @@ export async function generateTurn(
 
           if (dialogueCalled) {
             nudgeState.count = 0;
-            // Stop stream immediately if dialogue validated
+            // Prevent further tool calls after dialogue is validated.
+            // (shouldStop is not available in AI SDK v6 PrepareStepResult.)
             if (dialogueStepTool.wasValid()) {
-              return { messages, shouldStop: true };
+              return { messages, activeTools: [] };
             }
             return undefined;
           }
@@ -502,8 +505,7 @@ export async function generateTurn(
       await saveGMMessages(
         response.messages as ModelMessage[],
         turnNumber,
-        promptText,
-        nudgeMessages,
+        previousMessages.length,
       );
     } catch (err) {
       console.error("[generateTurn] Failed to save GM messages:", err);

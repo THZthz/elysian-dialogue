@@ -26,6 +26,7 @@
 import { v4 as uuidv4 } from "uuid";
 import type { ModelMessage } from "ai";
 import { getMemoryClient, MemoryClient } from "@/server/memory/client";
+import { validateMessageChain } from "@/server/validateMessageChain";
 
 export async function loadGMMessages(): Promise<ModelMessage[]> {
   const client = getMemoryClient();
@@ -34,7 +35,7 @@ export async function loadGMMessages(): Promise<ModelMessage[]> {
      RETURN m ORDER BY m._created_at, m.message_index`,
   );
 
-  return rows.map((r) => {
+  const raw = rows.map((r) => {
     const m = r.m as Record<string, unknown>;
     const msg: Record<string, unknown> = {
       role: m.role,
@@ -45,28 +46,29 @@ export async function loadGMMessages(): Promise<ModelMessage[]> {
     }
     return msg as unknown as ModelMessage;
   });
+
+  return validateMessageChain(raw);
 }
 
 export async function saveGMMessages(
   messages: ModelMessage[],
   turnNumber: number,
-  promptText: string,
-  nudgeMessages?: string[],
+  prevMessageCount: number,
 ): Promise<void> {
   const client = getMemoryClient();
   const now = new Date().toISOString();
 
+  // messages is response.messages, which includes all prior history.
+  // Only persist the new messages from this turn (delta).
+  const filtered = messages.filter((m) => m.role !== "system");
+  const toStore: Array<{ role: string; content: unknown; providerOptions?: unknown }> =
+    filtered.slice(prevMessageCount);
+
+  if (toStore.length === 0) return;
+
   const convRows = await client.neo4j.executeRead(`MATCH (c:Conversation) RETURN c._id AS id`);
   if (convRows.length === 0) return;
   const convId = convRows[0].id as string;
-
-  const filtered = messages.filter((m) => m.role !== "system");
-  const toStore: Array<{ role: string; content: unknown; providerOptions?: unknown }> = [];
-  toStore.push({ role: "user", content: promptText });
-  for (const nudgeMsg of nudgeMessages ?? []) {
-    toStore.push({ role: "user", content: nudgeMsg });
-  }
-  toStore.push(...filtered);
 
   const lastRows = await client.neo4j.executeRead(
     `MATCH (c:Conversation {_id: $convId})-[:_HAS_GM_MESSAGE]->(m:GMTurnMessage)

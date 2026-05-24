@@ -138,6 +138,8 @@ Both use the same `AssistantMessage` stream for continuity within a turn.
 
 Model configured via `ASSISTANT_PROVIDER` / `ASSISTANT_MODEL` env vars; falls back to the GM's model.
 
+**Debug flag:** Set `DEBUG_PRINT_ALL_LLM_STEPS=true` to print per-step reasoning, text, and tool calls for GM, delegate-to-assistant, and auto-persist to the terminal.
+
 ---
 
 ## Key Concepts
