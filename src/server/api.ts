@@ -30,6 +30,7 @@ import { editPlot } from "@/server/llm/tools/editPlot";
 import { manageSchema } from "@/server/llm/tools/manageSchema";
 import type { Message, DialogueOption } from "@/types/dialogue";
 import { getContext } from "@/server/llm/tools/getContext";
+import { seedDatabase } from "@/server/stories/seed";
 
 const debugToolRegistry: Record<string, { execute: (args: any) => Promise<string> }> = {
   queryWorld: queryWorld as any,
@@ -134,7 +135,6 @@ apiRouter.post("/reset", async (_req, res) => {
   try {
     // Clear database and re-seed
     await Database.getExisting().reset();
-    const { seedDatabase } = await import("@/server/stories/seed");
     await seedDatabase();
 
     // Database.reset() reinitializes everything — SchemaRegistry, tables, seed

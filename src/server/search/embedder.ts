@@ -22,7 +22,7 @@ export interface Embedder {
   readonly dimensions: number;
 }
 
-class LlamaEmbedder implements Embedder {
+export class LlamaEmbedder implements Embedder {
   readonly dimensions: number;
   private readonly url: string;
 
@@ -55,6 +55,25 @@ class LlamaEmbedder implements Embedder {
 
   async embedBatch(texts: string[]): Promise<number[][]> {
     return this.post({ model: "embedding", input: texts });
+  }
+}
+
+export async function checkEmbedderHealth(url: string, timeoutMs = 2000): Promise<boolean> {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ model: "embedding", input: "health" }),
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+    if (!res.ok) return false;
+    const json = (await res.json()) as Record<string, unknown>;
+    return json.data !== undefined && Array.isArray(json.data) && (json.data as Array<unknown>).length > 0;
+  } catch {
+    return false;
   }
 }
 

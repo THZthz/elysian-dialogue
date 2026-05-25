@@ -18,6 +18,7 @@
 
 import * as fs from "fs";
 import * as path from "path";
+import { Connection, Database } from "@ladybugdb/core";
 
 export interface CheckpointEntry {
   turn: number;
@@ -113,9 +114,8 @@ export class CheckpointManager {
 
     // Validate restored file before removing sentinel
     try {
-      const lbug = await import("@ladybugdb/core");
-      const testDb = new lbug.Database(this.graphPath);
-      const testConn = new lbug.Connection(testDb);
+      const testDb = new Database(this.graphPath);
+      const testConn = new Connection(testDb);
       try {
         await testConn.query("MATCH (n) RETURN count(n) AS cnt LIMIT 1");
       } finally {

@@ -16,6 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+import * as fs from "fs";
 import { LadybugClient } from "@/server/db/ladybug";
 import { VectorStore } from "@/server/db/vectorstore";
 import { SchemaRegistry } from "@/server/db/schema";
@@ -116,7 +117,6 @@ export class Database {
 
   async reset(): Promise<void> {
     await this.close();
-    const fs = await import("fs");
     if (fs.existsSync(this.graphPath)) fs.unlinkSync(this.graphPath);
     if (fs.existsSync(this.vectorPath)) fs.unlinkSync(this.vectorPath);
     Database.instance = null;

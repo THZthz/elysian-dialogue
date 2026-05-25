@@ -189,7 +189,7 @@ Minimum unit: 0.5 hours. Day is integer, hour is 0–23.5. Only advances via `ad
 
 ```
 tests/
-├── helpers.ts                        # setupTestDb, teardownTestDb, getTestDb (stub embedder)
+├── helpers.ts                        # setupTestDb, teardownTestDb, getTestDb (probes real embedder/reranker, falls back to stub)
 ├── unit/
 │   ├── schema.test.ts                # SchemaRegistry (14 tests)
 │   ├── vectorstore.test.ts           # VectorStore (5 tests)

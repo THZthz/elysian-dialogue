@@ -17,8 +17,9 @@
  */
 
 import { Database } from "@/server/db";
-import { setEmbedder } from "@/server/search/embedder";
+import { setEmbedder, LlamaEmbedder, checkEmbedderHealth } from "@/server/search/embedder";
 import type { Embedder } from "@/server/search/embedder";
+import { setReranker, HttpReranker, checkRerankerHealth } from "@/server/search/reranker";
 import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
@@ -37,8 +38,30 @@ let testDir: string;
 let db: Database;
 
 export async function setupTestDb(): Promise<Database> {
-  // Inject stub embedder to avoid llama-server dependency
-  setEmbedder(new StubEmbedder());
+  // Probe for real embedder/reranker servers; fall back to stub if unavailable
+  const embedUrl = process.env.LLAMA_EMBED_URL || "http://localhost:8080/v1/embeddings";
+  const embedDims = parseInt(process.env.EMBEDDING_DIMENSIONS || "1024", 10);
+  const embedHealthy = await checkEmbedderHealth(embedUrl);
+
+  if (embedHealthy) {
+    setEmbedder(new LlamaEmbedder(embedUrl, embedDims));
+    console.log(`[test] using real embedder (${embedDims}d at ${embedUrl})`);
+  } else {
+    setEmbedder(new StubEmbedder());
+    console.log("[test] embedder server unavailable, using StubEmbedder (4d)");
+  }
+
+  const rerankUrl = process.env.LLAMA_RERANK_URL;
+  if (rerankUrl) {
+    const rerankHealthy = await checkRerankerHealth(rerankUrl);
+    if (rerankHealthy) {
+      setReranker(new HttpReranker(rerankUrl));
+      console.log(`[test] using real reranker (${rerankUrl})`);
+    } else {
+      setReranker(null);
+      console.log("[test] reranker server unavailable, skipping rerank");
+    }
+  }
 
   testDir = fs.mkdtempSync(path.join(os.tmpdir(), "chorus-test-"));
   const graphPath = path.join(testDir, "test.lbug");

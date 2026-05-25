@@ -16,15 +16,15 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import type { Database as LadybugDatabase, Connection as LadybugConnection } from "@ladybugdb/core";
+import { Database, Connection, LbugValue } from "@ladybugdb/core";
 
 export interface QueryResult {
   rows: Record<string, unknown>[];
 }
 
 export class LadybugClient {
-  private db: LadybugDatabase | null = null;
-  private conn: LadybugConnection | null = null;
+  private db: Database | null = null;
+  private conn: Connection | null = null;
   readonly filePath: string;
 
   constructor(filePath: string) {
@@ -32,9 +32,8 @@ export class LadybugClient {
   }
 
   async init(): Promise<void> {
-    const lbug = await import("@ladybugdb/core");
-    this.db = new lbug.Database(this.filePath);
-    this.conn = new lbug.Connection(this.db);
+    this.db = new Database(this.filePath);
+    this.conn = new Connection(this.db);
   }
 
   async query(cypher: string, params?: Record<string, unknown>): Promise<QueryResult> {
@@ -43,7 +42,7 @@ export class LadybugClient {
     const stmt = await this.conn.prepare(cypher);
     const raw = await this.conn.execute(
       stmt,
-      params as Record<string, import("@ladybugdb/core").LbugValue> | undefined,
+      params as Record<string, LbugValue> | undefined,
     );
     const result = Array.isArray(raw) ? raw[0] : raw;
     const rows: Record<string, unknown>[] = [];

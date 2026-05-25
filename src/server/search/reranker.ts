@@ -24,7 +24,7 @@ export interface Reranker {
   ): Promise<Array<{ index: number; score: number }>>;
 }
 
-class HttpReranker implements Reranker {
+export class HttpReranker implements Reranker {
   constructor(private url: string) {}
 
   async rerank(
@@ -53,6 +53,29 @@ class HttpReranker implements Reranker {
     };
     return json.results.map((r) => ({ index: r.index, score: r.relevance_score }));
   }
+}
+
+export async function checkRerankerHealth(url: string, timeoutMs = 2000): Promise<boolean> {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ model: "reranking", query: "health", documents: ["test"] }),
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+    if (!res.ok) return false;
+    const json = (await res.json()) as { results?: unknown };
+    return Array.isArray(json.results);
+  } catch {
+    return false;
+  }
+}
+
+export function setReranker(r: Reranker | null): void {
+  reranker = r;
 }
 
 let reranker: Reranker | null | undefined;

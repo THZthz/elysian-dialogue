@@ -18,6 +18,7 @@
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { setupTestDb, teardownTestDb, getTestDb } from "../helpers";
+import { PLOT_STATUSES } from "@/server/db/models/plots";
 
 describe("PlotModel", () => {
   beforeAll(async () => {
@@ -83,7 +84,6 @@ describe("PlotModel", () => {
   });
 
   it("exports PLOT_STATUSES for Zod validation", async () => {
-    const { PLOT_STATUSES } = await import("@/server/db/models/plots");
     expect(PLOT_STATUSES).toContain("PENDING");
     expect(PLOT_STATUSES).toContain("ACTIVE");
     expect(PLOT_STATUSES).toContain("COMPLETED");
