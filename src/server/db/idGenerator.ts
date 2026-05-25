@@ -95,7 +95,7 @@ function encodeBase62(n: number): string {
  */
 export async function nextId(graph: LadybugClient): Promise<string> {
   const result = await graph.query(
-    `MERGE (c:IdCounter {uid: 'counter'})
+    `MERGE (c:IdCounter {_uid: 'counter'})
        ON CREATE SET c.value = 0
        SET c.value = c.value + 1
        RETURN c.value AS value`,
@@ -112,7 +112,7 @@ export async function nextId(graph: LadybugClient): Promise<string> {
  */
 export async function nextIdBatch(graph: LadybugClient, count: number): Promise<string[]> {
   const result = await graph.query(
-    `MERGE (c:IdCounter {uid: 'counter'})
+    `MERGE (c:IdCounter {_uid: 'counter'})
        ON CREATE SET c.value = 0
        SET c.value = c.value + $count
        RETURN c.value AS value`,

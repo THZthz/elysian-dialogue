@@ -58,20 +58,16 @@ export class MessageModel {
       }
     }
 
-    const messageId = await nextId(this.graph);
+    const messageId = `msg_${await nextId(this.graph)}`;
     const now = new Date().toISOString();
     const merged = { ...metadata };
 
     await this.graph.query(
-      `MATCH (c:Conversation {uid: $convId})
-       CREATE (m:Message {
-         id: $id, content: $content,
-         timestamp: $now,
-         metadata: $metadata
-       })
+      `MATCH (c:Conversation {_uid: $convId})
+       CREATE (m:Message {name: $name, content: $content, metadata: $metadata, _created_at: $now})
        CREATE (c)-[r:HAS_MESSAGE]->(m)
-       SET r._created_at = current_timestamp()`,
-      { convId, id: messageId, content, now, metadata: JSON.stringify(merged) },
+       SET r._created_at = $now`,
+      { convId, name: messageId, content, now, metadata: JSON.stringify(merged) },
     );
 
     if (contentVec && embedText) {
@@ -109,8 +105,8 @@ export class MessageModel {
     if (linkToCurrentTime) {
       try {
         await this.graph.query(
-          `MATCH (a:TimeAnchor {uid: 'anchor'})-[:CURRENT_TIMEPOINT]->(tp:TimePoint)
-           MATCH (m:Message {id: $msgId})
+          `MATCH (a:TimeAnchor {id: 'anchor'})-[:CURRENT_TIMEPOINT]->(tp:TimePoint)
+           MATCH (m:Message {name: $msgId})
            MERGE (m)-[r:AT_TIME]->(tp)
            ON CREATE SET r._created_at = current_timestamp()`,
           { msgId: messageId },
@@ -126,26 +122,26 @@ export class MessageModel {
   async getConversation(limit = 1000): Promise<MemoryMessage[]> {
     const result = await this.graph.query(
       `MATCH (c:Conversation)-[:HAS_MESSAGE]->(m:Message)
-       RETURN m ORDER BY m.timestamp DESC LIMIT $limit`,
+       RETURN m ORDER BY m._created_at DESC LIMIT $limit`,
       { limit },
     );
     return result.rows.reverse().map((r) => {
       const m = (r.m as Record<string, unknown>) || r;
       const meta = (m.metadata as Record<string, unknown>) ?? {};
-      return { id: m.id as string, content: m.content as string, metadata: meta };
+      return { id: m.name as string, content: m.content as string, metadata: meta };
     });
   }
 
   async saveCurrentOptions(options: unknown): Promise<void> {
     await this.graph.query(
-      `MERGE (c:Conversation {uid: 'singleton'}) SET c.options = $options, c._updated_at = $now`,
+      `MERGE (c:Conversation {_uid: 'singleton'}) SET c.options = $options, c._updated_at = $now`,
       { options: JSON.stringify(options), now: new Date().toISOString() },
     );
   }
 
   async getCurrentOptions(): Promise<{ id: string; options: unknown } | null> {
     const r = await this.graph.query(
-      "MATCH (c:Conversation) RETURN c.uid AS id, c.options AS options",
+      "MATCH (c:Conversation) RETURN c._uid AS id, c.options AS options",
     );
     if (r.rows.length === 0) return null;
     const row = r.rows[0];
@@ -156,7 +152,7 @@ export class MessageModel {
     messages: Array<{ role: string; content: unknown; providerOptions?: unknown }>,
     turnNumber: number,
   ): Promise<void> {
-    const convRows = await this.graph.query("MATCH (c:Conversation) RETURN c.uid AS id");
+    const convRows = await this.graph.query("MATCH (c:Conversation) RETURN c._uid AS id");
     if (convRows.rows.length === 0) return;
     const convId = convRows.rows[0].id as string;
 
@@ -166,9 +162,9 @@ export class MessageModel {
       const now = new Date().toISOString();
 
       await this.graph.query(
-        `MATCH (c:Conversation {uid: $convId})
+        `MATCH (c:Conversation {_uid: $convId})
          CREATE (c)-[r:_HAS_GM_MESSAGE]->(m:GMTurnMessage {
-           uid: $msgId, role: $role,
+           _uid: $msgId, role: $role,
            content: $content, provider_options: $providerOpts,
            turn_number: $turn, message_index: $idx,
            _created_at: $now
@@ -187,18 +183,18 @@ export class MessageModel {
       );
 
       const lastRows = await this.graph.query(
-        `MATCH (c:Conversation {uid: $convId})-[:_HAS_GM_MESSAGE]->(m:GMTurnMessage)
+        `MATCH (c:Conversation {_uid: $convId})-[:_HAS_GM_MESSAGE]->(m:GMTurnMessage)
          WHERE NOT (m)-[:_NEXT_GM_MESSAGE]->(:GMTurnMessage)
-         RETURN m.uid AS id ORDER BY m._created_at DESC LIMIT 1`,
+         RETURN m._uid AS id ORDER BY m._created_at DESC LIMIT 1`,
         { convId },
       );
       if (lastRows.rows.length > 0 && lastRows.rows[0].id !== msgId) {
         await this.graph.mergeRelationship(
           "GMTurnMessage",
-          "uid",
+          "_uid",
           lastRows.rows[0].id,
           "GMTurnMessage",
-          "uid",
+          "_uid",
           msgId,
           "_NEXT_GM_MESSAGE",
         );
@@ -207,18 +203,18 @@ export class MessageModel {
 
     if (turnNumber === 1) {
       const firstRows = await this.graph.query(
-        `MATCH (c:Conversation {uid: $convId})-[:_HAS_GM_MESSAGE]->(m:GMTurnMessage)
-         RETURN m.uid AS id ORDER BY m._created_at LIMIT 1`,
+        `MATCH (c:Conversation {_uid: $convId})-[:_HAS_GM_MESSAGE]->(m:GMTurnMessage)
+         RETURN m._uid AS id ORDER BY m._created_at LIMIT 1`,
         { convId },
       );
       if (firstRows.rows.length > 0) {
         try {
           await this.graph.mergeRelationship(
             "Conversation",
-            "uid",
+            "_uid",
             convId,
             "GMTurnMessage",
-            "uid",
+            "_uid",
             firstRows.rows[0].id,
             "_FIRST_GM_MESSAGE",
           );
@@ -256,15 +252,15 @@ export class MessageModel {
 
   private async ensureConversation(): Promise<string> {
     // Clean up orphaned Conversation nodes from prior runs (paranoid safety)
-    await this.graph.query("MATCH (c:Conversation) WHERE c.uid <> 'singleton' DETACH DELETE c");
+    await this.graph.query("MATCH (c:Conversation) WHERE c._uid <> 'singleton' DETACH DELETE c");
 
     const r = await this.graph.query(
-      "MATCH (c:Conversation {uid: 'singleton'}) RETURN c.uid AS id",
+      "MATCH (c:Conversation {_uid: 'singleton'}) RETURN c._uid AS id",
     );
     if (r.rows.length > 0) return r.rows[0].id as string;
     const now = new Date().toISOString();
     await this.graph.query(
-      "CREATE (c:Conversation {uid: 'singleton', _created_at: $now, _updated_at: $now})",
+      "CREATE (c:Conversation {_uid: 'singleton', _created_at: $now, _updated_at: $now})",
       { now },
     );
     return "singleton";
@@ -272,9 +268,9 @@ export class MessageModel {
 
   private async getLastMessageId(convId: string, excludeId: string): Promise<string | null> {
     const r = await this.graph.query(
-      `MATCH (c:Conversation {uid: $convId})-[:HAS_MESSAGE]->(m:Message)
-       WHERE m.id <> $excludeId AND NOT (m)-[:NEXT_MESSAGE]->(:Message)
-       RETURN m.id AS id ORDER BY m.timestamp DESC LIMIT 1`,
+      `MATCH (c:Conversation {_uid: $convId})-[:HAS_MESSAGE]->(m:Message)
+       WHERE m.name <> $excludeId AND NOT (m)-[:NEXT_MESSAGE]->(:Message)
+       RETURN m.name AS id ORDER BY m._created_at DESC LIMIT 1`,
       { convId, excludeId },
     );
     return r.rows.length > 0 ? (r.rows[0].id as string) : null;
@@ -290,10 +286,10 @@ export class MessageModel {
     if (previousLastId && messageIds.length > 0) {
       await this.graph.mergeRelationship(
         "Message",
-        "id",
+        "name",
         previousLastId,
         "Message",
-        "id",
+        "name",
         messageIds[0],
         "NEXT_MESSAGE",
       );
@@ -301,10 +297,10 @@ export class MessageModel {
     for (let i = 0; i < messageIds.length - 1; i++) {
       await this.graph.mergeRelationship(
         "Message",
-        "id",
+        "name",
         messageIds[i],
         "Message",
-        "id",
+        "name",
         messageIds[i + 1],
         "NEXT_MESSAGE",
       );
@@ -312,10 +308,10 @@ export class MessageModel {
     if (isFirst && messageIds.length > 0) {
       await this.graph.mergeRelationship(
         "Conversation",
-        "uid",
+        "_uid",
         convId,
         "Message",
-        "id",
+        "name",
         messageIds[0],
         "FIRST_MESSAGE",
       );

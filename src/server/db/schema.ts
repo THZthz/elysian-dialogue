@@ -18,27 +18,62 @@
 
 import { v4 as uuidv4 } from "uuid";
 import type { LadybugClient } from "@/server/db/ladybug";
+import { TOOL_NAMES } from "@/shared/constants";
 
-export interface PropertyDef {
+export const NODE_PROPERTY_TAGS = [
+  "string",
+  "number",
+  "number[]",
+  "json",
+  "embedded_name",
+  "embedded_content",
+  "unique",
+  "composite_unique_1",
+  "composite_unique_2",
+  "composite_unique_3",
+  "index",
+  "composite_index_1",
+  "composite_index_2",
+  "composite_index_3",
+] as const;
+export type NodePropertyTag = (typeof NODE_PROPERTY_TAGS)[number];
+
+export interface NodePropertyDef {
   name: string;
   description: string;
-  tags: string[];
+  tags: NodePropertyTag[];
 }
 
 export interface NodeTypeDef {
   name: string;
-  category: "PREDEFINED" | "GM_DEFINED";
+  category: "INTERNAL" | "PREDEFINED" | "GM_DEFINED";
   description: string;
-  properties: PropertyDef[];
+  properties: NodePropertyDef[];
+}
+
+export const REL_PROPERTY_TAGS = [
+  "string",
+  "number",
+  "number[]",
+  "json",
+  "embedded_name",
+  "embedded_content",
+] as const;
+export type RelPropertyTag = (typeof REL_PROPERTY_TAGS)[number];
+
+export interface RelPropertyDef {
+  name: string;
+  description: string;
+  tags: RelPropertyTag[];
 }
 
 export interface RelTypeDef {
   name: string;
   sourceLabel: string;
   targetLabel: string;
-  category: "PREDEFINED" | "GM_DEFINED";
+  category: "INTERNAL" | "PREDEFINED" | "GM_DEFINED";
   description: string;
-  properties: PropertyDef[];
+  properties: RelPropertyDef[];
 }
 
 function tagToLadybugType(tags: string[]): string {
@@ -48,13 +83,13 @@ function tagToLadybugType(tags: string[]): string {
   return "STRING";
 }
 
-function buildColumnDef(p: PropertyDef, isPk: boolean): string {
+function buildColumnDef(p: NodePropertyDef, isPk: boolean): string {
   const lbType = tagToLadybugType(p.tags);
   const pkSuffix = isPk ? " PRIMARY KEY" : "";
   return `\`${p.name}\` ${lbType}${pkSuffix}`;
 }
 
-function buildPKColumns(props: PropertyDef[]): string[] {
+function buildPKColumns(props: NodePropertyDef[]): string[] {
   const pkProps: string[] = [];
   for (const p of props) {
     if (p.tags.includes("unique")) pkProps.push(p.name);
@@ -70,7 +105,7 @@ function generateNodeDDL(def: NodeTypeDef): string {
   const pkSet = new Set(pk);
   const cols = def.properties.map((p) => buildColumnDef(p, pk.length === 1 && pkSet.has(p.name)));
   const colStr = cols.join(", ");
-  const pkStr = pk.length > 1 ? `, PRIMARY KEY (${pk.join(", ")})` : "";
+  const pkStr = pk.length > 1 ? `, PRIMARY KEY (${pk.map((n) => `\`${n}\``).join(", ")})` : "";
   return `CREATE NODE TABLE \`${def.name}\` (${colStr}${pkStr});`;
 }
 
@@ -79,114 +114,125 @@ function generateRelDDL(def: RelTypeDef): string {
   return `CREATE REL TABLE \`${def.name}\` (FROM \`${def.sourceLabel}\` TO \`${def.targetLabel}\`${cols.length > 0 ? ", " + cols.join(", ") : ""});`;
 }
 
-const ENTITY_PROPS: PropertyDef[] = [
-  { name: "uid", description: "UUID primary key", tags: ["string", "unique"] },
-  { name: "name", description: "Entity name", tags: ["string", "embedded_name"] },
-  { name: "brief", description: "One-line summary", tags: ["string", "embedded_content"] },
-  { name: "description", description: "Full description", tags: ["string", "embedded_content"] },
-  { name: "metadata", description: "JSON: stats, conditions, opinions, aliases", tags: ["json"] },
-  { name: "_created_at", description: "Creation timestamp", tags: ["string"] },
-  { name: "_updated_at", description: "Update timestamp", tags: ["string"] },
+const CREATED_AT_PROP: any = { name: "_created_at", description: "ISO 8601 timestamp of creation.", tags: ["string"] };
+const UPDATED_AT_PROP: any = { name: "_updated_at", description: "ISO 8601 timestamp of last update.", tags: ["string"] };
+
+const ENTITY_PROPS: NodePropertyDef[] = [
+  { name: "_uid", description: "UUID.", tags: ["string"] },
+  { name: "name", description: "Unique name.", tags: ["string", "embedded_name", "unique"] },
+  { name: "brief", description: "One-line summary.", tags: ["string", "embedded_content"] },
+  { name: "description", description: "Full description.", tags: ["string", "embedded_content"] },
+  { name: "metadata", description: "JSON: { stats, conditions, opinions, aliases }. Fully optional. \`stats\` (skill→value) is for player only.", tags: ["json"] },
+  CREATED_AT_PROP,
+  UPDATED_AT_PROP,
 ];
 
 const PREDEFINED_NODES: NodeTypeDef[] = [
   {
     name: "Character",
     category: "PREDEFINED",
-    description: "Player or NPC",
-    properties: ENTITY_PROPS,
+    description: "A world character (NPC or player).",
+    properties: [
+      ...ENTITY_PROPS
+    ],
   },
   {
     name: "Object",
     category: "PREDEFINED",
-    description: "World objects, items",
-    properties: ENTITY_PROPS,
+    description: "A world object (items, artifacts, weapons).",
+    properties: [
+      ...ENTITY_PROPS
+    ],
   },
   {
     name: "Location",
     category: "PREDEFINED",
-    description: "Rooms, buildings, areas",
-    properties: ENTITY_PROPS,
+    description: "A world location (rooms, buildings, areas).",
+    properties: [
+      ...ENTITY_PROPS
+    ],
   },
   {
     name: "Message",
     category: "PREDEFINED",
-    description: "Conversation messages",
+    description: `Conversation messages generated by GM's tool \`${TOOL_NAMES.GENERATE_DIALOGUE}\`.`,
     properties: [
-      { name: "id", description: "Message ID", tags: ["string", "unique"] },
-      { name: "content", description: "Message text", tags: ["string", "embedded_content"] },
-      { name: "timestamp", description: "ISO timestamp", tags: ["string"] },
-      { name: "metadata", description: "JSON: speaker, type", tags: ["json"] },
+      { name: "name", description: "A short name for the message.", tags: ["string", "unique"] },
+      { name: "content", description: "Message text content.", tags: ["string", "embedded_content"] },
+      { name: "metadata", description: "JSON object including speaker (voice name), and type (CHARACTER/SYSTEM/ROLL/INNER_VOICE).", tags: ["json"] },
+      CREATED_AT_PROP
     ],
   },
   {
     name: "Note",
     category: "PREDEFINED",
-    description: "GM scratchpad notes",
+    description: `GM scratchpad note. Can link to Entities, Messages, or Plots via ABOUT_ENTITY / ABOUT_MESSAGE / ABOUT_PLOT. Managed by \`${TOOL_NAMES.EDIT_NOTE}\`.`,
     properties: [
-      { name: "name", description: "Note name", tags: ["string", "unique", "embedded_name"] },
-      { name: "content", description: "Note text", tags: ["string", "embedded_content"] },
-      { name: "_created_at", description: "Creation timestamp", tags: ["string"] },
-      { name: "_updated_at", description: "Update timestamp", tags: ["string"] },
+      { name: "name", description: "Unique note name.", tags: ["string", "unique", "embedded_name"] },
+      { name: "content", description: "Note text..", tags: ["string", "embedded_content"] },
+      CREATED_AT_PROP,
+      UPDATED_AT_PROP,
     ],
   },
   {
     name: "Plot",
     category: "PREDEFINED",
-    description: "Narrative plots",
+    description: `A narrative plot with status, branches and flags. Drives story progression. Managed by \`${TOOL_NAMES.EDIT_PLOT}\`.`,
     properties: [
-      { name: "name", description: "Plot name", tags: ["string", "unique", "embedded_name"] },
+      { name: "name", description: "Unique plot name.", tags: ["string", "unique", "embedded_name"] },
       {
         name: "description",
-        description: "Plot description",
+        description: "Full plot descriptions.",
         tags: ["string", "embedded_content"],
       },
-      { name: "brief", description: "One-line summary", tags: ["string", "embedded_content"] },
-      { name: "status", description: "PENDING/ACTIVE/COMPLETED/ABANDONED", tags: ["string"] },
-      { name: "trigger_condition", description: "Activation condition", tags: ["string"] },
-      { name: "flags", description: "JSON array of flags", tags: ["json"] },
-      { name: "_created_at", description: "Creation timestamp", tags: ["string"] },
-      { name: "_updated_at", description: "Update timestamp", tags: ["string"] },
+      { name: "brief", description: "One-line summary.", tags: ["string", "embedded_content"] },
+      { name: "status", description: "Plot lifecycle: PENDING → ACTIVE → COMPLETED/ABANDONED.", tags: ["string"] },
+      { name: "trigger_condition", description: "Plot activation condition.", tags: ["string"] },
+      { name: "flags", description: "JSON for key-value pair of flags.", tags: ["json"] },
+      CREATED_AT_PROP,
+      UPDATED_AT_PROP,
     ],
   },
   {
     name: "Disposition",
     category: "PREDEFINED",
-    description: "NPC sentiment toward target",
+    description: "A Character's disposition toward a target entity. Stored as a NODE (not a relationship). Match via (npc:Character)-[:HAS_DISPOSITION]->(d:Disposition {target_name: '...'}).",
     properties: [
-      { name: "uid", description: "UUID", tags: ["string", "unique"] },
-      { name: "source_name", description: "NPC name", tags: ["string"] },
-      { name: "target_name", description: "Target name", tags: ["string"] },
-      { name: "sentiment", description: "Sentiment label", tags: ["string"] },
-      { name: "summary", description: "Brief explanation", tags: ["string"] },
-      { name: "_created_at", description: "Creation timestamp", tags: ["string"] },
-      { name: "_updated_at", description: "Update timestamp", tags: ["string"] },
+      { name: "_uid", description: "UUID.", tags: ["string", "unique"] },
+      { name: "source_name", description: "Source NPC that holds this disposition.", tags: ["string"] },
+      { name: "target_name", description: "Target character name.", tags: ["string"] },
+      { name: "sentiment", description: "One word sentiment label.", tags: ["string"] },
+      { name: "summary", description: "Brief explanation.", tags: ["string"] },
+      CREATED_AT_PROP,
+      UPDATED_AT_PROP,
     ],
   },
   {
     name: "TimePoint",
     category: "PREDEFINED",
-    description: "Point in game time",
+    description: `Point in game time. Link sequentially via NEXT_TIMEPOINT. Managed by \`${TOOL_NAMES.ADVANCE_TIME}\`.`,
     properties: [
-      { name: "uid", description: "UUID", tags: ["string", "unique"] },
-      { name: "day", description: "Day number", tags: ["number"] },
-      { name: "hour", description: "Hour (0-23.5)", tags: ["number"] },
-      { name: "label", description: "Time segment label", tags: ["string"] },
-      { name: "_created_at", description: "Creation timestamp", tags: ["string"] },
+      { name: "_uid", description: "UUID.", tags: ["string", "unique"] },
+      { name: "day", description: "Day number (start at 1).", tags: ["number"] },
+      { name: "hour", description: "Hour (0-23.5, 30 minutes increment).", tags: ["number"] },
+      { name: "label", description: "Time segment label like '12:00 AM'. Created automatically.", tags: ["string"] },
+      CREATED_AT_PROP,
     ],
   },
   {
     name: "TimeAnchor",
     category: "PREDEFINED",
-    description: "Singleton anchor to current TimePoint",
-    properties: [{ name: "uid", description: "Always 'anchor'", tags: ["string", "unique"] }],
+    description: `Singleton anchor pointing to the current TimePoint via CURRENT_TIMEPOINT. Managed by \`${TOOL_NAMES.ADVANCE_TIME}\`.`,
+    properties: [
+      { name: "id", description: "Always 'anchor'", tags: ["string", "unique"] }
+    ],
   },
   {
     name: "Conversation",
-    category: "PREDEFINED",
+    category: "INTERNAL",
     description: "Singleton game session",
     properties: [
-      { name: "uid", description: "UUID", tags: ["string", "unique"] },
+      { name: "_uid", description: "UUID", tags: ["string", "unique"] },
       { name: "options", description: "JSON: current dialogue options", tags: ["json"] },
       { name: "_created_at", description: "Creation timestamp", tags: ["string"] },
       { name: "_updated_at", description: "Update timestamp", tags: ["string"] },
@@ -194,70 +240,88 @@ const PREDEFINED_NODES: NodeTypeDef[] = [
   },
   {
     name: "GMTurnMessage",
-    category: "PREDEFINED",
-    description: "AI SDK messages for GM continuity",
+    category: "INTERNAL",
+    description: "Singleton node storing the game session. Internal bookkeeping — not visible to GM.",
     properties: [
-      { name: "uid", description: "UUID", tags: ["string", "unique"] },
-      { name: "turn_number", description: "Turn number", tags: ["number"] },
-      { name: "message_index", description: "Message index within turn", tags: ["number"] },
-      { name: "role", description: "Message role", tags: ["string"] },
-      { name: "content", description: "JSON message content", tags: ["json"] },
-      { name: "provider_options", description: "JSON provider options", tags: ["json"] },
-      { name: "_created_at", description: "Creation timestamp", tags: ["string"] },
+      { name: "_uid", description: "UUID.", tags: ["string", "unique"] },
+      { name: "turn_number", description: "Turn number.", tags: ["number"] },
+      { name: "message_index", description: "Message index within turn.", tags: ["number"] },
+      { name: "role", description: "Message role.", tags: ["string"] },
+      { name: "content", description: "JSON message content.", tags: ["json"] },
+      { name: "provider_options", description: "JSON provider options.", tags: ["json"] },
+      CREATED_AT_PROP,
     ],
   },
   {
     name: "IdCounter",
-    category: "PREDEFINED",
-    description: "Atomic message ID counter",
+    category: "INTERNAL",
+    description: "Atomic message ID counter.",
     properties: [
-      { name: "uid", description: "UUID", tags: ["string", "unique"] },
-      { name: "value", description: "Current counter value", tags: ["number"] },
+      { name: "_uid", description: "UUID.", tags: ["string", "unique"] },
+      { name: "value", description: "Current counter value.", tags: ["number"] },
     ],
   },
   {
     name: "NodeType",
-    category: "PREDEFINED",
+    category: "INTERNAL",
     description: "Schema node type metadata",
     properties: [
-      { name: "name", description: "Node type name", tags: ["string", "unique"] },
-      { name: "category", description: "PREDEFINED or GM_DEFINED", tags: ["string"] },
-      { name: "description", description: "Type description", tags: ["string"] },
-      { name: "properties", description: "JSON property definitions", tags: ["json"] },
+      { name: "name", description: "Node type name.", tags: ["string", "unique"] },
+      { name: "category", description: "INTERNAL, PREDEFINED or GM_DEFINED.", tags: ["string"] },
+      { name: "description", description: "Type description.", tags: ["string"] },
+      { name: "properties", description: "JSON property definitions.", tags: ["json"] },
     ],
   },
   {
     name: "RelationshipType",
-    category: "PREDEFINED",
+    category: "INTERNAL",
     description: "Schema relationship type metadata",
     properties: [
-      { name: "uid", description: "UUID", tags: ["string", "unique"] },
-      { name: "name", description: "Relationship type name", tags: ["string"] },
-      { name: "source_label", description: "Source node label", tags: ["string"] },
-      { name: "target_label", description: "Target node label", tags: ["string"] },
-      { name: "category", description: "PREDEFINED or GM_DEFINED", tags: ["string"] },
-      { name: "description", description: "Type description", tags: ["string"] },
-      { name: "properties", description: "JSON property definitions", tags: ["json"] },
+      { name: "_uid", description: "UUID.", tags: ["string", "unique"] },
+      { name: "name", description: "Relationship type name.", tags: ["string"] },
+      { name: "source_label", description: "Source node label.", tags: ["string"] },
+      { name: "target_label", description: "Target node label.", tags: ["string"] },
+      { name: "category", description: "INTERNAL, PREDEFINED or GM_DEFINED.", tags: ["string"] },
+      { name: "description", description: "Type description.", tags: ["string"] },
+      { name: "properties", description: "JSON property definitions.", tags: ["json"] },
     ],
   },
 ];
 
-const CREATED_AT = {
-  name: "_created_at",
-  description: "Creation timestamp",
-  tags: ["string"],
-} as PropertyDef;
-
 const PREDEFINED_RELS: RelTypeDef[] = [
+  {
+    name: "_HAS_GM_MESSAGE",
+    sourceLabel: "Conversation",
+    targetLabel: "GMTurnMessage",
+    category: "INTERNAL",
+    description: "GM message container.",
+    properties: [CREATED_AT_PROP],
+  },
+  {
+    name: "_FIRST_GM_MESSAGE",
+    sourceLabel: "Conversation",
+    targetLabel: "GMTurnMessage",
+    category: "INTERNAL",
+    description: "First GM message.",
+    properties: [CREATED_AT_PROP],
+  },
+  {
+    name: "_NEXT_GM_MESSAGE",
+    sourceLabel: "GMTurnMessage",
+    targetLabel: "GMTurnMessage",
+    category: "INTERNAL",
+    description: "GM message chain.",
+    properties: [CREATED_AT_PROP],
+  },
   {
     name: "LOCATED_AT",
     sourceLabel: "Character",
     targetLabel: "Location",
     category: "PREDEFINED",
-    description: "Character at location",
+    description: "Character at location.",
     properties: [
-      { name: "brief", description: "Narrative context", tags: ["string", "embedded_content"] },
-      CREATED_AT,
+      { name: "brief", description: "Spatial position detail — how/where exactly the character is located (e.g., 'hiding behind crates', 'slumped at the bar').", tags: ["string", "embedded_content"] },
+      CREATED_AT_PROP,
     ],
   },
   {
@@ -265,21 +329,21 @@ const PREDEFINED_RELS: RelTypeDef[] = [
     sourceLabel: "Object",
     targetLabel: "Location",
     category: "PREDEFINED",
-    description: "Object at location",
+    description: "Object at location.",
     properties: [
-      { name: "brief", description: "Narrative context", tags: ["string", "embedded_content"] },
-      CREATED_AT,
+      { name: "brief", description: "Spatial position detail — where exactly the object is located.", tags: ["string", "embedded_content"] },
+      CREATED_AT_PROP,
     ],
   },
   {
-    name: "CARRIES",
-    sourceLabel: "Character",
-    targetLabel: "Object",
+    name: "LOCATED_AT",
+    sourceLabel: "Object",
+    targetLabel: "Character",
     category: "PREDEFINED",
-    description: "Character carries object",
+    description: "Character carries object.",
     properties: [
-      { name: "brief", description: "How/why carried", tags: ["string", "embedded_content"] },
-      CREATED_AT,
+      { name: "brief", description: "How the item is carried (e.g., 'concealed in a boot', 'worn openly on hip').", tags: ["string", "embedded_content"] },
+      CREATED_AT_PROP,
     ],
   },
   {
@@ -287,10 +351,10 @@ const PREDEFINED_RELS: RelTypeDef[] = [
     sourceLabel: "Location",
     targetLabel: "Location",
     category: "PREDEFINED",
-    description: "Location hierarchy",
+    description: "A location is contained within a larger location (e.g., a basement inside a tavern).",
     properties: [
-      { name: "brief", description: "Narrative context", tags: ["string", "embedded_content"] },
-      CREATED_AT,
+      { name: "brief", description: "Access or containment detail (e.g., 'accessed through a trapdoor behind the bar').", tags: ["string", "embedded_content"] },
+      CREATED_AT_PROP,
     ],
   },
   {
@@ -298,72 +362,72 @@ const PREDEFINED_RELS: RelTypeDef[] = [
     sourceLabel: "Character",
     targetLabel: "Disposition",
     category: "PREDEFINED",
-    description: "Character has disposition",
-    properties: [CREATED_AT],
+    description: "Character has disposition.",
+    properties: [CREATED_AT_PROP],
   },
   {
     name: "ABOUT_ENTITY",
     sourceLabel: "Note",
     targetLabel: "Character",
     category: "PREDEFINED",
-    description: "Note about character",
-    properties: [CREATED_AT],
+    description: `Note about character. Managed by \`${TOOL_NAMES.EDIT_NOTE}\`.`,
+    properties: [CREATED_AT_PROP],
   },
   {
     name: "ABOUT_ENTITY",
     sourceLabel: "Note",
     targetLabel: "Object",
     category: "PREDEFINED",
-    description: "Note about object",
-    properties: [CREATED_AT],
+    description: `Note about object. Managed by \`${TOOL_NAMES.EDIT_NOTE}\`.`,
+    properties: [CREATED_AT_PROP],
   },
   {
     name: "ABOUT_ENTITY",
     sourceLabel: "Note",
     targetLabel: "Location",
     category: "PREDEFINED",
-    description: "Note about location",
-    properties: [CREATED_AT],
+    description: `Note about location. Managed by \`${TOOL_NAMES.EDIT_NOTE}\`.`,
+    properties: [CREATED_AT_PROP],
   },
   {
     name: "ABOUT_MESSAGE",
     sourceLabel: "Note",
     targetLabel: "Message",
     category: "PREDEFINED",
-    description: "Note about message",
-    properties: [CREATED_AT],
+    description: `Note about message. Managed by \`${TOOL_NAMES.EDIT_NOTE}\`.`,
+    properties: [CREATED_AT_PROP],
   },
   {
     name: "ABOUT_PLOT",
     sourceLabel: "Note",
     targetLabel: "Plot",
     category: "PREDEFINED",
-    description: "Note about plot",
-    properties: [CREATED_AT],
+    description: `Note about plot. Managed by \`${TOOL_NAMES.EDIT_NOTE}\`.`,
+    properties: [CREATED_AT_PROP],
   },
   {
     name: "HAS_MESSAGE",
     sourceLabel: "Conversation",
     targetLabel: "Message",
     category: "PREDEFINED",
-    description: "Conversation has message",
-    properties: [CREATED_AT],
+    description: `Conversation has message. Managed by \`${TOOL_NAMES.GENERATE_DIALOGUE}\`.`,
+    properties: [CREATED_AT_PROP],
   },
   {
     name: "FIRST_MESSAGE",
     sourceLabel: "Conversation",
     targetLabel: "Message",
     category: "PREDEFINED",
-    description: "First message link",
-    properties: [CREATED_AT],
+    description: `First message link. Managed by \`${TOOL_NAMES.GENERATE_DIALOGUE}\`.`,
+    properties: [CREATED_AT_PROP],
   },
   {
     name: "NEXT_MESSAGE",
     sourceLabel: "Message",
     targetLabel: "Message",
     category: "PREDEFINED",
-    description: "Message linked list",
-    properties: [CREATED_AT],
+    description: `Next message link. Managed by \`${TOOL_NAMES.GENERATE_DIALOGUE}\`.`,
+    properties: [CREATED_AT_PROP],
   },
   {
     name: "BRANCHES_TO",
@@ -371,25 +435,25 @@ const PREDEFINED_RELS: RelTypeDef[] = [
     targetLabel: "Plot",
     category: "PREDEFINED",
     description: "Plot branching",
-    properties: [CREATED_AT],
+    properties: [CREATED_AT_PROP],
   },
   {
     name: "CURRENT_TIMEPOINT",
     sourceLabel: "TimeAnchor",
     targetLabel: "TimePoint",
     category: "PREDEFINED",
-    description: "Current time",
-    properties: [CREATED_AT],
+    description: `Current time. Managed by \`${TOOL_NAMES.ADVANCE_TIME}\`.`,
+    properties: [CREATED_AT_PROP],
   },
   {
     name: "NEXT_TIMEPOINT",
     sourceLabel: "TimePoint",
     targetLabel: "TimePoint",
     category: "PREDEFINED",
-    description: "Time progression",
+    description: `Next time point link. Managed by \`${TOOL_NAMES.ADVANCE_TIME}\`.`,
     properties: [
-      { name: "reason", description: "Why time advanced", tags: ["string"] },
-      CREATED_AT,
+      { name: "reason", description: "Why time advanced.", tags: ["string"] },
+      CREATED_AT_PROP,
     ],
   },
   {
@@ -397,56 +461,24 @@ const PREDEFINED_RELS: RelTypeDef[] = [
     sourceLabel: "Message",
     targetLabel: "TimePoint",
     category: "PREDEFINED",
-    description: "Message at time",
-    properties: [CREATED_AT],
-  },
-  {
-    name: "STARTED_AT",
-    sourceLabel: "Plot",
-    targetLabel: "TimePoint",
-    category: "PREDEFINED",
-    description: "Plot start time",
-    properties: [CREATED_AT],
+    description: `Message at time. Managed by \`${TOOL_NAMES.GENERATE_DIALOGUE}\`.`,
+    properties: [CREATED_AT_PROP],
   },
   {
     name: "ACTIVE_AT",
     sourceLabel: "Plot",
     targetLabel: "TimePoint",
     category: "PREDEFINED",
-    description: "Plot active time",
-    properties: [CREATED_AT],
+    description: `Plot active time. Managed by \`${TOOL_NAMES.EDIT_PLOT}\`.`,
+    properties: [CREATED_AT_PROP],
   },
   {
     name: "COMPLETED_AT",
     sourceLabel: "Plot",
     targetLabel: "TimePoint",
     category: "PREDEFINED",
-    description: "Plot completion time",
-    properties: [CREATED_AT],
-  },
-  {
-    name: "_HAS_GM_MESSAGE",
-    sourceLabel: "Conversation",
-    targetLabel: "GMTurnMessage",
-    category: "PREDEFINED",
-    description: "GM message container",
-    properties: [CREATED_AT],
-  },
-  {
-    name: "_FIRST_GM_MESSAGE",
-    sourceLabel: "Conversation",
-    targetLabel: "GMTurnMessage",
-    category: "PREDEFINED",
-    description: "First GM message",
-    properties: [CREATED_AT],
-  },
-  {
-    name: "_NEXT_GM_MESSAGE",
-    sourceLabel: "GMTurnMessage",
-    targetLabel: "GMTurnMessage",
-    category: "PREDEFINED",
-    description: "GM message chain",
-    properties: [CREATED_AT],
+    description: `Plot completion time. Managed by \`${TOOL_NAMES.EDIT_PLOT}\`.`,
+    properties: [CREATED_AT_PROP],
   },
 ];
 
@@ -524,7 +556,7 @@ export class SchemaRegistry {
       const category = row.category as string;
       if (category === "GM_DEFINED" && !this.nodes.has(name)) {
         const description = (row.description as string) || "";
-        const props = (row.properties as PropertyDef[]) || [];
+        const props = (row.properties as NodePropertyDef[]) || [];
         this.registerNode({ name, category: "GM_DEFINED", description, properties: props });
       }
     }
@@ -539,7 +571,7 @@ export class SchemaRegistry {
       const category = row.category as string;
       if (category === "GM_DEFINED" && !this.rels.has(this.relKey(name, src, tgt))) {
         const description = (row.description as string) || "";
-        const props = (row.properties as PropertyDef[]) || [];
+        const props = (row.properties as RelPropertyDef[]) || [];
         this.registerRel({
           name,
           sourceLabel: src,
@@ -592,15 +624,15 @@ export class SchemaRegistry {
 
     // LadybugDB requires PK in the node pattern. MATCH by business key first.
     const existing = await client.query(
-      "MATCH (rt:RelationshipType {name: $name, source_label: $src, target_label: $tgt}) RETURN rt.uid AS uid",
+      "MATCH (rt:RelationshipType {name: $name, source_label: $src, target_label: $tgt}) RETURN rt._uid AS _uid",
       { name: def.name, src: def.sourceLabel, tgt: def.targetLabel },
     );
 
     if (existing.rows.length > 0) {
       await client.query(
-        "MATCH (rt:RelationshipType {uid: $uid}) SET rt.category = $category, rt.description = $description, rt.properties = $properties",
+        "MATCH (rt:RelationshipType {_uid: $_uid}) SET rt.category = $category, rt.description = $description, rt.properties = $properties",
         {
-          uid: existing.rows[0].uid,
+          _uid: existing.rows[0]._uid,
           category: def.category,
           description: def.description,
           properties: JSON.stringify(def.properties),
@@ -608,9 +640,9 @@ export class SchemaRegistry {
       );
     } else {
       await client.query(
-        "CREATE (rt:RelationshipType {uid: $uid, name: $name, source_label: $src, target_label: $tgt, category: $category, description: $description, properties: $properties})",
+        "CREATE (rt:RelationshipType {_uid: $_uid, name: $name, source_label: $src, target_label: $tgt, category: $category, description: $description, properties: $properties})",
         {
-          uid: uuidv4(),
+          _uid: uuidv4(),
           name: def.name,
           src: def.sourceLabel,
           tgt: def.targetLabel,
