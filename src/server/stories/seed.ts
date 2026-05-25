@@ -1,331 +1,164 @@
-/**
- * Chorus — cinematic dialogue engine
- * Copyright (C) 2026 Amias
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
-
-import {
-  type EntityType,
-  MemoryClient,
-  type MemoryEntity,
-  type Disposition,
-  getMemoryClient,
-} from "@/server/memory/client";
-import { RelationshipManager } from "@/server/relationshipManager";
-import { getNodeManager } from "@/server/nodeManager";
-import { CypherValidator } from "@/server/memory/validation";
-import { setInitialTime } from "@/server/models/time";
-import { getActiveSeedStory } from "@/server/stories";
-import { v4 as uuidv4 } from "uuid";
-import { getEmbedder } from "@/server/memory/embedder";
-import { getQdrantClient } from "@/server/memory/qdrant";
-import { encodeSparse } from "@/server/memory/sparseEncoder";
-
-// ── Helpers ──
-
-/**
- * Convert a string to PascalCase, matching Python's to_pascal_case.
- * Handles snake_case and simple uppercase inputs. e.g. "OBJECT" -> "Object", "snake_case" -> "SnakeCase"
- * @param str
- */
-function pascalCase(str: string): string {
-  if (!str) return str;
-  return str
-    .split("_")
-    .filter(Boolean)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
-    .join("");
-}
-
-/**
- * Parse an entity type string that may include a subtype.
- * Matches Python's parse_entity_type: "TYPE:SUBTYPE" -> ("TYPE", "SUBTYPE")
- */
-function parseEntityType(typeStr: string): { type: string; subtype: string | null } {
-  if (typeStr.includes(":")) {
     const parts = typeStr.toUpperCase().split(":", 2);
     return { type: parts[0], subtype: parts[1] || null };
   }
   return { type: typeStr.toUpperCase(), subtype: null };
 }
 
-async function addEntity(
-  name: string,
-  entityType: EntityType | string,
-  options?: {
-    id?: string; // Only used to identify player, all other entities should not have this ID.
-    subtype?: string;
-    description?: string;
-    brief?: string;
-    aliases?: string[];
-    metadata?: Record<string, unknown>;
-    generateEmbedding?: boolean;
-  },
-): Promise<MemoryEntity> {
-  const client = getMemoryClient();
+type EntityLabel = "Character" | "Object" | "Location";
 
-  const {
-    id,
-    subtype,
-    description,
-    brief,
-    aliases,
-    metadata,
-    generateEmbedding = true,
-  } = options || {};
+const SEGMENT_LABELS = [
+  "Midnight", "Late Night", "Early Morning", "Morning", "Late Morning",
+  "Noon", "Afternoon", "Late Afternoon", "Evening", "Night", "Late Night", "Midnight",
+];
 
-  // Support "TYPE:SUBTYPE" in entityType (Python compat)
-  const parsed = parseEntityType(String(entityType));
-  const finalType = parsed.type;
-  const finalSubtype = subtype || parsed.subtype || undefined;
-
-  const entityId = id === "#player#" ? id : uuidv4();
-
-  // Build primary label from entity type
-  const typeLabel = pascalCase(finalType);
-  const subtypeLabel = finalSubtype ? pascalCase(finalSubtype) : null;
-
-  let nameVec: number[] | null = null;
-  let contentVec: number[] | null = null;
-  let embedText: string | undefined;
-  if (generateEmbedding) {
-    const nodeManager = getNodeManager();
-    const nameText =
-      nodeManager.getEmbeddingNameText(typeLabel, {
-        name,
-        type: finalType,
-        description: description ?? "",
-        brief: brief ?? "",
-      }) || `[${typeLabel}] ${name}`;
-    embedText = nodeManager.getEmbeddingContentText(typeLabel, {
-      name,
-      type: finalType,
-      description: description ?? "",
-      brief: brief ?? "",
-    });
-
-    try {
-      const embedder = getEmbedder();
-      const [nv, cv] = await Promise.all([embedder.embed(nameText), embedder.embed(embedText)]);
-      nameVec = nv;
-      contentVec = cv;
-    } catch {
-      console.warn(`[seed] embedding failed for entity "${name}", proceeding without vector`);
-    }
-  }
-
-  // Store aliases inside metadata (Python convention)
-  const storageMetadata: Record<string, unknown> = { ...metadata };
-  if (aliases && aliases.length > 0) {
-    storageMetadata["aliases"] = aliases;
-  }
-
-  const rows = await client.neo4j.executeWrite(
-    `MERGE (e:\`${typeLabel}\` {name: $name})
-       ON CREATE SET
-         e._id = $id,
-         e._created_at = datetime()
-       SET
-         e.brief = $brief,
-         e.description = $description,
-         e.metadata = $metadata
-       ${subtypeLabel ? `SET e:\`${subtypeLabel}\`` : ""}
-       RETURN e, e._id = $id AS isNew`,
-    {
-      id: entityId,
-      name,
-      brief: brief || null,
-      description: description || null,
-      metadata: Object.keys(storageMetadata).length > 0 ? JSON.stringify(storageMetadata) : null,
-    },
-  );
-
-  const result = rows[0];
-  const isNew = (result?.isNew as boolean) || false;
-
-  if (nameVec || contentVec) {
-    try {
-      const nodeManager = getNodeManager();
-      const nameText =
-        nodeManager.getEmbeddingNameText(typeLabel, {
-          name,
-          type: finalType,
-        }) || `[${typeLabel}] ${name}`;
-      const payload: Record<string, unknown> = {
-        node_type: typeLabel,
-        kind: "node",
-        object_id: `${typeLabel}:${name}`,
-        text: embedText,
-        name,
-        brief: brief || null,
-        description: description || null,
-      };
-      await getQdrantClient().upsert(
-        `${typeLabel}:${name}`,
-        {
-          nameVec: nameVec ?? undefined,
-          contentVec: contentVec ?? undefined,
-          sparseVec: encodeSparse(nameText),
-        },
-        payload,
-      );
-    } catch (err) {
-      console.warn(
-        "[seed] Qdrant upsert failed:",
-        err instanceof Error ? err.message : String(err),
-      );
-    }
-  }
-
-  return {
-    name,
-    brief,
-    description,
-    aliases: aliases || [],
-    metadata: metadata || {},
-    isNew,
-  };
-}
-
-function parseDisposition(data: Record<string, unknown>): Disposition {
-  return {
-    npcName: data.source_name as string,
-    targetName: data.target_name as string,
-    sentiment: data.sentiment as string,
-    summary: data.summary as string,
-  };
-}
-
-async function setDisposition(
-  npcName: string,
-  targetName: string,
-  sentiment: string,
-  summary: string,
-): Promise<Disposition> {
-  const neo4j = getMemoryClient().neo4j;
-  const id = uuidv4();
-  const now = new Date().toISOString();
-  const rows = await neo4j.executeWrite(
-    `MATCH (npc:Character {name: $npcName})
-       MERGE (npc)-[r:HAS_DISPOSITION]->(d:Disposition {source_name: $npcName, target_name: $targetName})
-       ON CREATE SET d._id = $id, d._created_at = datetime($now), r._created_at = datetime()
-       SET d.sentiment = $sentiment, d.summary = $summary, d._updated_at = datetime($now)
-       RETURN d, d._id = $id AS isNew`,
-    { npcName, targetName, sentiment, summary, id, now },
-  );
-  if (rows.length === 0) {
-    console.warn(`[seed] disposition skipped: NPC entity "${npcName}" not found`);
-    return parseDisposition({ source_name: npcName, target_name: targetName, sentiment, summary });
-  }
-  return parseDisposition(rows[0].d as Record<string, unknown>);
+function hourToLabel(hour: number): string {
+  const idx = Math.floor(hour / 2);
+  return SEGMENT_LABELS[Math.min(idx, SEGMENT_LABELS.length - 1)];
 }
 
 export async function seedDatabase(): Promise<void> {
   const story = getActiveSeedStory();
-  const client = await MemoryClient.getInstance();
-
-  // Always sync INTERNAL + PREDEFINED relationship types to Neo4j on startup
-  await RelationshipManager.getCachedInstance().syncToNeo4j(client.neo4j);
-
-  // Sync INTERNAL + PREDEFINED node types to Neo4j on startup
-  await getNodeManager().syncToNeo4j(client.neo4j);
-
-  // Audit: log warnings for any relationship types in the graph missing a :RelationshipType node
-  const validator = new CypherValidator();
-  await validator.auditRelationshipDescriptions(client.neo4j);
+  const db = await Database.getInstance();
 
   // Skip if database already has data (prevents duplicate injection on restart)
-  const existing = await client.neo4j.executeRead(
-    "MATCH (e) WHERE e:Character OR e:Object OR e:Location RETURN count(e) AS count",
+  const existing = await db.graph.query(
+    "MATCH (e) WHERE label(e) IN ('Character', 'Object', 'Location') RETURN count(e) AS count",
   );
-  if ((existing[0]?.count as number) > 0) {
-    console.log(`[seedDatabase] database already has ${existing[0].count} entities, skipping`);
+  if ((existing.rows[0]?.count as number) > 0) {
+    console.log(`[seedDatabase] database already has ${existing.rows[0].count} entities, skipping`);
     return;
   }
 
-  await setInitialTime(story.initialDay, story.initialSegment);
+  // Set initial time
+  const initialLabel = hourToLabel(story.initialSegment);
+  await db.time.setInitialTime(story.initialDay, story.initialSegment, initialLabel);
 
   console.log(`[seedDatabase] seeding ${story.entities.length} entities from "${story.id}"`);
 
-  for (const entity of story.entities) {
-    const cleanMetadata = entity.metadata ? { ...entity.metadata } : {};
-    await addEntity(entity.name, entity.type, {
-      id: entity.id ? entity.id : undefined,
-      description: entity.description,
-      brief: entity.brief,
-      metadata: Object.keys(cleanMetadata).length > 0 ? cleanMetadata : undefined,
-    });
-  }
-
   // Register relationship types from seed story before creating instances
   if (story.relationshipTypes) {
-    const manager = RelationshipManager.getCachedInstance();
+    const schema = db.schema;
     for (const rt of story.relationshipTypes) {
-      manager.register(rt.name, rt.description, "GM_DEFINED", rt.sourceLabel, rt.targetLabel);
+      schema.registerRel({
+        name: rt.name,
+        description: rt.description,
+        category: "GM_DEFINED",
+        sourceLabel: rt.sourceLabel,
+        targetLabel: rt.targetLabel,
+        properties: [],
+      });
     }
     console.log(
       `[seedDatabase] registered ${story.relationshipTypes.length} relationship types from "${story.id}"`,
     );
-    // Sync to Neo4j so seed story's custom types are discoverable via :RelationshipType nodes
-    await manager.syncToNeo4j(client.neo4j);
+    // Execute DDL and persist for seed story's custom relationship types
+    for (const rt of story.relationshipTypes) {
+      const ddl = schema.generateRelDDL(rt.name, rt.sourceLabel, rt.targetLabel);
+      if (ddl) {
+        try {
+          await db.graph.query(ddl);
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          const code = (err as { code?: string }).code;
+          if (code === "CATALOG_ALREADY_EXISTS" || msg.toLowerCase().includes("already exists") || msg.toLowerCase().includes("duplicate table")) {
+            continue;
+          }
+          throw err;
+        }
+      }
+      await schema.persistRelType(db.graph, rt.name, rt.sourceLabel, rt.targetLabel);
+    }
   }
 
-  // Build name-to-label map for relationship endpoint resolution
+  // Create entities using domain models
   const nameToLabel = new Map<string, string>();
   for (const entity of story.entities) {
-    nameToLabel.set(entity.name, pascalCase(String(entity.type)));
+    const label = pascalCase(entity.type) as EntityLabel;
+    nameToLabel.set(entity.name, label);
+
+    const cleanMetadata = entity.metadata ? { ...entity.metadata } : {};
+    await db.entities.create(label, {
+      name: entity.name,
+      brief: entity.brief ?? "",
+      description: entity.description ?? "",
+      metadata: Object.keys(cleanMetadata).length > 0 ? cleanMetadata : undefined,
+    });
+
+    // Preserve player entity convention: _id = "#player#"
+    if (entity.id === "#player#") {
+      await db.graph.query(
+        `MATCH (e:\`${label}\` {name: $name}) SET e._id = $id`,
+        { name: entity.name, id: "#player#" },
+      );
+    }
   }
 
+  // Create relationships
   for (const rel of story.relationships) {
     const srcLabel = nameToLabel.get(rel.sourceName) ?? "Character";
     const tgtLabel = nameToLabel.get(rel.targetName) ?? "Location";
-    await client.neo4j.mergeRelationship(
-      srcLabel,
-      "name",
-      rel.sourceName,
-      tgtLabel,
-      "name",
-      rel.targetName,
+    await db.graph.mergeRelationship(
+      srcLabel, "name", rel.sourceName,
+      tgtLabel, "name", rel.targetName,
       rel.type,
-      { onCreateProps: rel.description ? { description: rel.description } : null },
+      rel.description ? { description: rel.description } : undefined,
     );
   }
 
   // Seed initial NPC dispositions from story configuration
   let dispositionCount = 0;
   for (const disp of story.dispositions || []) {
-    await setDisposition(disp.sourceName, disp.targetName, disp.sentiment, disp.summary);
+    const now = new Date().toISOString();
+    const srcName = disp.sourceName;
+    const tgtName = disp.targetName;
+
+    // Check if NPC exists in the graph
+    const npcCheck = await db.graph.query(
+      "MATCH (npc:Character {name: $name}) RETURN npc LIMIT 1",
+      { name: srcName },
+    );
+    if (npcCheck.rows.length === 0) {
+      console.warn(`[seed] disposition skipped: NPC entity "${srcName}" not found`);
+      dispositionCount++;
+      continue;
+    }
+
+    // Merge Disposition node (composite key: source_name, target_name)
+    await db.graph.query(
+      `MERGE (d:Disposition {source_name: $src, target_name: $tgt})
+       ON CREATE SET d.sentiment = $sentiment, d.summary = $summary, d._created_at = $now, d._updated_at = $now
+       ON MATCH SET d.sentiment = $sentiment, d.summary = $summary, d._updated_at = $now`,
+      { src: srcName, tgt: tgtName, sentiment: disp.sentiment, summary: disp.summary, now },
+    );
+
+    // Link NPC to Disposition
+    await db.graph.query(
+      `MATCH (npc:Character {name: $npcName})
+       MATCH (d:Disposition {source_name: $src, target_name: $tgt})
+       MERGE (npc)-[r:HAS_DISPOSITION]->(d)
+       ON CREATE SET r._created_at = $now`,
+      { npcName: srcName, src: srcName, tgt: tgtName, now },
+    );
+
     dispositionCount++;
   }
 
   // Seed plots from story
   for (const plot of story.plots || []) {
-    await client.plots.createPlot(plot.name, {
-      description: plot.description,
-      brief: plot.brief,
-      status: plot.status,
-      triggerCondition: plot.triggerCondition,
-      flags: plot.flags,
-    });
+    await db.plots.create(
+      plot.name,
+      plot.description,
+      plot.brief ?? "",
+      plot.status,
+      plot.triggerCondition ?? "",
+    );
   }
 
   // Seed plot branches
   for (const plot of story.plots || []) {
     if (plot.branchesTo) {
       for (const childName of plot.branchesTo) {
-        await client.plots.branchTo(plot.name, childName);
+        await db.plots.branch(plot.name, childName);
       }
     }
   }
@@ -333,15 +166,15 @@ export async function seedDatabase(): Promise<void> {
   // Seed notes
   let noteCount = 0;
   for (const note of story.notes || []) {
-    await client.notes.createNote(note.name, note.content);
+    await db.notes.create(note.name, note.content);
     if (note.aboutEntities) {
       for (const entityName of note.aboutEntities) {
-        await client.notes.linkToEntity(note.name, entityName);
+        await db.notes.linkToEntity(note.name, entityName);
       }
     }
     if (note.aboutPlots) {
       for (const plotName of note.aboutPlots) {
-        await client.notes.linkToPlot(note.name, plotName);
+        await db.notes.linkToPlot(note.name, plotName);
       }
     }
     noteCount++;

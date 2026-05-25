@@ -9,7 +9,7 @@ Architecture, core systems, and data structures of the **Chorus** application.
 **Chorus** is a cinematic dialogue engine with a vertical-scrolling "thought stream" aesthetic, branching dialogue paths, and probabilistic skill checks influenced by character attributes.
 
 - **Stack:** TypeScript, Node.js
-- **Backend:** Express + Neo4j (graph storage) + Qdrant (vector storage)
+- **Backend:** Express + LadybugDB (graph storage) + SQLite (vector storage)
 - **AI:** Single-LLM Game Master (Gemini/DeepSeek via Vercel AI SDK)
 - **SSE:** Server-Sent Events for real-time streaming of LLM output
 - **Console client:** Standalone Node.js REPL with chalk rendering
@@ -58,7 +58,26 @@ src/
 │   │       ├── advanceTime.ts            # Advance in-game clock
 │   │       └── shared.ts                 # wrapSafe error wrapper, extractInternalAndUnknownKeys
 │   │
-│   ├── memory/                           # Persistence layer (Neo4j + Qdrant)
+│   ├── db/                                # Persistence layer (LadybugDB + SQLite vectors)
+│   │   ├── index.ts                       # Database singleton facade composing all subsystems
+│   │   ├── ladybug.ts                     # LadybugDB client wrapper (Cypher graph queries)
+│   │   ├── vectorstore.ts                 # SQLite-backed vector store (brute-force cosine)
+│   │   ├── schema.ts                      # SchemaRegistry: node/rel type DDL, embedding text
+│   │   ├── checkpoint.ts                  # CheckpointManager: turn-level save/restore (file copy)
+│   │   └── models/                        # Domain models (Entity, Plot, Note, Time, Message)
+│   │       ├── entities.ts                # EntityModel: Character/Object/Location CRUD + embedding
+│   │       ├── plots.ts                   # PlotModel: plot lifecycle, branching
+│   │       ├── notes.ts                   # NoteModel: GM notes with entity/plot linking
+│   │       ├── time.ts                    # TimeModel: game time initialization + advancement
+│   │       └── messages.ts                # MessageModel: conversation messages, GM turn continuity
+│   │
+│   ├── search/                            # Hybrid vector search
+│   │   ├── hybridSearch.ts                # 3-way hybrid (dense name + content + sparse) with RRF
+│   │   ├── embedder.ts                    # llama-server embedding client
+│   │   ├── sparseEncoder.ts               # FNV-1a token hashing for sparse vectors
+│   │   └── reranker.ts                    # Optional cross-encoder reranking
+│   │
+│   ├── memory/                           # Legacy persistence layer (Neo4j + Qdrant) — being phased out
 │   │   ├── client.ts                     # MemoryClient singleton facade composing all subsystems
 │   │   ├── neo4j.ts                      # Neo4j driver wrapper with value normalization
 │   │   ├── qdrant.ts                     # Qdrant vector client: upsert, delete, search, clearAll
@@ -75,7 +94,7 @@ src/
 │   │
 │   ├── stories/                          # World seeding
 │   │   ├── index.ts                      # Active seed story selection, getActiveSeedStory()
-│   │   ├── seed.ts                       # seedDatabase(): idempotent entity/relationship/plot seeding
+│   │   ├── seed.ts                       # seedDatabase(): uses Database + domain models (EntityModel, PlotModel, NoteModel)
 │   │   ├── types.ts                      # TOML story format types
 │   │   ├── glass-cage.toml               # Default seed story (29 entities, 35 relationships)
 │   │   └── magic-awakening.toml          # Alternate seed story
@@ -343,7 +362,7 @@ Defined in `src/shared/events.ts`:
 
 ## 10. Memory Architecture
 
-`MemoryClient` (`client.ts`) is the singleton facade composing all subsystems: `neo4j`, `shortTerm`, `search`, `notes`, `plots`.
+`Database` (`db/index.ts`) is the singleton facade composing: `LadybugClient`, `VectorStore`, `HybridSearcher`, `SchemaRegistry`, `CheckpointManager`, and domain models (`EntityModel`, `PlotModel`, `NoteModel`, `TimeModel`, `MessageModel`). The legacy `MemoryClient` (`memory/client.ts`) is being phased out.
 
 ### Subsystems
 
