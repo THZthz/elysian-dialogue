@@ -1,3 +1,8 @@
+import { getActiveSeedStory } from "@/server/stories";
+import { Database } from "@/server/db";
+
+function parseType(typeStr: string): { type: string; subtype: string | null } {
+  if (typeStr.includes(":")) {
     const parts = typeStr.toUpperCase().split(":", 2);
     return { type: parts[0], subtype: parts[1] || null };
   }
@@ -16,9 +21,13 @@ function hourToLabel(hour: number): string {
   return SEGMENT_LABELS[Math.min(idx, SEGMENT_LABELS.length - 1)];
 }
 
+function pascalCase(str: string): string {
+  return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+}
+
 export async function seedDatabase(): Promise<void> {
   const story = getActiveSeedStory();
-  const db = await Database.getInstance();
+  const db = Database.getExisting();
 
   // Skip if database already has data (prevents duplicate injection on restart)
   const existing = await db.graph.query(
