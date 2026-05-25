@@ -21,6 +21,7 @@ import type { LadybugClient } from "@/server/db/ladybug";
 import type { VectorStore } from "@/server/db/vectorstore";
 import type { Embedder } from "@/server/search/embedder";
 import { getNodeManager } from "@/server/db/schema";
+import { nextId } from "@/server/db/idGenerator";
 
 export interface MemoryMessage {
   id: string;
@@ -37,17 +38,6 @@ export class MessageModel {
     this.graph = graph;
     this.vectors = vectors;
     this.embedder = embedder;
-  }
-
-  async nextId(): Promise<string> {
-    const result = await this.graph.query(
-      `MERGE (c:IdCounter {uid: 'counter'})
-       ON CREATE SET c.value = 0
-       SET c.value = c.value + 1
-       RETURN c.value AS value`,
-    );
-    const value = result.rows[0]?.value as number;
-    return String(value).padStart(4, "0");
   }
 
   async addMessage(
@@ -68,7 +58,7 @@ export class MessageModel {
       }
     }
 
-    const messageId = await this.nextId();
+    const messageId = await nextId(this.graph);
     const now = new Date().toISOString();
     const merged = { ...metadata };
 

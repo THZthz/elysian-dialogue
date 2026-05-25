@@ -1,5 +1,0 @@
-# GPU is disabled — Qdrant uses Vulkan for GPU, but WSL2 Docker doesn't provide
-# NVIDIA Vulkan ICD (libGLX_nvidia.so.0). CUDA (used by nvidia-smi) is available
-# but Qdrant doesn't use CUDA directly.
-# gpu:
-#   indexing: true

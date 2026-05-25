@@ -203,4 +203,4 @@ tests/
     └── checkpoint.test.ts           # CheckpointManager list + restore (2 tests)
 ```
 
-Run: `npm test` (Vitest, 51 tests, no Docker needed — LadybugDB + SQLite run in-process).
+Run: `npm test` (Vitest, 51 tests, LadybugDB + SQLite run in-process).
