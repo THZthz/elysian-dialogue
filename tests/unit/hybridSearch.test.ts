@@ -6,15 +6,18 @@ import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
 
+// Stub embedder that returns pre-set vectors for known queries
 class StubEmbedder implements Embedder {
   readonly dimensions = 4;
-  private counter = 0;
-  async embed(_text: string): Promise<number[]> {
-    this.counter++;
-    return [0.1 * this.counter, 0.2, 0.3, 0.4];
+  async embed(text: string): Promise<number[]> {
+    // Return orthogonal vectors so ranking is predictable
+    if (text.includes("brave knight")) return [1.0, 0, 0, 0];
+    if (text.includes("cowardly mage")) return [0, 1.0, 0, 0];
+    if (text.includes("knight")) return [1.0, 0, 0, 0]; // query matches "brave knight" vector
+    return [0.5, 0.5, 0.5, 0.5]; // neutral
   }
   async embedBatch(texts: string[]): Promise<number[][]> {
-    return texts.map((_, i) => [0.1 * (i + 1), 0.2, 0.3, 0.4]);
+    return Promise.all(texts.map(t => this.embed(t)));
   }
 }
 
@@ -35,19 +38,24 @@ describe("HybridSearcher", () => {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 
-  it("returns results for node search", async () => {
-    const v1 = new Float32Array([0.9, 0.1, 0.1, 0.1]);
-    const v2 = new Float32Array([0.1, 0.9, 0.1, 0.1]);
-    store.upsert("Character:Alice", "Character", "node", v1, v1, { indices: [], values: [] }, { name: "Alice", text: "brave knight" });
-    store.upsert("Character:Bob", "Character", "node", v2, v2, { indices: [], values: [] }, { name: "Bob", text: "cowardly mage" });
+  it("ranks results by vector similarity", async () => {
+    // Alice = "brave knight" → embedding [1,0,0,0], Bob = "cowardly mage" → [0,1,0,0]
+    // Query "knight" → [1,0,0,0] should match Alice better than Bob
+    const vAlice = new Float32Array([1.0, 0, 0, 0]);
+    const vBob = new Float32Array([0, 1.0, 0, 0]);
+    store.upsert("Character:Alice", "Character", "node", vAlice, vAlice, { indices: [], values: [] }, { name: "Alice", text: "brave knight" });
+    store.upsert("Character:Bob", "Character", "node", vBob, vBob, { indices: [], values: [] }, { name: "Bob", text: "cowardly mage" });
 
     const results = await searcher.search({ domain: "Character", kind: "node", query: "knight", limit: 2, rerank: false });
-    expect(results.length).toBeGreaterThan(0);
-    expect(results[0]).toHaveProperty("similarity");
-    expect(results[0]).toHaveProperty("name");
+    expect(results.length).toBe(2);
+    // Alice (brave knight) should rank first since query "knight" matches her vector
+    expect(results[0].name).toBe("Alice");
+    expect(results[1].name).toBe("Bob");
+    // Alice's similarity should be higher
+    expect(results[0].similarity).toBeGreaterThan(results[1].similarity);
   });
 
-  it("returns empty array for unknown domain", async () => {
+  it("returns empty for unknown domain", async () => {
     const results = await searcher.search({ domain: "NonExistent", kind: "node", query: "test", limit: 5, rerank: false });
     expect(results).toHaveLength(0);
   });

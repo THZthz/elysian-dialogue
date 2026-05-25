@@ -132,7 +132,7 @@ apiRouter.post("/debug/tools/:toolName", async (req, res) => {
 
 apiRouter.post("/reset", async (_req, res) => {
   try {
-    // Clear Neo4j and re-seed
+    // Clear database and re-seed
     await Database.getExisting().reset();
     const { seedDatabase } = await import("@/server/stories/seed");
     await seedDatabase();

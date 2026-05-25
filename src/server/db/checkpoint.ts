@@ -20,7 +20,7 @@ export class CheckpointManager {
     this.dir = checkpointDir;
   }
 
-  async save(turnNumber: number, closeCallback: () => Promise<void>, reopenCallback: () => Promise<void>): Promise<void> {
+  async save(turnNumber: number): Promise<void> {
     if (!fs.existsSync(this.dir)) fs.mkdirSync(this.dir, { recursive: true });
 
     const turnDir = path.join(this.dir, `turn_${String(turnNumber).padStart(4, "0")}`);
@@ -29,15 +29,13 @@ export class CheckpointManager {
     const graphDest = path.join(turnDir, "graph.lbug");
     const vectorDest = path.join(turnDir, "vectors.db");
 
-    await closeCallback();
-    // LadybugDB may not release file locks immediately
-    await new Promise((r) => setTimeout(r, 500));
-    try {
-      fs.copyFileSync(this.graphPath, graphDest);
-      fs.copyFileSync(this.vectorPath, vectorDest);
-    } finally {
-      await reopenCallback();
+    // Copy .lbug + .lbug.wal together for a consistent WAL-based snapshot
+    const walPath = this.graphPath + ".wal";
+    fs.copyFileSync(this.graphPath, graphDest);
+    if (fs.existsSync(walPath)) {
+      fs.copyFileSync(walPath, graphDest + ".wal");
     }
+    fs.copyFileSync(this.vectorPath, vectorDest);
 
     const index = this.loadIndex();
     index.push({ turn: turnNumber, graphFile: graphDest, vectorFile: vectorDest, createdAt: new Date().toISOString() });
@@ -60,8 +58,33 @@ export class CheckpointManager {
     if (!fs.existsSync(entry.vectorFile)) throw new Error(`Checkpoint vector file missing: ${entry.vectorFile}`);
 
     fs.copyFileSync(entry.graphFile, this.graphPath);
+    // Also restore .wal file if present in checkpoint
+    const checkpointWal = entry.graphFile + ".wal";
+    const currentWal = this.graphPath + ".wal";
+    if (fs.existsSync(checkpointWal)) {
+      fs.copyFileSync(checkpointWal, currentWal);
+    } else if (fs.existsSync(currentWal)) {
+      fs.unlinkSync(currentWal); // Remove stale WAL from different version
+    }
     fs.copyFileSync(entry.vectorFile, this.vectorPath);
 
+    // Validate restored file before removing sentinel
+    try {
+      const lbug = await import("@ladybugdb/core");
+      const testDb = new lbug.Database(this.graphPath, true); // read_only
+      const testConn = new lbug.Connection(testDb);
+      try {
+        await testConn.query("MATCH (n) RETURN count(n) AS cnt LIMIT 1");
+      } finally {
+        await testConn.close();
+        await testDb.close();
+      }
+    } catch (err) {
+      // Validation failed — keep sentinel to block further restores
+      throw new Error(`Restored checkpoint file is corrupt: ${err instanceof Error ? err.message : String(err)}`);
+    }
+
+    // Delete later checkpoints
     const later = index.filter((e) => e.turn > turnNumber);
     for (const e of later) {
       const d = path.join(this.dir, `turn_${String(e.turn).padStart(4, "0")}`);

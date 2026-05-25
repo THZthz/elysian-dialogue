@@ -65,6 +65,7 @@ export class EntityModel {
     if (r.rows.length === 0) return null;
 
     const existing = (r.rows[0].n || r.rows[0]) as Record<string, unknown>;
+    const oldName = existing.name as string;
     const name = (sets.name as string) ?? (existing.name as string);
     const brief = (sets.brief as string) ?? (existing.brief as string) ?? "";
     const description = (sets.description as string) ?? (existing.description as string) ?? "";
@@ -88,6 +89,10 @@ export class EntityModel {
       this.embedder.embed(contentText || `${name} ${brief} ${description}`),
     ]);
     const sparseVec = encodeSparse(contentText || name);
+    // Delete old vector if name changed (pointId uses the name)
+    if (oldName !== name) {
+      this.vectors.delete(`${label}:${oldName}`);
+    }
     this.vectors.upsert(`${label}:${name}`, label, "node", new Float32Array(nameVec), new Float32Array(contentVec), sparseVec,
       { node_type: label, kind: "node", object_id: `${label}:${name}`, text: contentText, name, brief, description, metadata });
 

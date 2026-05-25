@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from "uuid";
 import { getActiveSeedStory } from "@/server/stories";
 import { Database } from "@/server/db";
+import { SEGMENT_LABELS } from "@/shared/constants";
 
 function parseType(typeStr: string): { type: string; subtype: string | null } {
   if (typeStr.includes(":")) {
@@ -11,11 +12,6 @@ function parseType(typeStr: string): { type: string; subtype: string | null } {
 }
 
 type EntityLabel = "Character" | "Object" | "Location";
-
-const SEGMENT_LABELS = [
-  "Midnight", "Late Night", "Early Morning", "Morning", "Late Morning",
-  "Noon", "Afternoon", "Late Afternoon", "Evening", "Night", "Late Night", "Midnight",
-];
 
 function hourToLabel(hour: number): string {
   const idx = Math.floor(hour / 2);

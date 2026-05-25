@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from "uuid";
 import type { LadybugClient } from "@/server/db/ladybug";
+import { SEGMENT_LABELS } from "@/shared/constants";
 
 export interface TimePoint {
   uid: string;
@@ -41,7 +42,6 @@ export class TimeModel {
     const newDay = Math.floor(totalHalfHours / 48);
     const newHour = (totalHalfHours % 48) / 2;
 
-    const SEGMENT_LABELS = ["Midnight", "Late Night", "Early Morning", "Morning", "Late Morning", "Noon", "Afternoon", "Late Afternoon", "Evening", "Night", "Late Night", "Midnight"];
     const segmentIdx = Math.floor(newHour / 2);
     const newLabel = SEGMENT_LABELS[Math.min(segmentIdx, SEGMENT_LABELS.length - 1)];
 

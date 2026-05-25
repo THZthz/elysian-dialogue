@@ -139,7 +139,7 @@ export const getContext = tool({
 Pull pre-built context from the world. Nothing is auto-loaded — you choose what you need.
 
 ## Types
-- **SCHEMA_DUMP** — Rather important. All registered node types (with full property schemas: names, counts, tags, descriptions) and relationship types (with endpoint constraints and property schemas) in Neo4j. Managed by \`${TOOL_NAMES.MANAGE_SCHEMA}\`.
+- **SCHEMA_DUMP** — Rather important. All registered node types (with full property schemas: names, counts, tags, descriptions) and relationship types (with endpoint constraints and property schemas) in the database. Managed by \`${TOOL_NAMES.MANAGE_SCHEMA}\`.
 - CHARACTERS_BRIEF — All characters with location.
 - LOCATIONS_BRIEF — All locations with brief descriptions.
 - OBJECTS_BRIEF — All objects with carrier or location.

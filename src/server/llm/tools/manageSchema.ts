@@ -51,7 +51,7 @@ Node types — provide name (PascalCase) + optional property schema with tags.
 
 Relationship types — provide name (UPPER_SNAKE) + required sourceLabel/targetLabel to
 constrain which node types can sit at each endpoint. Tags: same as node tags except
-'unique' and 'composite_unique_X' (not supported by Neo4j for relationship properties).
+'unique' and 'composite_unique_X' (not supported for relationship properties).
 
 Only GM_DEFINED types can be unregistered. PREDEFINED and INTERNAL types are permanent.
 
@@ -59,7 +59,7 @@ Only GM_DEFINED types can be unregistered. PREDEFINED and INTERNAL types are per
 - \`string\`: normal string
 - \`number\`: normal number
 - \`number[]\`: list of numbers
-- \`json\`: Saved as string in Neo4j. But when used in tools supporting partial update, will automatically unfold Neo4j string property to avoid whole string overwritten
+- \`json\`: Saved as a JSON string. But when used in tools supporting partial update, will automatically unfold the JSON string property to avoid the whole string being overwritten
 - \`embedded_name\`: used for identity/exact-match vector (name_vec) when the property is created or updated
 - \`embedded_content\`: used for semantic/meaning vector (content_vec) when the property is created or updated
 - \`unique\`: will create a unique constraint on this property, not available for relationship
@@ -98,7 +98,7 @@ Only GM_DEFINED types can be unregistered. PREDEFINED and INTERNAL types are per
             .describe(
               "Comma-separated tags describing the property. " +
                 "For nodes: 'string', 'number', 'number[]', 'json', 'embedded_name', 'embedded_content', 'unique', 'index', 'composite_unique_1', 'composite_unique_2', 'composite_unique_3', 'composite_index_1', 'composite_index_2', 'composite_index_3'. " +
-                "For relationships: same tags except 'unique' and 'composite_unique_X' (not supported by Neo4j for relationship properties).",
+                "For relationships: same tags except 'unique' and 'composite_unique_X' (not supported for relationship properties).",
             ),
         }),
       )

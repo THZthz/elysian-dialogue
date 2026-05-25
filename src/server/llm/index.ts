@@ -191,7 +191,7 @@ export async function generateTurn(
     let finalMessages: Record<string, unknown>[] = [];
     let finalOptions: DialogueOption[] = [];
 
-    // Auto-persist each generated message to Neo4j after validation passes.
+    // Auto-persist each generated message to the database after validation passes.
     const persistMessage = async (msg: {
       speaker: string;
       type: string;
@@ -555,10 +555,7 @@ export async function generateTurn(
 
     // Save checkpoint at end of successful turn (blocking so next turn doesn't start mid-save)
     try {
-      await db.checkpoint.save(turnNumber,
-        () => Database.closeInstance(),
-        () => Database.getInstance()
-      );
+      await db.checkpoint.save(turnNumber);
     } catch (err) {
       console.error("[generateTurn] failed to save checkpoint:", err);
     }

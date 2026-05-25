@@ -16,7 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-// NOTE: sourceName/targetName must be entity names (the `name` field stored in Neo4j),
+// NOTE: sourceName/targetName must be entity names (the `name` field stored in the database),
 // NOT database IDs. agent-memory's memory_create_relationship looks up entities by name.
 export interface SeedEntity {
   // Only used to identify which character is player! ID of player should be "#player#".

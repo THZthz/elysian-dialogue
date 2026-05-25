@@ -205,6 +205,9 @@ export class MessageModel {
   }
 
   private async ensureConversation(): Promise<string> {
+    // Clean up orphaned Conversation nodes from prior runs (paranoid safety)
+    await this.graph.query("MATCH (c:Conversation) WHERE c.uid <> 'singleton' DETACH DELETE c");
+
     const r = await this.graph.query("MATCH (c:Conversation {uid: 'singleton'}) RETURN c.uid AS id");
     if (r.rows.length > 0) return r.rows[0].id as string;
     const now = new Date().toISOString();

@@ -44,3 +44,5 @@ export const TOOL_NAMES = {
   EDIT_PLOT: "editPlot",
   GET_CONTEXT: "getContext",
 } as const;
+
+export const SEGMENT_LABELS = ["Midnight", "Late Night", "Early Morning", "Morning", "Late Morning", "Noon", "Afternoon", "Late Afternoon", "Evening", "Night", "Late Night", "Midnight"];
