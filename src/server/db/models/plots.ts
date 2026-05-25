@@ -56,10 +56,24 @@ export class PlotModel {
   ): Promise<void> {
     const now = new Date().toISOString();
     await this.graph.query(
-      `MERGE (p:Plot {name: $name})
-       ON CREATE SET p.description = $desc, p.brief = $brief, p.status = $status, p.trigger_condition = $trigger, p.flags = '[]', p._created_at = $now, p._updated_at = $now
-       ON MATCH SET p.description = $desc, p.brief = $brief, p.status = $status, p.trigger_condition = $trigger, p._updated_at = $now`,
-      { name, desc: description, brief, status, trigger: trigger_condition ?? "", now },
+      `CREATE (p:Plot {name: $name, description: $ddesc, _created_at: $now, _updated_at: $now})`,
+      { name, ddesc: description, now },
+    );
+    await this.graph.query(
+      `MATCH (p:Plot {name: $name}) SET p.brief = $brief`,
+      { name, brief },
+    );
+    await this.graph.query(
+      `MATCH (p:Plot {name: $name}) SET p.status = $status`,
+      { name, status },
+    );
+    await this.graph.query(
+      `MATCH (p:Plot {name: $name}) SET p.trigger_condition = $trigger`,
+      { name, trigger: trigger_condition ?? "" },
+    );
+    await this.graph.query(
+      `MATCH (p:Plot {name: $name}) SET p.flags = $flags`,
+      { name, flags: "[]" },
     );
 
     const contentText = getNodeManager().getEmbeddingContentText("Plot", {
@@ -179,10 +193,7 @@ export class PlotModel {
 
   async markPlotTimeRel(name: string, relType: string): Promise<void> {
     await this.graph.query(
-      `MATCH (a:TimeAnchor {uid: 'anchor'})-[:CURRENT_TIMEPOINT]->(tp:TimePoint)
-       MATCH (p:Plot {name: $name})
-       MERGE (p)-[r:\`${relType}\`]->(tp)
-       ON CREATE SET r._created_at = current_timestamp()`,
+      `MATCH (a:TimeAnchor {uid: 'anchor'})-[:CURRENT_TIMEPOINT]->(tp:TimePoint) MATCH (p:Plot {name: $name}) MERGE (p)-[r:\`${relType}\`]->(tp) ON CREATE SET r._created_at = current_timestamp()`,
       { name },
     );
   }

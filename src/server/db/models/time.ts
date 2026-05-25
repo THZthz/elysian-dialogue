@@ -33,8 +33,7 @@ export class TimeModel {
 
   async getCurrentTimePoint(): Promise<TimePoint | null> {
     const result = await this.graph.query(
-      `MATCH (a:TimeAnchor {uid: 'anchor'})-[:CURRENT_TIMEPOINT]->(tp:TimePoint)
-       RETURN tp`,
+      `MATCH (a:TimeAnchor {uid: 'anchor'})-[:CURRENT_TIMEPOINT]->(tp:TimePoint) RETURN tp`,
     );
     if (result.rows.length === 0) return null;
     const tp = (result.rows[0].tp || result.rows[0]) as Record<string, unknown>;
@@ -50,10 +49,12 @@ export class TimeModel {
   async setInitialTime(day: number, hour: number, label: string): Promise<void> {
     const uid = uuidv4();
     const now = new Date().toISOString();
+    // Clean up any existing CURRENT_TIMEPOINT from prior calls (test isolation)
     await this.graph.query(
-      `MERGE (a:TimeAnchor {uid: 'anchor'})
-       CREATE (new:TimePoint {uid: $uid, day: $day, hour: $hour, label: $label, _created_at: $now})
-       CREATE (a)-[r:CURRENT_TIMEPOINT {_created_at: $now}]->(new)`,
+      `MATCH (a:TimeAnchor {uid: 'anchor'})-[r:CURRENT_TIMEPOINT]->(old:TimePoint) DETACH DELETE old`,
+    );
+    await this.graph.query(
+      `MERGE (a:TimeAnchor {uid: 'anchor'}) CREATE (new:TimePoint {uid: $uid, day: $day, hour: $hour, label: $label, _created_at: $now}) CREATE (a)-[r:CURRENT_TIMEPOINT {_created_at: $now}]->(new)`,
       { uid, day, hour, label, now },
     );
   }
@@ -73,20 +74,13 @@ export class TimeModel {
     const now = new Date().toISOString();
 
     await this.graph.query(
-      `MATCH (a:TimeAnchor {uid: 'anchor'})
-       MATCH (old:TimePoint {uid: $oldId})
-       MATCH (a)-[r_del:CURRENT_TIMEPOINT]->(old)
-       CREATE (new:TimePoint {uid: $uid, day: $newDay, hour: $newHour, label: $newLabel, _created_at: $now})
-       CREATE (old)-[r1:NEXT_TIMEPOINT]->(new)
-       DELETE r_del
-       CREATE (a)-[r2:CURRENT_TIMEPOINT {_created_at: $now}]->(new)`,
+      `MATCH (a:TimeAnchor {uid: 'anchor'}) MATCH (old:TimePoint {uid: $oldId}) MATCH (a)-[r_del:CURRENT_TIMEPOINT]->(old) CREATE (new:TimePoint {uid: $uid, day: $newDay, hour: $newHour, label: $newLabel, _created_at: $now}) CREATE (old)-[r1:NEXT_TIMEPOINT]->(new) DELETE r_del CREATE (a)-[r2:CURRENT_TIMEPOINT {_created_at: $now}]->(new)`,
       { oldId: current.uid, uid, newDay, newHour, newLabel, now },
     );
 
     if (reason) {
       await this.graph.query(
-        `MATCH (old:TimePoint {uid: $oldId})-[r:NEXT_TIMEPOINT]->(new:TimePoint {uid: $uid})
-         SET r.reason = $reason`,
+        `MATCH (old:TimePoint {uid: $oldId})-[r:NEXT_TIMEPOINT]->(new:TimePoint {uid: $uid}) SET r.reason = $reason`,
         { oldId: current.uid, uid, reason },
       );
     }

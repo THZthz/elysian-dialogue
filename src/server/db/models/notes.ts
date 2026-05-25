@@ -112,7 +112,7 @@ export class NoteModel {
 
   async linkToEntity(noteName: string, entityName: string): Promise<void> {
     const r = await this.graph.query(
-      "MATCH (n) WHERE (n:Character OR n:Object OR n:Location) AND n.name = $name RETURN label(n) AS label LIMIT 1",
+      "MATCH (n) WHERE (label(n) = 'Character' OR label(n) = 'Object' OR label(n) = 'Location') AND n.name = $name RETURN label(n) AS label LIMIT 1",
       { name: entityName },
     );
     if (r.rows.length === 0) throw new Error(`Entity "${entityName}" not found`);
@@ -154,14 +154,22 @@ export class NoteModel {
 
   async clearLinks(noteName: string): Promise<void> {
     await this.graph.query(
-      "MATCH (n:Note {name: $name})-[r:ABOUT_ENTITY|ABOUT_MESSAGE|ABOUT_PLOT]->() DELETE r",
+      "MATCH (n:Note {name: $name})-[r:ABOUT_ENTITY]->() DELETE r",
+      { name: noteName },
+    );
+    await this.graph.query(
+      "MATCH (n:Note {name: $name})-[r:ABOUT_MESSAGE]->() DELETE r",
+      { name: noteName },
+    );
+    await this.graph.query(
+      "MATCH (n:Note {name: $name})-[r:ABOUT_PLOT]->() DELETE r",
       { name: noteName },
     );
   }
 
   async getLinkedEntities(noteName: string): Promise<string[]> {
     const r = await this.graph.query(
-      "MATCH (n:Note {name: $name})-[:ABOUT_ENTITY]->(e) WHERE label(e) IN ('Character', 'Object', 'Location') RETURN e.name AS name",
+      "MATCH (n:Note {name: $name})-[:ABOUT_ENTITY]->(e) WHERE (label(e) = 'Character' OR label(e) = 'Object' OR label(e) = 'Location') RETURN e.name AS name",
       { name: noteName },
     );
     return r.rows.map((row) => row.name as string);
