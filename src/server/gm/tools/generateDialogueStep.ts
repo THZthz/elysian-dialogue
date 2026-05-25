@@ -20,7 +20,7 @@ import { tool } from "ai";
 import { z } from "zod";
 import { NOTIFICATION_TYPES, SPEAKER_TYPES, SpeakerType } from "@/types/dialogue";
 import { TOOL_NAMES, SKILL_NAMES } from "@/shared/constants";
-import { checkText } from "@/server/tools/shared";
+import { checkText } from "@/server/shared/toolUtils";
 
 export const MAX_MESSAGE_TEXT_LENGTH = 700;
 

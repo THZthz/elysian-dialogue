@@ -37,7 +37,7 @@
 import { tool } from "ai";
 import { z } from "zod";
 import { getMemoryClient, MemoryClient } from "@/server/memory/client";
-import { wrapSafe } from "@/server/tools/shared";
+import { wrapSafe } from "@/server/shared/toolUtils";
 import { TOOL_NAMES } from "@/shared/constants";
 
 const NOTE_ACTIONS = ["CREATE", "UPDATE", "DELETE"] as const;
@@ -104,7 +104,7 @@ or ABOUT_MESSAGE first if you have a clear target.
 
     if (args.action == "CREATE") {
       if (!args.content) return `ERROR: Parameter "content" is required for CREATE.`;
-      const note = await client.notes.createNote(args.noteName, args.content);
+      const note = await client.notes.createNote(args.noteName, args.content, "GM");
       if (args.aboutEntities) {
         for (const name of args.aboutEntities) await client.notes.linkToEntity(note.name, name);
       }
@@ -191,7 +191,7 @@ Use \`${TOOL_NAMES.SEARCH_WORLD}\` with domains: ["Note"] to find notes. You can
 
     if (args.action == "CREATE") {
       if (!args.content) return `ERROR: Parameter "content" is required for CREATE.`;
-      const note = await client.notes.createNote(args.noteName, args.content);
+      const note = await client.notes.createNote(args.noteName, args.content, "GM");
       return `Note "${note.name}" is successfully created (${note.content.length} chars).`;
     }
 
@@ -268,7 +268,7 @@ Pass [] to clear all links of that type.
 
     if (args.action == "CREATE") {
       if (!args.content) return `ERROR: Parameter "content" is required for CREATE.`;
-      const note = await client.notes.createNote(args.noteName, args.content);
+      const note = await client.notes.createNote(args.noteName, args.content, "assistant");
       if (args.aboutEntities) {
         for (const name of args.aboutEntities) await client.notes.linkToEntity(note.name, name);
       }

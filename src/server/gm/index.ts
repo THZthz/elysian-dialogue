@@ -25,18 +25,19 @@ import { TurnEventEmitter } from "@/server/events";
 import { buildSystemPrompt, MAX_GM_STEPS } from "@/server/gm/prompt";
 import { getModel } from "@/server/model";
 import { getMemoryClient, MemoryClient } from "@/server/memory/client";
-import { createSearchWorldTool } from "@/server/tools/searchWorld";
-import { editNoteGm } from "@/server/tools/editNote";
-import { editPlot } from "@/server/tools/editPlot";
-import { createDelegateToAssistantTool } from "@/server/tools/delegateToAssistant";
+import { createSearchWorldTool } from "@/server/assistant/tools/searchWorld";
+import { editNoteGm } from "@/server/gm/tools/editNote";
+import { editPlot } from "@/server/gm/tools/editPlot";
+import { createDelegateToAssistantTool } from "@/server/gm/tools/delegateToAssistant";
+import { getContext } from "@/server/gm/tools/getContext";
 import type { AssistantContext } from "@/server/assistant";
 import { TurnStateMachine, TurnPhase } from "@/server/turnState";
 import { autoPersist } from "@/server/assistant";
 import { saveCurrentOptions } from "@/server/gameState";
 import { saveCheckpoint } from "@/server/checkpointManager";
 import { loadGMMessages, saveGMMessages, getNextTurnNumber } from "@/server/gm/message";
-import { createGenerateDialogueStepTool } from "@/server/tools/generateDialogueStep";
-import { createAdvanceTimeTool } from "@/server/tools/advanceTime";
+import { createGenerateDialogueStepTool } from "@/server/gm/tools/generateDialogueStep";
+import { createAdvanceTimeTool } from "@/server/gm/tools/advanceTime";
 import { performSkillCheck } from "@/server/gm/rollSkillCheck";
 import { type SkillName, TOOL_NAMES } from "@/shared/constants";
 import { DeepSeekLanguageModelOptions } from "@ai-sdk/deepseek";
@@ -173,12 +174,7 @@ export async function generateTurn(
     const firstTurnHelperParts: string[] = [];
     if (turnNumber === 1) {
       firstTurnHelperParts.push(
-        "## BEGIN FIRST TURN",
-        `This is first turn, you should call \`${TOOL_NAMES.GET_CONTEXT}\` with ["SCHEMA_DUMP", "CHARACTERS_BRIEF", "LOCATIONS_BRIEF", "OBJECTS_BRIEF", "PLOTS_BRIEF", "RELATIONSHIP_DUMP"].`,
-        "",
-        `Explore with \`${TOOL_NAMES.QUERY_WORLD}\ (note: should combine multiple structural-similar Cypher query into one).`,
-        "",
-        `Check any notes or plots by \`${TOOL_NAMES.SEARCH_WORLD}\`. Note is linked to Characters, Objects, Locations, and Plots, you can use this. Also, search note with "opening scene" is recommended.`,
+        "This is the first turn. Before you narrate, take stock of the world: search your notes for the opening scene, check the current time and scene, review active story arcs, and ask your assistant for any details your notes don't cover. Then begin the story.",
         "",
         "---",
         "",
@@ -234,6 +230,7 @@ export async function generateTurn(
       searchWorld: gmSearchWorld,
       editNote: editNoteGm,
       editPlot,
+      getContext,
       generateDialogueStep: dialogueStepTool.tool,
       advanceTime: advanceTimeTool,
       delegateToAssistant: delegateTool,

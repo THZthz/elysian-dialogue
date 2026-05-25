@@ -32,7 +32,7 @@ export class Notes {
     this.embedder = getEmbedder();
   }
 
-  async createNote(noteName: string, content: string): Promise<MemoryNote> {
+  async createNote(noteName: string, content: string, owner = "GM"): Promise<MemoryNote> {
     const nodeManager = getNodeManager();
     const nameText =
       nodeManager.getEmbeddingNameText("Note", { name: noteName }) || `[Note] ${noteName}`;
@@ -48,9 +48,9 @@ export class Notes {
 
     await this.client.executeWrite(
       `MERGE (n:Note {name: $name})
-       ON CREATE SET n.content = $content, n._created_at = datetime($now), n._updated_at = datetime($now)
+       ON CREATE SET n.content = $content, n.owner = $owner, n._created_at = datetime($now), n._updated_at = datetime($now)
        ON MATCH SET n.content = $content, n._updated_at = datetime($now)`,
-      { name: noteName, content, now },
+      { name: noteName, content, owner, now },
     );
 
     try {
@@ -73,7 +73,7 @@ export class Notes {
       );
     }
 
-    return { name: noteName, content };
+    return { name: noteName, content, owner };
   }
 
   async updateNote(noteName: string, options: { content?: string }): Promise<MemoryNote | null> {
@@ -127,7 +127,7 @@ export class Notes {
       }
     }
 
-    return { ...existing, content };
+    return { ...existing, content, owner: existing.owner };
   }
 
   async deleteNote(noteName: string): Promise<boolean> {
@@ -264,6 +264,7 @@ export class Notes {
     return {
       name: data.name as string,
       content: data.content as string,
+      owner: (data.owner as string) ?? "seed",
     };
   }
 }

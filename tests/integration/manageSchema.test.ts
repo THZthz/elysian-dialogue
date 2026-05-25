@@ -16,7 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { manageSchema } from "@/server/tools/manageSchema";
+import { manageSchema } from "@/server/assistant/tools/manageSchema";
 import { exec, resetDb } from "../helpers";
 
 describe("manageSchema", () => {

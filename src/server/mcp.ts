@@ -22,18 +22,18 @@ import { z } from "zod";
 import { delegateToAssistant, type AssistantContext } from "@/server/assistant";
 
 // Plain singleton tools — no factory needed
-import { queryWorld } from "@/server/tools/queryWorld";
-import { searchWorld } from "@/server/tools/searchWorld";
-import { editNode } from "@/server/tools/editNode";
-import { editRelationship } from "@/server/tools/editRelationship";
+import { queryWorld } from "@/server/assistant/tools/queryWorld";
+import { searchWorld } from "@/server/assistant/tools/searchWorld";
+import { editNode } from "@/server/assistant/tools/editNode";
+import { editRelationship } from "@/server/assistant/tools/editRelationship";
 import { editNote } from "@/server/tools/editNote";
-import { editPlot } from "@/server/tools/editPlot";
-import { getContext } from "@/server/tools/getContext";
-import { manageSchema } from "@/server/tools/manageSchema";
+import { editPlot } from "@/server/gm/tools/editPlot";
+import { getContext } from "@/server/assistant/tools/getContext";
+import { manageSchema } from "@/server/assistant/tools/manageSchema";
 
 // Factory-based tools — instantiate for MCP context
-import { createGenerateDialogueStepTool } from "@/server/tools/generateDialogueStep";
-import { createAdvanceTimeTool } from "@/server/tools/advanceTime";
+import { createGenerateDialogueStepTool } from "@/server/gm/tools/generateDialogueStep";
+import { createAdvanceTimeTool } from "@/server/gm/tools/advanceTime";
 
 const dialogueStepTool = createGenerateDialogueStepTool();
 const advanceTimeTool = createAdvanceTimeTool({

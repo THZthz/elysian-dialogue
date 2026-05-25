@@ -16,7 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { getContext } from "@/server/tools/getContext";
+import { getContext } from "@/server/assistant/tools/getContext";
 import { exec, resetDb } from "../helpers";
 
 describe("getContext", () => {

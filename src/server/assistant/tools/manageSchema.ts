@@ -22,7 +22,7 @@ import { getMemoryClient, MemoryClient } from "@/server/memory/client";
 import { RelationshipManager, RELATIONSHIP_PROPERTY_TAGS } from "@/server/relationshipManager";
 import type { RelationshipPropertyDef } from "@/server/relationshipManager";
 import { getNodeManager, NODE_PROPERTY_TAGS, NodeManager } from "@/server/nodeManager";
-import { wrapSafe } from "@/server/tools/shared";
+import { wrapSafe } from "@/server/shared/toolUtils";
 import { TOOL_NAMES } from "@/shared/constants";
 
 export const manageSchema = tool({

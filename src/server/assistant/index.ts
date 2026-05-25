@@ -21,13 +21,13 @@ import { jsonrepair } from "jsonrepair";
 import { getModel } from "@/server/model";
 import { buildAssistantSystemPrompt } from "@/server/assistant/prompt";
 import { loadAssistantMessages, saveAssistantMessages } from "@/server/assistant/messages";
-import { queryWorld } from "@/server/tools/queryWorld";
-import { searchWorld } from "@/server/tools/searchWorld";
-import { editNode } from "@/server/tools/editNode";
-import { editRelationship } from "@/server/tools/editRelationship";
-import { editNoteAssistant } from "@/server/tools/editNote";
-import { getContext } from "@/server/tools/getContext";
-import { manageSchema } from "@/server/tools/manageSchema";
+import { queryWorld } from "@/server/assistant/tools/queryWorld";
+import { searchWorld } from "@/server/assistant/tools/searchWorld";
+import { editNode } from "@/server/assistant/tools/editNode";
+import { editRelationship } from "@/server/assistant/tools/editRelationship";
+import { manageNoteLinks } from "@/server/assistant/tools/manageNoteLinks";
+import { getContext } from "@/server/assistant/tools/getContext";
+import { manageSchema } from "@/server/assistant/tools/manageSchema";
 import { TOOL_NAMES } from "@/shared/constants";
 import { createDebugOnStepFinish } from "@/server/debugPrint";
 
@@ -44,7 +44,7 @@ const assistantTools = {
   searchWorld,
   editNode,
   editRelationship,
-  editNote: editNoteAssistant,
+  manageNoteLinks,
   getContext,
   manageSchema,
 };
@@ -68,7 +68,7 @@ export async function delegateToAssistant(
     "## GM's Request",
     request,
     "",
-    "Execute the request. After answering, add a brief OBSERVATIONS section if you notice anything relevant to the GM.",
+    "Execute the request. Return the data the GM asked for. If you notice a critical inconsistency (missing required relationships, orphaned nodes, conflicting state), append a brief NOTES section — otherwise do not add unsolicited observations, analysis, or suggestions.",
   ].join("\n");
 
   // Load previous assistant messages for stateful continuity

@@ -17,7 +17,7 @@
  */
 
 import { EventEmitter } from "node:events";
-import type { DialogueArgs } from "@/server/tools/generateDialogueStep";
+import type { DialogueArgs } from "@/server/gm/tools/generateDialogueStep";
 
 export enum TurnPhase {
   START = "START",

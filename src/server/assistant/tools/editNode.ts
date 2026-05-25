@@ -21,7 +21,7 @@ import { z } from "zod";
 import { v4 as uuidv4 } from "uuid";
 import { getMemoryClient } from "@/server/memory/client";
 import { getNodeManager } from "@/server/nodeManager";
-import { extractInternalAndUnknownKeys, wrapSafe } from "@/server/tools/shared";
+import { extractInternalAndUnknownKeys, wrapSafe } from "@/server/shared/toolUtils";
 import { getEmbedder } from "@/server/memory/embedder";
 import { getQdrantClient } from "@/server/memory/qdrant";
 import { encodeSparse } from "@/server/memory/sparseEncoder";

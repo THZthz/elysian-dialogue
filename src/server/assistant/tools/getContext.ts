@@ -19,7 +19,7 @@
 import { tool } from "ai";
 import { z } from "zod";
 import { TOOL_NAMES } from "@/shared/constants";
-import { wrapSafe } from "@/server/tools/shared";
+import { wrapSafe } from "@/server/shared/toolUtils";
 import {
   buildSceneContext,
   buildCharactersBrief,

@@ -38,6 +38,7 @@ export const TOOL_NAMES = {
   ADVANCE_TIME: "advanceTime",
   SEARCH_WORLD: "searchWorld",
   MANAGE_SCHEMA: "manageSchema",
+  MANAGE_NOTE_LINKS: "manageNoteLinks",
   EDIT_NODE: "editNode",
   EDIT_RELATIONSHIP: "editRelationship",
   EDIT_NOTE: "editNote",

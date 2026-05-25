@@ -16,11 +16,11 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { editNode } from "@/server/tools/editNode";
-import { editRelationship } from "@/server/tools/editRelationship";
-import { queryWorld } from "@/server/tools/queryWorld";
-import { manageSchema } from "@/server/tools/manageSchema";
-import { getContext } from "@/server/tools/getContext";
+import { editNode } from "@/server/assistant/tools/editNode";
+import { editRelationship } from "@/server/assistant/tools/editRelationship";
+import { queryWorld } from "@/server/assistant/tools/queryWorld";
+import { manageSchema } from "@/server/assistant/tools/manageSchema";
+import { getContext } from "@/server/assistant/tools/getContext";
 import { exec, parseToolOutput, resetDb } from "../helpers";
 
 describe("Entity Lifecycle Scenario", () => {

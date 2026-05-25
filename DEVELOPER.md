@@ -95,7 +95,7 @@ flowchart TD
 
 GM and Assistant each have their own `streamText` invocation with separate tool sets. The GM delegates all database operations to the Assistant via `delegateToAssistant`.
 
-### GM (6 tools — narrative focus)
+### GM (7 tools — narrative focus)
 
 | Tool | Purpose |
 |---|---|
@@ -104,6 +104,7 @@ GM and Assistant each have their own `streamText` invocation with separate tool 
 | `editNote` | CREATE/UPDATE/DELETE scratchpad notes (no linking) |
 | `editPlot` | Create and manage plot arcs, branches, flags |
 | `searchWorld` | Vector search — scoped to `:Note` and `:Plot` |
+| `getContext` | Scene snapshot, entity briefs (no schema/relationship dumps) |
 | `delegateToAssistant` | Natural-language delegation to Assistant |
 
 ### Assistant (7 tools — database focus)
@@ -114,8 +115,8 @@ GM and Assistant each have their own `streamText` invocation with separate tool 
 | `searchWorld` | Full vector search across all types |
 | `editNode` | Create/update/delete any node (entities, dispositions) |
 | `editRelationship` | Create/update/delete relationships |
-| `editNote` | Full note CRUD with entity/message/plot linking |
-| `getContext` | Scene context, entity briefs, schema dumps |
+| `manageNoteLinks` | Note CRUD with entity/message/plot linking, owner-gated content |
+| `getContext` | Scene context, entity briefs, schema dumps, relationship dumps |
 | `manageSchema` | Register/unregister node and relationship types |
 
 ### Turn Lifecycle (TurnStateMachine)
@@ -164,9 +165,14 @@ Model configured via `ASSISTANT_PROVIDER` / `ASSISTANT_MODEL` env vars; falls ba
 src/
 ├── console/           # Terminal REPL client
 ├── server/
-│   ├── tools/         # All 11 tool implementations (shared by GM + Assistant)
-│   ├── assistant/     # Database Assistant LLM (model, prompt, messages, core)
-│   ├── gm/            # Game Master LLM
+│   ├── tools/         # Full-access editNote (debug endpoints)
+│   ├── shared/        # Shared utilities (schemaValidation, toolUtils)
+│   ├── gm/
+│   │   ├── tools/     # GM-specific tool implementations
+│   │   └── ...        # Game Master LLM (index, prompt, messages, skill checks)
+│   ├── assistant/
+│   │   ├── tools/     # Assistant-specific tool implementations
+│   │   └── ...        # Database Assistant LLM (index, prompt, messages, context)
 │   ├── memory/        # Neo4j + Qdrant client layer
 │   ├── models/        # Domain models (time, entity, plot)
 │   ├── stories/       # Seed world TOML files

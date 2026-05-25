@@ -37,7 +37,7 @@
 import { tool } from "ai";
 import { z } from "zod";
 import { getMemoryClient, MemoryClient, PLOT_STATUSES } from "@/server/memory/client";
-import { wrapSafe } from "@/server/tools/shared";
+import { wrapSafe } from "@/server/shared/toolUtils";
 import { TOOL_NAMES } from "@/shared/constants";
 
 const PLOT_ACTIONS = ["CREATE", "UPDATE", "DELETE"] as const;

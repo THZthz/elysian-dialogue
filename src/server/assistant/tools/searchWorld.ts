@@ -20,7 +20,7 @@ import { tool } from "ai";
 import { z } from "zod";
 import { getMemoryClient, MemoryClient } from "@/server/memory/client";
 import { stripHiddenProperties } from "@/server/memory/neo4j";
-import { wrapSafe } from "@/server/tools/shared";
+import { wrapSafe } from "@/server/shared/toolUtils";
 import { TOOL_NAMES } from "@/shared/constants";
 import { NodeDef, getNodeManager } from "@/server/nodeManager";
 import { RelationshipDef, RelationshipManager } from "@/server/relationshipManager";

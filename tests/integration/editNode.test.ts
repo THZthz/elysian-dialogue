@@ -16,8 +16,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { editNode } from "@/server/tools/editNode";
-import { queryWorld } from "@/server/tools/queryWorld";
+import { editNode } from "@/server/assistant/tools/editNode";
+import { queryWorld } from "@/server/assistant/tools/queryWorld";
 import { exec, parseToolOutput, resetDb } from "../helpers";
 
 describe("editNode", () => {

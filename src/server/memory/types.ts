@@ -37,6 +37,7 @@ export interface MemoryMessage {
 export interface MemoryNote {
   name: string;
   content: string;
+  owner: string;
 }
 
 export const PLOT_STATUSES = ["PENDING", "ACTIVE", "COMPLETED", "ABANDONED"] as const;

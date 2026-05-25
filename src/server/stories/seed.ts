@@ -333,7 +333,7 @@ export async function seedDatabase(): Promise<void> {
   // Seed notes
   let noteCount = 0;
   for (const note of story.notes || []) {
-    await client.notes.createNote(note.name, note.content);
+    await client.notes.createNote(note.name, note.content, "seed");
     if (note.aboutEntities) {
       for (const entityName of note.aboutEntities) {
         await client.notes.linkToEntity(note.name, entityName);

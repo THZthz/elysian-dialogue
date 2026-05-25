@@ -16,9 +16,9 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { editNote } from "@/server/tools/editNote";
-import { editPlot } from "@/server/tools/editPlot";
-import { queryWorld } from "@/server/tools/queryWorld";
+import { editNote, editNoteGm, editNoteAssistant } from "@/server/tools/editNote";
+import { editPlot } from "@/server/gm/tools/editPlot";
+import { queryWorld } from "@/server/assistant/tools/queryWorld";
 import { exec, parseToolOutput, resetDb } from "../helpers";
 import { getMemoryClient, MemoryClient } from "@/server/memory/client";
 
@@ -277,5 +277,69 @@ describe("editNote", () => {
       content: "nope",
     });
     expect(result).toContain("not found");
+  });
+});
+
+describe("note ownership", () => {
+  const ownerTestNote = "test_owner_gm";
+
+  afterEach(async () => {
+    try {
+      await exec(editNote, { noteName: ownerTestNote, action: "DELETE" });
+    } catch {
+      // ignore
+    }
+    try {
+      await exec(editNote, { noteName: "test_owner_assistant", action: "DELETE" });
+    } catch {
+      // ignore
+    }
+  });
+
+  it("editNoteGm CREATE sets owner to GM", async () => {
+    await exec(editNoteGm, {
+      noteName: ownerTestNote,
+      action: "CREATE",
+      content: "GM-owned note",
+    });
+
+    const verify = await exec(queryWorld, {
+      action: "READ",
+      query: `MATCH (n:Note {name: '${ownerTestNote}'}) RETURN n.owner`,
+    });
+    const data = parseToolOutput(verify);
+    expect(data.rowCount).toBe(1);
+    const row = data.rows[0] as Record<string, unknown>;
+    expect(row["n.owner"]).toBe("GM");
+  });
+
+  it("editNoteAssistant CREATE sets owner to assistant", async () => {
+    await exec(editNoteAssistant, {
+      noteName: "test_owner_assistant",
+      action: "CREATE",
+      content: "Assistant-owned note",
+    });
+
+    const verify = await exec(queryWorld, {
+      action: "READ",
+      query: `MATCH (n:Note {name: 'test_owner_assistant'}) RETURN n.owner`,
+    });
+    const data = parseToolOutput(verify);
+    expect(data.rowCount).toBe(1);
+    const row = data.rows[0] as Record<string, unknown>;
+    expect(row["n.owner"]).toBe("assistant");
+  });
+
+  it("seeded notes have owner set to seed", async () => {
+    // Seeded notes are created during resetDb() in beforeAll.
+    // Pick a known seed note from the glass-cage story.
+    const verify = await exec(queryWorld, {
+      action: "READ",
+      query: `MATCH (n:Note) WHERE n.owner IS NOT NULL RETURN count(n) AS cnt`,
+    });
+    const data = parseToolOutput(verify);
+    expect(data.rowCount).toBe(1);
+    const row = data.rows[0] as Record<string, unknown>;
+    expect((row["cnt"] as number)).toBeGreaterThan(0);
   });
 });

@@ -16,7 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { checkText, wrapSafe } from "@/server/tools/shared";
+import { checkText, wrapSafe } from "@/server/shared/toolUtils";
 import { exec } from "../helpers";
 
 describe("checkText", () => {

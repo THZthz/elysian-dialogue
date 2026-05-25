@@ -24,7 +24,7 @@ import type { RelationshipPropertyDef } from "@/server/relationshipManager";
 import { getEmbedder } from "@/server/memory/embedder";
 import { getQdrantClient } from "@/server/memory/qdrant";
 import { encodeSparse } from "@/server/memory/sparseEncoder";
-import { extractInternalAndUnknownKeys, wrapSafe } from "@/server/tools/shared";
+import { extractInternalAndUnknownKeys, wrapSafe } from "@/server/shared/toolUtils";
 import { TOOL_NAMES } from "@/shared/constants";
 
 const REL_ACTIONS = ["CREATE", "UPDATE", "DELETE"] as const;

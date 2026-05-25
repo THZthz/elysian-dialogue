@@ -19,7 +19,7 @@
 import {
   validateDialogueArgs,
   createGenerateDialogueStepTool,
-} from "@/server/tools/generateDialogueStep";
+} from "@/server/gm/tools/generateDialogueStep";
 import { exec } from "../helpers";
 
 describe("generateDialogueStep validation", () => {

@@ -17,7 +17,7 @@
  */
 
 import { delegateToAssistant, type AssistantContext } from "@/server/assistant";
-import { queryWorld } from "@/server/tools/queryWorld";
+import { queryWorld } from "@/server/assistant/tools/queryWorld";
 import { resetDb, exec, parseToolOutput } from "../helpers";
 
 const emptyContext: AssistantContext = {

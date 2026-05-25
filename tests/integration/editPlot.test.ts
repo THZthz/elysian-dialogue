@@ -16,8 +16,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { editPlot } from "@/server/tools/editPlot";
-import { queryWorld } from "@/server/tools/queryWorld";
+import { editPlot } from "@/server/gm/tools/editPlot";
+import { queryWorld } from "@/server/assistant/tools/queryWorld";
 import { exec, parseToolOutput, resetDb } from "../helpers";
 
 describe("editPlot", () => {

@@ -16,7 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { createAdvanceTimeTool } from "@/server/tools/advanceTime";
+import { createAdvanceTimeTool } from "@/server/gm/tools/advanceTime";
 import { exec, createMockEventEmitter, resetDb } from "../helpers";
 import { getMemoryClient } from "@/server/memory/client";
 
