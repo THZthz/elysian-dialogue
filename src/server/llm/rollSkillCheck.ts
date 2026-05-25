@@ -16,11 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import {
-  getMemoryClient,
-  MemoryClient,
-  type MemoryEntity,
-} from "@/server/memory/client";
+import { Database } from "@/server/db";
 import type { SkillName } from "@/shared/constants";
 
 // TODO: This skill check system should be reworked since current skill check will always succeed.
@@ -117,25 +113,11 @@ export interface SkillCheckResult {
   narrativeSummary: string;
 }
 
-function parseEntity(data: Record<string, unknown>): MemoryEntity {
-  const meta =
-    typeof data.metadata === "string" ? (JSON.parse(data.metadata) as Record<string, unknown>) : {};
-  const aliases = (meta.aliases as string[]) || [];
-  delete meta.aliases;
-  return {
-    name: data.name as string,
-    brief: (data.brief as string) || undefined,
-    description: (data.description as string) || undefined,
-    aliases,
-    metadata: meta,
-  };
-}
-
 async function getPlayerStats(): Promise<Record<string, number> | null> {
-  const client = getMemoryClient();
-  const rows = await client.neo4j.executeRead('MATCH (e:Character {_id: "#player#"}) RETURN e LIMIT 1');
-  if (rows.length === 0) return null;
-  const entity = parseEntity(rows[0].e as Record<string, unknown>);
+  const db = Database.getExisting();
+  const r = await db.graph.query("MATCH (e:Character {_id: '#player#'}) RETURN e LIMIT 1");
+  if (r.rows.length === 0) return null;
+  const entity = db.entities.parseEntity("Character", (r.rows[0].e || r.rows[0]) as Record<string, unknown>);
 
   if (!entity?.metadata.stats) return null;
   return entity.metadata.stats as Record<string, number>;

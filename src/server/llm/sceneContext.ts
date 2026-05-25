@@ -17,22 +17,15 @@
  */
 
 import { describeTime, getCurrentTimePoint } from "@/server/models/time";
-import { getMemoryClient, MemoryClient } from "@/server/memory/client";
-import { RelationshipManager } from "@/server/relationshipManager";
-import { getNodeManager } from "@/server/nodeManager";
-import type { EntityRef } from "@/server/models/entity";
-import { formatEntityCompact } from "@/server/models/entity";
-import type { PlotRef } from "@/server/models/plot";
-import { buildPlotTree } from "@/server/models/plot";
+import { Database } from "@/server/db";
+import { SchemaRegistry } from "@/server/db/schema";
 
-// ── Query result types ──
+// ── Types ──
 
-interface SceneRow {
-  player: Record<string, unknown> | null;
-  loc: Record<string, unknown> | null;
-  inventory: EntityRef[] | null;
-  npcs: EntityRef[] | null;
-  objects: EntityRef[] | null;
+interface EntityRef {
+  name: string;
+  description: string | null;
+  brief: string | null;
 }
 
 interface DispositionRow {
@@ -41,29 +34,14 @@ interface DispositionRow {
   summary: string;
 }
 
-// ── Queries ──
-
-const SCENE_QUERY = `
-MATCH (player:Character {name: "Player"})
-OPTIONAL MATCH (player)-[:LOCATED_AT]->(loc:Location)
-RETURN player, loc,
-  COLLECT { MATCH (player)-[:CARRIES]->(inv:Object)
-            RETURN { name: inv.name, description: inv.description,
-                     brief: inv.brief } } AS inventory,
-  COLLECT { MATCH (npc:Character)-[:LOCATED_AT]->(loc)
-            WHERE npc.name <> "Player"
-            RETURN { name: npc.name, description: npc.description,
-                     brief: npc.brief } } AS npcs,
-  COLLECT { MATCH (obj:Object)-[:LOCATED_AT]->(loc)
-            RETURN { name: obj.name, description: obj.description,
-                     brief: obj.brief } } AS objects
-`;
-
-const DISPOSITIONS_QUERY = `
-MATCH (d:Disposition {target_name: "Player"})
-RETURN d.source_name AS npcName, d.sentiment AS sentiment, d.summary AS summary
-ORDER BY d._updated_at DESC
-`;
+interface PlotNode {
+  name: string;
+  description: string;
+  brief: string | null;
+  status: string;
+  triggerCondition: string | null;
+  children: PlotNode[];
+}
 
 // ── Formatters ──
 
@@ -71,34 +49,52 @@ function formatDisposition(d: DispositionRow): string {
   return `- **${d.npcName}**: ${d.sentiment} — "${d.summary}"`;
 }
 
+function formatEntityCompact(entity: EntityRef): string {
+  const brief = entity.brief || (entity.description || "").slice(0, 120);
+  return `- **${entity.name}**: ${brief}`;
+}
+
+function buildPlotTreeFromNodes(plots: PlotNode[]): string {
+  const childNames = new Set<string>();
+  for (const plot of plots) {
+    for (const child of plot.children) {
+      childNames.add(child.name);
+    }
+  }
+  const roots = plots.filter((p) => !childNames.has(p.name));
+
+  function render(nodes: PlotNode[], indent: number): string {
+    let result = "";
+    for (const node of nodes) {
+      const prefix = "  ".repeat(indent);
+      result += `${prefix}- **${node.name}** [${node.status}]`;
+      if (node.brief) result += ` ${node.brief}`;
+      result += "\n";
+      if (node.triggerCondition) {
+        result += `${prefix}  ▸ ${node.triggerCondition}\n`;
+      }
+      if (node.children.length > 0) {
+        result += render(node.children, indent + 1);
+      }
+    }
+    return result;
+  }
+
+  return render(roots, 0);
+}
+
 // ── SCENE_CONTEXT ──
 
 export async function buildSceneContext(): Promise<string> {
-  const client = getMemoryClient();
+  const db = Database.getExisting();
 
-  const [gameTime, sceneRows, dispositionRows] = await Promise.all([
-    getCurrentTimePoint().catch((err) => {
-      console.error(
-        "[sceneContext] getCurrentTimePoint failed:",
-        err instanceof Error ? err.message : String(err),
-      );
-      return null;
-    }),
-    client.neo4j.executeRead(SCENE_QUERY).catch((err) => {
-      console.error(
-        "[sceneContext] scene query failed:",
-        err instanceof Error ? err.message : String(err),
-      );
-      return [] as SceneRow[];
-    }),
-    client.neo4j.executeRead(DISPOSITIONS_QUERY).catch((err) => {
-      console.error(
-        "[sceneContext] dispositions query failed:",
-        err instanceof Error ? err.message : String(err),
-      );
-      return [] as DispositionRow[];
-    }),
-  ]);
+  const gameTime = await getCurrentTimePoint().catch((err) => {
+    console.error(
+      "[sceneContext] getCurrentTimePoint failed:",
+      err instanceof Error ? err.message : String(err),
+    );
+    return null;
+  });
 
   const parts: string[] = [];
   parts.push("## SCENE CONTEXT (pre-loaded)");
@@ -108,72 +104,122 @@ export async function buildSceneContext(): Promise<string> {
     parts.push(`\n### Time\n${describeTime(gameTime)}`);
   }
 
-  const scene = sceneRows[0] as SceneRow | undefined;
+  try {
+    // Query 1: Player + location
+    const playerResult = await db.graph.query(
+      `MATCH (player:Character {name: "Player"}) OPTIONAL MATCH (player)-[:LOCATED_AT]->(loc:Location) RETURN player, loc`,
+    );
 
-  if (!scene || !scene.player) {
-    parts.push("(No scene data available — player entity not found.)");
-    return parts.join("\n");
-  }
+    const playerRow = playerResult.rows[0];
+    const player = playerRow?.player as Record<string, unknown> | null;
+    const loc = playerRow?.loc as Record<string, unknown> | null;
 
-  const compactLines: string[] = [];
+    if (!player) {
+      parts.push("(No scene data available — player entity not found.)");
+      return parts.join("\n");
+    }
 
-  // Location
-  const loc = scene.loc as Record<string, unknown> | null;
-  if (loc) {
-    const locRef: EntityRef = {
-      name: (loc.name as string) ?? "Unknown",
-      description: (loc.description as string) || null,
-      brief: (loc.brief as string) || null,
-    };
-    compactLines.push(`\n###Location\n${formatEntityCompact(locRef)}`);
-  }
+    const locName = loc?.name as string | undefined;
 
-  // Inventory — names only
-  if (scene.inventory && scene.inventory.length > 0) {
-    compactLines.push(`\n### Carrying\n${scene.inventory.map((i) => i.name).join(", ")}`);
-  }
+    // Query 2: Inventory
+    const invResult = await db.graph.query(
+      `MATCH (player:Character {name: "Player"})-[:CARRIES]->(inv:Object) RETURN inv`,
+    );
+    const inventory = invResult.rows.map((r) => (r.inv || r) as Record<string, unknown>);
 
-  // NPCs
-  if (scene.npcs && scene.npcs.length > 0) {
-    compactLines.push("\n### Nearby NPCs");
-    for (const npc of scene.npcs) {
-      compactLines.push(formatEntityCompact(npc));
+    // Query 3: NPCs at location
+    let npcs: Record<string, unknown>[] = [];
+    if (locName) {
+      const npcResult = await db.graph.query(
+        `MATCH (npc:Character)-[:LOCATED_AT]->(loc:Location {name: $locName}) WHERE npc.name <> "Player" RETURN npc`,
+        { locName },
+      );
+      npcs = npcResult.rows.map((r) => (r.npc || r) as Record<string, unknown>);
+    }
+
+    // Query 4: Objects at location
+    let objects: Record<string, unknown>[] = [];
+    if (locName) {
+      const objResult = await db.graph.query(
+        `MATCH (obj:Object)-[:LOCATED_AT]->(loc:Location {name: $locName}) RETURN obj`,
+        { locName },
+      );
+      objects = objResult.rows.map((r) => (r.obj || r) as Record<string, unknown>);
+    }
+
+    // Query 5: Dispositions
+    const dispResult = await db.graph.query(
+      `MATCH (d:Disposition {target_name: "Player"}) RETURN d.source_name AS npcName, d.sentiment AS sentiment, d.summary AS summary ORDER BY d._updated_at DESC`,
+    );
+    const dispositionRows = dispResult.rows as unknown as DispositionRow[];
+
+    const compactLines: string[] = [];
+
+    // Location
+    if (loc) {
+      const locRef: EntityRef = {
+        name: (loc.name as string) ?? "Unknown",
+        description: (loc.description as string) || null,
+        brief: (loc.brief as string) || null,
+      };
+      compactLines.push(`\n###Location\n${formatEntityCompact(locRef)}`);
+    }
+
+    // Inventory — names only
+    if (inventory.length > 0) {
+      compactLines.push(`\n### Carrying\n${inventory.map((i) => i.name).join(", ")}`);
+    }
+
+    // NPCs
+    if (npcs.length > 0) {
+      compactLines.push("\n### Nearby NPCs");
+      for (const npc of npcs) {
+        const ref: EntityRef = {
+          name: (npc.name as string) ?? "",
+          description: (npc.description as string) || null,
+          brief: (npc.brief as string) || null,
+        };
+        compactLines.push(formatEntityCompact(ref));
+      }
+    }
+
+    // Objects
+    if (objects.length > 0) {
+      compactLines.push("\n### Nearby Objects");
+      for (const obj of objects) {
+        const ref: EntityRef = {
+          name: (obj.name as string) ?? "",
+          description: (obj.description as string) || null,
+          brief: (obj.brief as string) || null,
+        };
+        compactLines.push(formatEntityCompact(ref));
+      }
+    }
+
+    // Dispositions
+    if (dispositionRows.length > 0) {
+      compactLines.push("\n### NPC Dispositions toward Player");
+      for (const d of dispositionRows) {
+        compactLines.push(formatDisposition(d));
+      }
+    }
+
+    parts.push(compactLines.join("\n"));
+    parts.push("");
+  } catch (err) {
+    console.error(
+      "[sceneContext] scene query failed:",
+      err instanceof Error ? err.message : String(err),
+    );
+    if (parts.length <= 2) {
+      parts.push("(No scene data available — scene query failed.)");
     }
   }
-
-  // Objects
-  if (scene.objects && scene.objects.length > 0) {
-    compactLines.push("\n### Nearby Objects");
-    for (const obj of scene.objects) {
-      compactLines.push(formatEntityCompact(obj));
-    }
-  }
-
-  // Dispositions — always compact
-  if (dispositionRows.length > 0) {
-    compactLines.push("\n### NPC Dispositions toward Player");
-    for (const d of dispositionRows) {
-      compactLines.push(formatDisposition(d as DispositionRow));
-    }
-  }
-
-  // Build compact section
-  parts.push(compactLines.join("\n"));
-  parts.push("");
 
   return parts.join("\n");
 }
 
 // ── CHARACTERS_BRIEF ──
-
-const CHARACTERS_QUERY = `
-MATCH (c:Character)
-OPTIONAL MATCH (c)-[:LOCATED_AT]->(loc:Location)
-OPTIONAL MATCH (c)-[:HAS_DISPOSITION]->(d:Disposition {target_name: "Player"})
-RETURN c.name AS name, c.brief AS brief, c.description AS description,
-       loc.name AS location, d.sentiment AS disposition
-ORDER BY name
-`;
 
 interface CharacterRow {
   name: string;
@@ -184,8 +230,16 @@ interface CharacterRow {
 }
 
 export async function buildCharactersBrief(): Promise<string> {
-  const client = getMemoryClient();
-  const rows = (await client.neo4j.executeRead(CHARACTERS_QUERY)) as unknown as CharacterRow[];
+  const db = Database.getExisting();
+  const result = await db.graph.query(
+    `MATCH (c:Character)
+OPTIONAL MATCH (c)-[:LOCATED_AT]->(loc:Location)
+OPTIONAL MATCH (c)-[:HAS_DISPOSITION]->(d:Disposition {target_name: "Player"})
+RETURN c.name AS name, c.brief AS brief, c.description AS description,
+       loc.name AS location, d.sentiment AS disposition
+ORDER BY name`,
+  );
+  const rows = result.rows as unknown as CharacterRow[];
 
   if (rows.length === 0) return "## CHARACTERS\n\n(none)\n";
 
@@ -202,12 +256,6 @@ export async function buildCharactersBrief(): Promise<string> {
 
 // ── LOCATIONS_BRIEF ──
 
-const LOCATIONS_QUERY = `
-MATCH (l:Location)
-RETURN l.name AS name, l.brief AS brief, l.description AS description
-ORDER BY name
-`;
-
 interface LocationRow {
   name: string;
   brief: string | null;
@@ -215,8 +263,11 @@ interface LocationRow {
 }
 
 export async function buildLocationsBrief(): Promise<string> {
-  const client = getMemoryClient();
-  const rows = (await client.neo4j.executeRead(LOCATIONS_QUERY)) as unknown as LocationRow[];
+  const db = Database.getExisting();
+  const result = await db.graph.query(
+    `MATCH (l:Location) RETURN l.name AS name, l.brief AS brief, l.description AS description ORDER BY name`,
+  );
+  const rows = result.rows as unknown as LocationRow[];
 
   if (rows.length === 0) return "## LOCATIONS\n\n(none)\n";
 
@@ -231,16 +282,6 @@ export async function buildLocationsBrief(): Promise<string> {
 
 // ── OBJECTS_BRIEF ──
 
-const OBJECTS_QUERY = `
-MATCH (o:Object)
-OPTIONAL MATCH (carrier:Character)-[:CARRIES]->(o)
-OPTIONAL MATCH (o)-[:LOCATED_AT]->(loc:Location)
-  WHERE carrier IS NULL
-RETURN o.name AS name, o.brief AS brief, o.description AS description,
-       carrier.name AS carrier, loc.name AS location
-ORDER BY name
-`;
-
 interface ObjectRow {
   name: string;
   brief: string | null;
@@ -250,8 +291,17 @@ interface ObjectRow {
 }
 
 export async function buildObjectsBrief(): Promise<string> {
-  const client = getMemoryClient();
-  const rows = (await client.neo4j.executeRead(OBJECTS_QUERY)) as unknown as ObjectRow[];
+  const db = Database.getExisting();
+  const result = await db.graph.query(
+    `MATCH (o:Object)
+OPTIONAL MATCH (carrier:Character)-[:CARRIES]->(o)
+OPTIONAL MATCH (o)-[:LOCATED_AT]->(loc:Location)
+WHERE carrier IS NULL
+RETURN o.name AS name, o.brief AS brief, o.description AS description,
+       carrier.name AS carrier, loc.name AS location
+ORDER BY name`,
+  );
+  const rows = result.rows as unknown as ObjectRow[];
 
   if (rows.length === 0) return "## OBJECTS\n\n(none)\n";
 
@@ -271,86 +321,71 @@ export async function buildObjectsBrief(): Promise<string> {
 // ── PLOTS_BRIEF ──
 
 export async function buildPlotsBrief(): Promise<string> {
-  const client = getMemoryClient();
-  const rows = (await client.neo4j.executeRead(
-    `MATCH (p:Plot)
-     RETURN p.name AS name, p.description AS description, p.brief AS brief,
-            p.status AS status, p.flags AS flags, p.trigger_condition AS triggerCondition,
-            COLLECT { MATCH (p)-[:BRANCHES_TO]->(child:Plot)
-                      RETURN { name: child.name, description: child.description,
-                               brief: child.brief, status: child.status } } AS children
-     ORDER BY name`,
-  )) as Array<{
-    name: string; description: string; brief: string | null;
-    status: string; flags: unknown; triggerCondition: string | null;
-    children: Array<{ name: string; description: string; brief: string | null; status: string }>;
-  }>;
+  const db = Database.getExisting();
 
-  if (rows.length === 0) return "## PLOTS\n\n(none)\n";
+  // Query all plots
+  const plotsResult = await db.graph.query(
+    "MATCH (p:Plot) RETURN p.name AS name, p.description AS description, p.brief AS brief, p.status AS status, p.flags AS flags, p.trigger_condition AS triggerCondition ORDER BY name",
+  );
 
-  const plotRefs: PlotRef[] = rows.map((p) => ({
-    name: p.name,
-    description: p.description ?? "",
-    brief: p.brief || null,
-    status: p.status,
-    triggerCondition: p.triggerCondition,
-    children: (p.children || [])
-      .filter((c) => c && c.name)
-      .map((c) => ({ ...c, children: [] })),
-  }));
+  // Query branches
+  const branchesResult = await db.graph.query(
+    "MATCH (p:Plot)-[:BRANCHES_TO]->(child:Plot) RETURN p.name AS parent, child.name AS child",
+  );
 
-  // Cross-reference: replace shallow child refs (from parent's COLLECT) with
-  // the full PlotRef so that buildPlotTree can recurse into grandchildren.
-  const plotMap = new Map(plotRefs.map((p) => [p.name, p]));
-  for (const plot of plotRefs) {
-    plot.children = plot.children.map((c) => plotMap.get(c.name) || c);
+  if (plotsResult.rows.length === 0) return "## PLOTS\n\n(none)\n";
+
+  // Build plot map
+  const plotMap = new Map<string, PlotNode>();
+  for (const row of plotsResult.rows) {
+    plotMap.set(row.name as string, {
+      name: row.name as string,
+      description: (row.description as string) ?? "",
+      brief: (row.brief as string) || null,
+      status: (row.status as string) ?? "PENDING",
+      triggerCondition: (row.triggerCondition as string) || null,
+      children: [],
+    });
   }
 
-  const { tree } = buildPlotTree(plotRefs);
+  // Wire branches
+  for (const row of branchesResult.rows) {
+    const parent = plotMap.get(row.parent as string);
+    const child = plotMap.get(row.child as string);
+    if (parent && child) {
+      parent.children.push(child);
+    }
+  }
+
+  const tree = buildPlotTreeFromNodes([...plotMap.values()]);
 
   const lines: string[] = [
     "## PLOTS",
     "",
     "Each plot shows its triggerCondition (when present) as a sub-line with '▸', inheriting the same tree indentation",
     "",
-    "\`\`\`",
+    "```",
     tree,
-    "\`\`\`"];
+    "```",
+  ];
   return lines.join("\n");
 }
 
 // ── RELATIONSHIP_DUMP ──
 
+interface RelRow {
+  sourceLabel: string;
+  sourceName: string;
+  type: string;
+  targetLabel: string;
+  targetName: string;
+  props: Record<string, unknown>;
+}
+
 export async function buildRelationshipDump(): Promise<string> {
-  const client = getMemoryClient();
-  const manager = RelationshipManager.getCachedInstance();
-  const nodeManager = getNodeManager();
-
-  const excluded = new Set(nodeManager.getByType("INTERNAL").map((n) => n.name));
-  for (const name of ["Message", "RelationshipType", "NodeType"]) {
-    excluded.add(name);
-  }
-  const aClauses = [...excluded].map((l) => `NOT a:\`${l}\``).join(" AND ");
-  const bClauses = [...excluded].map((l) => `NOT b:\`${l}\``).join(" AND ");
-
-  const relRows = (await client.neo4j.executeRead(
-    `MATCH (a)-[r]->(b)
-     WHERE ${aClauses} AND ${bClauses}
-     RETURN labels(a) AS sourceLabels,
-            COALESCE(a.name, a._id) AS sourceName,
-            type(r) AS type,
-            labels(b) AS targetLabels,
-            COALESCE(b.name, b._id) AS targetName,
-	            properties(r) AS props`,
-  )) as Array<{
-    sourceName: string;
-    type: string;
-    targetName: string;
-    props: Record<string, unknown>;
-  }>;
-
-  // Filter INTERNAL and dedicated-section types
-  const internalTypeNames = new Set(manager.getByType("INTERNAL").map((r) => r.name));
+  const db = Database.getExisting();
+  const schema = SchemaRegistry.getInstance();
+  const internalNames = new Set(schema.getInternalTypeNames());
   for (const name of [
     "HAS_DISPOSITION",
     "CURRENT_TIMEPOINT",
@@ -363,14 +398,34 @@ export async function buildRelationshipDump(): Promise<string> {
     "ABOUT_MESSAGE",
     "ABOUT_PLOT",
   ]) {
-    internalTypeNames.add(name);
+    internalNames.add(name);
   }
-  const visible = relRows.filter((r) => !internalTypeNames.has(r.type));
 
-  if (visible.length === 0) return "## RELATIONSHIPS\n\n(none)\n";
+  const results: RelRow[] = [];
+  for (const relDef of schema.getAllRelTypes()) {
+    if (internalNames.has(relDef.name)) continue;
+    try {
+      const r = await db.graph.query(
+        `MATCH (a)-[r:\`${relDef.name}\`]->(b)
+         RETURN label(a) AS sourceLabel, COALESCE(a.name, a._id) AS sourceName,
+                type(r) AS type, properties(r) AS props,
+                label(b) AS targetLabel, COALESCE(b.name, b._id) AS targetName
+         LIMIT 200`,
+      );
+      for (const row of r.rows) {
+        if (!internalNames.has(row.sourceLabel as string) && !internalNames.has(row.targetLabel as string)) {
+          results.push(row as unknown as RelRow);
+        }
+      }
+    } catch {
+      /* table may not exist yet */
+    }
+  }
 
-  const byType = new Map<string, typeof visible>();
-  for (const r of visible) {
+  if (results.length === 0) return "## RELATIONSHIPS\n\n(none)\n";
+
+  const byType = new Map<string, RelRow[]>();
+  for (const r of results) {
     const group = byType.get(r.type) || [];
     group.push(r);
     if (!byType.has(r.type)) byType.set(r.type, group);
