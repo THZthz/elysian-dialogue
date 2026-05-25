@@ -1,6 +1,6 @@
 /**
- * Chorus — cinematic RPG-style dialogue engine
- * Copyright (C) 2026  Amias
+ * Chorus — cinematic dialogue engine
+ * Copyright (C) 2026 Amias
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
