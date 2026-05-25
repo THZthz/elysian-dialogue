@@ -18,10 +18,25 @@
 
 import { tool } from "ai";
 import { z } from "zod";
-import { advanceGameTime, describeTime } from "@/server/models/time";
+import { Database } from "@/server/db";
 import type { EventEmitter } from "@/server/llm/events";
 import { wrapSafe } from "@/server/llm/tools/shared";
 import { TOOL_NAMES } from "@/shared/constants";
+
+// ── Time formatting helpers ──
+
+function formatHour(hour: number): string {
+  const h = Math.floor(hour);
+  const m = hour % 1 === 0.5 ? 30 : 0;
+  const period = h < 12 ? "AM" : "PM";
+  const displayH = h === 0 ? 12 : h > 12 ? h - 12 : h;
+  const mm = m === 0 ? "00" : "30";
+  return `${displayH}:${mm} ${period}`;
+}
+
+function describeTime(time: { day: number; hour: number }): string {
+  return `Day ${time.day}, ${formatHour(time.hour)}`;
+}
 
 // NB: .nullable() on optional fields prevents Zod rejection when the LLM
 // outputs "field": null for fields it intends to omit.
@@ -61,14 +76,22 @@ TimePoint will link to the old via NEXT_TIMEPOINT with the \`reason\` stored on 
 `.trim(),
     inputSchema,
     execute: wrapSafe(async (args: z.infer<typeof inputSchema>) => {
+      const db = Database.getExisting();
       const totalHalfHours = (args.days ?? 0) * 48 + (args.hours ?? 0) * 2;
-      const { oldTime, newTime } = await advanceGameTime(totalHalfHours, args.reason);
+
+      const current = await db.time.getCurrentTimePoint();
+      if (!current) return "ERROR: TimePoint not initialized. The world has not been seeded yet.";
+
+      const oldTime = { day: current.day, hour: current.hour };
+      if (totalHalfHours === 0) {
+        return `Time unchanged. It is still ${describeTime(current)}.`;
+      }
+
+      const newTime = await db.time.advanceGameTime(totalHalfHours, args.reason ?? undefined);
       const totalHours = totalHalfHours / 2;
       // TODO: We may need to display time changes in console client.
       events.emitTimeUpdate(newTime.day, newTime.hour, totalHours);
-      if (totalHalfHours === 0) {
-        return `Time unchanged. It is still ${describeTime(newTime)}.`;
-      }
+
       const parts: string[] = [];
       if (args.days && args.days > 0) parts.push(`${args.days} day(s)`);
       if (args.hours && args.hours > 0) {

@@ -18,7 +18,7 @@
 
 import { tool } from "ai";
 import { z } from "zod";
-import { getMemoryClient, MemoryClient } from "@/server/memory/client";
+import { Database } from "@/server/db";
 import { wrapSafe } from "@/server/llm/tools/shared";
 import { TOOL_NAMES } from "@/shared/constants";
 
@@ -75,53 +75,54 @@ or ABOUT_MESSAGE first if you have a clear target.
 `.trim(),
   inputSchema,
   execute: wrapSafe(async (args: z.infer<typeof inputSchema>) => {
-    const client = getMemoryClient();
+    const db = Database.getExisting();
 
     if (args.action == "DELETE") {
-      const deleted = await client.notes.deleteNote(args.noteName);
-      return deleted
-        ? `Note "${args.noteName}" is successfully deleted`
-        : `ERROR: Note "${args.noteName}" is not found.`;
+      const existing = await db.notes.getByName(args.noteName);
+      if (!existing) return `ERROR: Note "${args.noteName}" is not found.`;
+      await db.notes.delete(args.noteName);
+      return `Note "${args.noteName}" is successfully deleted`;
     }
 
     if (args.action == "CREATE") {
       if (!args.content) return `ERROR: Parameter "content" is required for CREATE.`;
-      const note = await client.notes.createNote(args.noteName, args.content);
+      await db.notes.create(args.noteName, args.content);
       if (args.aboutEntities) {
-        for (const name of args.aboutEntities) await client.notes.linkToEntity(note.name, name);
+        for (const name of args.aboutEntities) await db.notes.linkToEntity(args.noteName, name);
       }
       if (args.aboutMessages) {
-        for (const id of args.aboutMessages) await client.notes.linkToMessage(note.name, id);
+        for (const id of args.aboutMessages) await db.notes.linkToMessage(args.noteName, id);
       }
       if (args.aboutPlots) {
-        for (const name of args.aboutPlots) await client.notes.linkToPlot(note.name, name);
+        for (const name of args.aboutPlots) await db.notes.linkToPlot(args.noteName, name);
       }
-      return `Note "${note.name}" is successfully created (${note.content.length} chars, ${args.aboutEntities?.length ?? 0} entities linked, ${args.aboutMessages?.length ?? 0} messages linked, ${args.aboutPlots?.length ?? 0} plots linked).`;
+      return `Note "${args.noteName}" is successfully created (${args.content.length} chars, ${args.aboutEntities?.length ?? 0} entities linked, ${args.aboutMessages?.length ?? 0} messages linked, ${args.aboutPlots?.length ?? 0} plots linked).`;
     }
 
-    const existing = await client.notes.getNote(args.noteName);
+    const existing = await db.notes.getByName(args.noteName);
     if (!existing) return `ERROR: Note "${args.noteName}" not found.`;
 
     let flags = 0x0;
     // != null catches both null and undefined (LLM may output null for omitted fields).
     if (args.content != null) {
       flags |= 0x1;
-      await client.notes.updateNote(args.noteName, { content: args.content });
+      await db.notes.update(args.noteName, args.content);
     }
-    if (args.aboutEntities != null) {
-      flags |= 0x2;
-      await client.notes.clearLinks(args.noteName, "ENTITY");
-      for (const name of args.aboutEntities) await client.notes.linkToEntity(args.noteName, name);
-    }
-    if (args.aboutMessages != null) {
-      flags |= 0x4;
-      await client.notes.clearLinks(args.noteName, "MESSAGE");
-      for (const id of args.aboutMessages) await client.notes.linkToMessage(args.noteName, id);
-    }
-    if (args.aboutPlots != null) {
-      flags |= 0x8;
-      await client.notes.clearLinks(args.noteName, "PLOT");
-      for (const name of args.aboutPlots) await client.notes.linkToPlot(args.noteName, name);
+
+    // Handle link changes: clearLinks removes all link types, so batch together.
+    const anyLinksChanged = args.aboutEntities != null || args.aboutMessages != null || args.aboutPlots != null;
+    if (anyLinksChanged) {
+      await db.notes.clearLinks(args.noteName);
+      // Rebuild from provided arrays, preserving existing links for arrays not provided.
+      const entities = args.aboutEntities ?? existing.linkedEntities;
+      const messages = args.aboutMessages ?? existing.linkedMessages;
+      const plots = args.aboutPlots ?? existing.linkedPlots;
+      if (args.aboutEntities != null) flags |= 0x2;
+      if (args.aboutMessages != null) flags |= 0x4;
+      if (args.aboutPlots != null) flags |= 0x8;
+      for (const name of entities) await db.notes.linkToEntity(args.noteName, name);
+      for (const id of messages) await db.notes.linkToMessage(args.noteName, id);
+      for (const name of plots) await db.notes.linkToPlot(args.noteName, name);
     }
 
     const updatedFields = [];

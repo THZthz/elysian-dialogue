@@ -241,7 +241,7 @@ All defined in `src/server/llm/tools/`. Registered in `generateTurn()`.
 
 | Tool          | Purpose                                                                                                                                                                                   |
 |---------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `getContext`  | Fetch scene context, character/location/object briefs, plot tree, schema dump, relationship dump. Schema dump now served from in-memory NodeManager/RelationshipManager (no Neo4j query). |
+| `getContext`  | Fetch scene context, character/location/object briefs, plot tree, schema dump, relationship dump. Schema dump served from in-memory SchemaRegistry (per-table counts, no UNWIND). |
 | `searchWorld` | Dynamic vector search across any node type or relationship type with `_embedding`. Pass `domains` (labels/types) and optional `target` (`"node"`/`"relationship"`); omit to search all.   |
 | `queryWorld`  | Cypher READ/WRITE validated via CypherValidator. READ auto-limited to 50 rows. WRITE with MERGE/SET/DELETE.                                                                               |
 
@@ -251,7 +251,7 @@ All defined in `src/server/llm/tools/`. Registered in `generateTurn()`.
 |--------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `editNode`         | CREATE/UPDATE/DELETE any node. Validates properties against NodeManager schema. Auto-generates embeddings. Use for Entity and Disposition; not for Note or Plot.            |
 | `editRelationship` | CREATE/UPDATE/DELETE relationships. LOCATED_AT, CARRIES, LOCATED_IN have `brief` (string, embedded) property for narrative context. Character attitudes use Disposition nodes instead. |
-| `manageSchema`     | Register/unregister node types and relationship types. Must be called before creating instances of new types.                                                               |
+| `manageSchema`     | Register/unregister node types and relationship types via SchemaRegistry. Uses DDL (`createNodeTable`/`createRelTable`) and `persistNodeType`/`persistRelType` for metadata rows. |
 | `advanceTime`      | Advance in-game clock by hours/days. Always include reason. Stored on NEXT_TIMEPOINT.reason.                                                                                |
 
 ### GM tools — TRACK (memory & plans)
@@ -269,33 +269,35 @@ All defined in `src/server/llm/tools/`. Registered in `generateTurn()`.
 
 ---
 
-## 4. Relationship Type Registry
+## 4. Schema Registry
 
-`relationshipManager.ts` — singleton registry. Keyed by composite `(name, sourceLabel, targetLabel)`. Same name with different endpoint labels creates separate entries.
+`src/server/db/schema.ts` — singleton `SchemaRegistry` managing both node types and relationship types.
 
-- **Categories**: `INTERNAL` (system, write-blocked), `PREDEFINED` (world-modeling, write-allowed), `GM_DEFINED` (user-declared).
-- **Key methods**: `register(name, desc, type, sourceLabel, targetLabel, props)`, `get(name, sourceLabel, targetLabel)`, `getByName(name)`, `isAllowedForWrite(name, sourceLabel, targetLabel)`, `updateDefinition(...)`, `unregister(...)`, `getEmbeddingText(name, props)`.
-- **Wildcard sentinel**: empty string `""` means unconstrained endpoint — used by `validation.ts` for auto-registered types.
-- **Neo4j sync**: stored as `:RelationshipType` nodes with `source_label`/`target_label` (singular scalars). Also creates property indexes, composite indexes, and vector indexes for relationship types that have `_embedding`.
-- **Property tags**: `string`, `number`, `number[]`, `json`, `embedded`, `index`, `composite_index_1`, `composite_index_2`, `composite_index_3`. (`unique` is excluded — Neo4j does not support uniqueness constraints on relationship properties.)
+- **Categories**: `PREDEFINED` (built-in world-modeling types) and `GM_DEFINED` (user-declared).
+- **Node types**: `registerNode(def)`, `getNodeType(name)`, `getAllNodeTypes()`, `generateNodeDDL(name)` → LadybugDB DDL.
+- **Relationship types**: `registerRel(def)`, `getRelType(name, source, target)`, `getAllRelTypes()`, `generateRelDDL(name, source, target)` → LadybugDB DDL.
+- **Persistence**: `persistNodeType(client, name)` and `persistRelType(client, name, source, target)` store metadata as `:NodeType`/`:RelationshipType` graph nodes.
+- **Embedding text**: `getEmbeddingNameText(label, props)` and `getEmbeddingContentText(label, props)` read `embedded_name`/`embedded_content`-tagged properties.
+- **Internal types**: `getInternalTypeNames()` returns `["Conversation", "GMTurnMessage", "IdCounter", "NodeType", "RelationshipType", "TimeAnchor"]` — hidden from schema dump.
+- **Property tags**: `string`, `number`, `number[]`, `json`, `embedded_name`, `embedded_content`, `unique` (nodes only), `index`, `composite_unique_1/2/3` (nodes only), `composite_index_1/2/3`.
 
-## 5. Node Type Registry
+### Tag to LadybugDB type mapping
 
-`nodeManager.ts` — singleton registry mirroring RelationshipManager for node labels.
+| Tag         | LadybugDB column type |
+|-------------|----------------------|
+| `number[]`  | `DOUBLE[]`           |
+| `number`    | `DOUBLE`             |
+| all others  | `STRING`             |
 
-- **Categories**: `INTERNAL` (Conversation, GMTurnMessage, IdCounter — hidden), `PREDEFINED` (Entity, Message, Note, Plot, Disposition, etc.), `GM_DEFINED`.
-- **Properties**: `NodePropertyDef` with `name`, `description`, `tags` (array of tags: `string`, `number`, `number[]`, `json`, `embedded`, `unique`, `index`, `composite_unique_1/2/3`, `composite_index_1/2/3`).
-- **`getEmbeddingText(label, props)`**: builds embedding text by concatenating all `"embedded"`-tagged property values. Used by `addEntity`, `addMessage`, `createNote`, `createPlot`, `editNode`, and the reranker.
-- **Vector indexes**: created dynamically in `syncToNeo4j` for any type with `_embedding` property.
-- **Embedded properties** (tag `"embedded"`): Entity.{name,description,brief}, Plot.{name,description,brief}, Note.{content}, Message.{content}.
+`unique`, `composite_unique_1/2/3` map to `PRIMARY KEY` columns.
 
 ## 6. Dynamic Vector Search
 
-`searchWorld` discovers searchable node types and relationship types at runtime via `NodeManager` and `RelationshipManager`. Types with `_embedding` property are searchable. Subtype labels (Character, Location, Object, etc.) are mapped to their canonical parent label (Entity) since they share the same Qdrant `node_type`.
+`searchWorld` discovers searchable node types and relationship types at runtime via `SchemaRegistry`. Types with `_embedding` property are searchable. Subtype labels (Character, Location, Object, etc.) are mapped to their canonical parent label (Entity) since they share the same vector store `node_type`.
 
 **Parameters**: `target` (array of `"node"`/`"relationship"`, defaults to both), `domains` (optional list of node labels or relationship types to search), `query`, `limit`.
 
-`MemorySearch.searchByLabel(label, query)` and `MemorySearch.searchByRelationshipType(type, query)` perform 3-way hybrid search across Qdrant named vectors (`name_vec` dense, `content_vec` dense, `sparse_vec` sparse). Results are fused with Reciprocal Rank Fusion (RRF, k=60), then top candidates are passed through the optional cross-encoder reranker when `LLAMA_RERANK_URL` is configured.
+`HybridSearcher.searchByLabel(label, query)` and `HybridSearcher.searchByRelationshipType(type, query)` perform 3-way hybrid search across SQLite vectors (`name_vec` dense, `content_vec` dense, `sparse_vec` sparse). Results are fused with Reciprocal Rank Fusion (RRF, k=60), then top candidates are passed through the optional cross-encoder reranker when `LLAMA_RERANK_URL` is configured.
 
 ---
 

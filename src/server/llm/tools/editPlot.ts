@@ -18,7 +18,8 @@
 
 import { tool } from "ai";
 import { z } from "zod";
-import { getMemoryClient, MemoryClient, PLOT_STATUSES } from "@/server/memory/client";
+import { Database } from "@/server/db";
+import { PLOT_STATUSES } from "@/server/db/models/plots";
 import { wrapSafe } from "@/server/llm/tools/shared";
 import { TOOL_NAMES } from "@/shared/constants";
 
@@ -83,7 +84,7 @@ of action or allegiance, not a single line of dialogue.
 `.trim(),
   inputSchema,
   execute: wrapSafe(async (args: z.infer<typeof inputSchema>) => {
-    const client = getMemoryClient();
+    const db = Database.getExisting();
 
     if (!args.plotName) {
       return `ERROR: Parameter \`plotName\` should be included.`;
@@ -91,23 +92,24 @@ of action or allegiance, not a single line of dialogue.
 
     if (args.action == "CREATE") {
       if (!args.description) return `ERROR: Parameter \`description\` is required for action CREATE.`;
-      const plot = await client.plots.createPlot(args.plotName, {
-        description: args.description,
-        brief: args.brief ?? undefined,
-        status: args.status ?? "PENDING",
-        triggerCondition: args.triggerCondition ?? undefined,
-      });
-      return `Plot "${plot.name}" (status: ${plot.status}) is successfully created.`;
+      await db.plots.create(
+        args.plotName,
+        args.description,
+        args.brief ?? "",
+        args.status ?? "PENDING",
+        args.triggerCondition ?? undefined,
+      );
+      return `Plot "${args.plotName}" (status: ${args.status ?? "PENDING"}) is successfully created.`;
     }
 
     if (args.action == "DELETE") {
-      const deleted = await client.plots.deletePlot(args.plotName);
-      return deleted
-        ? `Plot "${args.plotName}" is successfully deleted.`
-        : `ERROR: Plot "${args.plotName}" is not found.`;
+      const existing = await db.plots.getByName(args.plotName);
+      if (!existing) return `ERROR: Plot "${args.plotName}" is not found.`;
+      await db.plots.delete(args.plotName);
+      return `Plot "${args.plotName}" is successfully deleted.`;
     }
 
-    const existing = await client.plots.getPlot(args.plotName);
+    const existing = await db.plots.getByName(args.plotName);
     if (!existing) return `ERROR: Plot "${args.plotName}" is not found.`;
 
     const oldStatus = existing.status;
@@ -126,36 +128,47 @@ of action or allegiance, not a single line of dialogue.
     if (args.triggerCondition != null) updates.triggerCondition = args.triggerCondition;
 
     if (Object.keys(updates).length > 0) {
-      await client.plots.updatePlot(args.plotName, updates as any);
+      await db.plots.update(args.plotName, updates as any);
     }
 
     // Auto-wire time relationships on status transition
     if (newStatus !== oldStatus) {
       if (oldStatus === "PENDING" && newStatus === "ACTIVE") {
-        await client.plots.markPlotStarted(args.plotName);
-        await client.plots.markPlotActive(args.plotName);
+        await db.plots.markPlotTimeRel(args.plotName, "STARTED_AT");
+        await db.plots.markPlotTimeRel(args.plotName, "ACTIVE_AT");
       } else if (newStatus === "ACTIVE" && oldStatus !== "ACTIVE") {
-        await client.plots.markPlotActive(args.plotName);
+        await db.plots.markPlotTimeRel(args.plotName, "ACTIVE_AT");
       } else if (newStatus === "COMPLETED") {
-        await client.plots.markPlotCompleted(args.plotName);
+        await db.plots.markPlotTimeRel(args.plotName, "COMPLETED_AT");
       }
     }
 
-    if (args.setFlag) {
-      changes.push(`flag "${args.setFlag.flagId}"`);
-      await client.plots.setFlag(args.plotName, args.setFlag.flagId, args.setFlag.description);
+    // Flag operations: setFlags replaces all flags, so batch changes.
+    if (args.setFlag || (args.removeFlags && args.removeFlags.length > 0)) {
+      let newFlags = [...existing.flags];
+      if (args.setFlag) {
+        const idx = newFlags.findIndex(f => f.flagId === args.setFlag!.flagId);
+        if (idx >= 0) {
+          newFlags[idx] = { flagId: args.setFlag!.flagId, description: args.setFlag!.description };
+        } else {
+          newFlags.push({ flagId: args.setFlag!.flagId, description: args.setFlag!.description });
+        }
+        changes.push(`flag "${args.setFlag.flagId}"`);
+      }
+      if (args.removeFlags && args.removeFlags.length > 0) {
+        newFlags = newFlags.filter(f => !args.removeFlags!.includes(f.flagId));
+        changes.push(`flags "${args.removeFlags.join(", ")}" removed`);
+      }
+      await db.plots.setFlags(args.plotName, newFlags.map(f => f.flagId));
     }
-    if (args.removeFlags && args.removeFlags.length > 0) {
-      changes.push(`flag "${args.removeFlags.join(", ")}" removed`);
-      await client.plots.removeFlags(args.plotName, args.removeFlags);
-    }
+
     if (args.branchTo) {
       changes.push(`branched to "${args.branchTo}"`);
-      await client.plots.branchTo(args.plotName, args.branchTo);
+      await db.plots.branch(args.plotName, args.branchTo);
     }
     if (args.unbranch) {
       changes.push(`unbranched "${args.unbranch}"`);
-      await client.plots.unbranch(args.plotName, args.unbranch);
+      await db.plots.unbranch(args.plotName, args.unbranch);
     }
 
     const summary = changes.length > 0 ? ` (${changes.join(", ")})` : "";

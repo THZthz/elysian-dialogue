@@ -18,12 +18,24 @@
 
 import { tool } from "ai";
 import { z } from "zod";
-import { getMemoryClient, MemoryClient } from "@/server/memory/client";
-import { RelationshipManager, RELATIONSHIP_PROPERTY_TAGS } from "@/server/relationshipManager";
-import type { RelationshipPropertyDef } from "@/server/relationshipManager";
-import { getNodeManager, NODE_PROPERTY_TAGS, NodeManager } from "@/server/nodeManager";
+import { Database } from "@/server/db";
 import { wrapSafe } from "@/server/llm/tools/shared";
 import { TOOL_NAMES } from "@/shared/constants";
+
+const NODE_PROPERTY_TAGS = [
+  "string", "number", "number[]", "json",
+  "embedded_name", "embedded_content",
+  "unique", "index",
+  "composite_unique_1", "composite_unique_2", "composite_unique_3",
+  "composite_index_1", "composite_index_2", "composite_index_3",
+] as const;
+
+const RELATIONSHIP_PROPERTY_TAGS = [
+  "string", "number", "number[]", "json",
+  "embedded_name", "embedded_content",
+  "index",
+  "composite_index_1", "composite_index_2", "composite_index_3",
+] as const;
 
 export const manageSchema = tool({
   title: TOOL_NAMES.MANAGE_SCHEMA,
@@ -109,35 +121,29 @@ Only GM_DEFINED types can be unregistered. PREDEFINED and INTERNAL types are per
       ),
   }),
   execute: wrapSafe(async (args) => {
+    const db = Database.getExisting();
+
     if (args.action === "REGISTER") {
       if (args.target === "NODE") {
-        const nodeManager = getNodeManager();
-        const existing = nodeManager.get(args.name);
-        if (existing && existing.type !== "GM_DEFINED") {
-          return `ERROR: Cannot register "${args.name}": it is a ${existing.type} type and cannot be modified.`;
+        const existing = db.schema.getNodeType(args.name);
+        if (existing && existing.category !== "GM_DEFINED") {
+          return `ERROR: Cannot register "${args.name}": it is a ${existing.category} type and cannot be modified.`;
         }
 
-        const props = (args.properties ?? []).filter((p) => !!p?.name);
+        const inputProps = (args.properties ?? []).filter((p) => !!p?.name);
+        // Preserve existing properties if none provided on update
+        const props = (existing && inputProps.length === 0) ? existing.properties : inputProps;
 
-        if (existing) {
-          // Update existing GM_DEFINED type
-          const updated = nodeManager.updateDefinition(args.name, {
-            description: args.description ?? undefined,
-            properties: props.length > 0 ? props : undefined,
-          });
-          if (!updated) return `ERROR: Failed to update "${args.name}".`;
-        } else {
-          nodeManager.register(
-            args.name,
-            args.description ?? "No description provided.",
-            props,
-            "GM_DEFINED",
-          );
-        }
+        db.schema.registerNode({
+          name: args.name,
+          category: "GM_DEFINED",
+          description: args.description ?? existing?.description ?? "No description provided.",
+          properties: props,
+        });
 
-        const client = getMemoryClient();
-        // TODO: This function will sync everything by default, incremental in future?
-        await nodeManager.syncToNeo4j(client.neo4j);
+        const ddl = db.schema.generateNodeDDL(args.name);
+        if (ddl) await db.graph.query(ddl);
+        await db.schema.persistNodeType(db.graph, args.name);
 
         const propSummary =
           props.length > 0
@@ -147,47 +153,41 @@ Only GM_DEFINED types can be unregistered. PREDEFINED and INTERNAL types are per
       }
 
       if (args.target === "RELATIONSHIP") {
-        const manager = RelationshipManager.getCachedInstance();
         const srcLabel = args.sourceLabel;
         const tgtLabel = args.targetLabel;
         if (!srcLabel || !tgtLabel) {
           return `ERROR: sourceLabel and targetLabel are required for relationship registration.`;
         }
 
-        const existing = manager.get(args.name, srcLabel, tgtLabel);
-        if (existing && existing.type !== "GM_DEFINED") {
-          return `Cannot register "${args.name}" (${srcLabel}→${tgtLabel}): it is a ${existing.type} type and cannot be modified.`;
+        const existing = db.schema.getRelType(args.name, srcLabel, tgtLabel);
+        if (existing && existing.category !== "GM_DEFINED") {
+          return `Cannot register "${args.name}" (${srcLabel}→${tgtLabel}): it is a ${existing.category} type and cannot be modified.`;
         }
 
-        const relProps: RelationshipPropertyDef[] = (args.properties ?? [])
+        const inputProps = (args.properties ?? [])
           .filter((p) => !!p?.name)
           .map((p) => ({
             name: p.name,
             description: p.description,
             tags: p.tags.filter((t) =>
               (RELATIONSHIP_PROPERTY_TAGS as readonly string[]).includes(t),
-            ) as RelationshipPropertyDef["tags"],
+            ),
           }));
+        // Preserve existing properties if none provided on update
+        const relProps = (existing && inputProps.length === 0) ? existing.properties : inputProps;
 
-        if (existing) {
-          const updated = manager.updateDefinition(args.name, srcLabel, tgtLabel, {
-            description: args.description ?? undefined,
-            properties: relProps.length > 0 ? relProps : undefined,
-          });
-          if (!updated) return `Failed to update "${args.name}".`;
-        } else {
-          manager.register(
-            args.name,
-            args.description ?? "No description provided.",
-            "GM_DEFINED",
-            srcLabel,
-            tgtLabel,
-            relProps,
-          );
-        }
+        db.schema.registerRel({
+          name: args.name,
+          sourceLabel: srcLabel,
+          targetLabel: tgtLabel,
+          category: "GM_DEFINED",
+          description: args.description ?? existing?.description ?? "No description provided.",
+          properties: relProps,
+        });
 
-        const client = getMemoryClient();
-        await manager.syncToNeo4j(client.neo4j);
+        const relDDL = db.schema.generateRelDDL(args.name, srcLabel, tgtLabel);
+        if (relDDL) await db.graph.query(relDDL);
+        await db.schema.persistRelType(db.graph, args.name, srcLabel, tgtLabel);
 
         const endpoints = `(${srcLabel})→(${tgtLabel})`;
         const propSummary =
@@ -200,35 +200,29 @@ Only GM_DEFINED types can be unregistered. PREDEFINED and INTERNAL types are per
 
     if (args.action === "UNREGISTER") {
       if (args.target === "NODE") {
-        const nodeManager = getNodeManager();
-        const removed = nodeManager.unregister(args.name);
-        if (!removed) {
+        const existing = db.schema.getNodeType(args.name);
+        if (!existing || existing.category !== "GM_DEFINED") {
           return `Cannot unregister "${args.name}": it is not a GM_DEFINED type.`;
         }
-        const client = getMemoryClient();
-        // Remove the corresponding :NodeType node from Neo4j
-        await client.neo4j.executeWrite(`MATCH (nt:NodeType {name: $name}) DETACH DELETE nt`, {
+        await db.graph.query("MATCH (nt:NodeType {name: $name}) DETACH DELETE nt", {
           name: args.name,
         });
         return `Unregistered node type "${args.name}".`;
       }
 
       if (args.target === "RELATIONSHIP") {
-        const manager = RelationshipManager.getCachedInstance();
         const srcLabel = args.sourceLabel;
         const tgtLabel = args.targetLabel;
         if (!srcLabel || !tgtLabel) {
           return `ERROR: sourceLabel and targetLabel are required for relationship unregistration.`;
         }
-        const removed = manager.unregister(args.name, srcLabel, tgtLabel);
-        if (!removed) {
+        const existing = db.schema.getRelType(args.name, srcLabel, tgtLabel);
+        if (!existing || existing.category !== "GM_DEFINED") {
           return `Cannot unregister "${args.name}" (${srcLabel}→${tgtLabel}): it is not a GM_DEFINED type.`;
         }
-        const client = getMemoryClient();
-        // Remove the corresponding :RelationshipType node from Neo4j
-        await client.neo4j.executeWrite(
-          `MATCH (rt:RelationshipType {name: $name, source_label: $srcLabel, target_label: $tgtLabel}) DETACH DELETE rt`,
-          { name: args.name, srcLabel, tgtLabel },
+        await db.graph.query(
+          "MATCH (rt:RelationshipType {name: $name, source_label: $src, target_label: $tgt}) DETACH DELETE rt",
+          { name: args.name, src: srcLabel, tgt: tgtLabel },
         );
         return `Unregistered relationship type "${args.name}" (${srcLabel}→${tgtLabel}).`;
       }
