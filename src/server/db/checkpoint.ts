@@ -20,7 +20,7 @@ export class CheckpointManager {
     this.dir = checkpointDir;
   }
 
-  async save(turnNumber: number): Promise<void> {
+  async save(turnNumber: number, closeCallback: () => Promise<void>, reopenCallback: () => Promise<void>): Promise<void> {
     if (!fs.existsSync(this.dir)) fs.mkdirSync(this.dir, { recursive: true });
 
     const turnDir = path.join(this.dir, `turn_${String(turnNumber).padStart(4, "0")}`);
@@ -29,13 +29,26 @@ export class CheckpointManager {
     const graphDest = path.join(turnDir, "graph.lbug");
     const vectorDest = path.join(turnDir, "vectors.db");
 
-    // Copy .lbug + .lbug.wal together for a consistent WAL-based snapshot
-    const walPath = this.graphPath + ".wal";
-    fs.copyFileSync(this.graphPath, graphDest);
-    if (fs.existsSync(walPath)) {
-      fs.copyFileSync(walPath, graphDest + ".wal");
+    await closeCallback();
+    try {
+      // Retry with backoff — LadybugDB may not release file lock instantly
+      for (let attempt = 0; attempt < 20; attempt++) {
+        try {
+          fs.copyFileSync(this.graphPath, graphDest);
+          break;
+        } catch (err) {
+          if (attempt === 19) throw err;
+          await new Promise((r) => setTimeout(r, 150));
+        }
+      }
+      const walPath = this.graphPath + ".wal";
+      if (fs.existsSync(walPath)) {
+        fs.copyFileSync(walPath, graphDest + ".wal");
+      }
+      fs.copyFileSync(this.vectorPath, vectorDest);
+    } finally {
+      await reopenCallback();
     }
-    fs.copyFileSync(this.vectorPath, vectorDest);
 
     const index = this.loadIndex();
     index.push({ turn: turnNumber, graphFile: graphDest, vectorFile: vectorDest, createdAt: new Date().toISOString() });
@@ -71,7 +84,7 @@ export class CheckpointManager {
     // Validate restored file before removing sentinel
     try {
       const lbug = await import("@ladybugdb/core");
-      const testDb = new lbug.Database(this.graphPath, true); // read_only
+      const testDb = new lbug.Database(this.graphPath);
       const testConn = new lbug.Connection(testDb);
       try {
         await testConn.query("MATCH (n) RETURN count(n) AS cnt LIMIT 1");

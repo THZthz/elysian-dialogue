@@ -555,7 +555,10 @@ export async function generateTurn(
 
     // Save checkpoint at end of successful turn (blocking so next turn doesn't start mid-save)
     try {
-      await db.checkpoint.save(turnNumber);
+      await db.checkpoint.save(turnNumber,
+        async () => { await Database.closeInstance(); },
+        async () => { await Database.getInstance(); }
+      );
     } catch (err) {
       console.error("[generateTurn] failed to save checkpoint:", err);
     }

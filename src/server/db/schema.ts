@@ -56,7 +56,7 @@ function generateNodeDDL(def: NodeTypeDef): string {
 }
 
 function generateRelDDL(def: RelTypeDef): string {
-  const cols = def.properties.map(buildColumnDef);
+  const cols = def.properties.map((p) => buildColumnDef(p, false));
   return `CREATE REL TABLE \`${def.name}\` (FROM \`${def.sourceLabel}\` TO \`${def.targetLabel}\`${cols.length > 0 ? ", " + cols.join(", ") : ""});`;
 }
 
