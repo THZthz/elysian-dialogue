@@ -18,16 +18,19 @@
 
 import { tool } from "ai";
 import { z } from "zod";
-import { v4 as uuidv4 } from "uuid";
-import { getMemoryClient } from "@/server/memory/client";
-import { getNodeManager } from "@/server/nodeManager";
+import { Database } from "@/server/db";
+import { getNodeManager } from "@/server/db/schema";
 import { extractInternalAndUnknownKeys, wrapSafe } from "@/server/llm/tools/shared";
-import { getEmbedder } from "@/server/memory/embedder";
-import { getQdrantClient } from "@/server/memory/qdrant";
-import { encodeSparse } from "@/server/memory/sparseEncoder";
 import { TOOL_NAMES } from "@/shared/constants";
 
 const NODE_ACTIONS = ["CREATE", "UPDATE", "DELETE"] as const;
+const ENTITY_LABELS = ["Character", "Object", "Location"] as const;
+type EntityLabel = typeof ENTITY_LABELS[number];
+const INTERNAL_LABELS = new Set(["Conversation", "GMTurnMessage", "IdCounter", "NodeType", "RelationshipType", "TimeAnchor"]);
+
+function isEntityLabel(label: string): label is EntityLabel {
+  return (ENTITY_LABELS as readonly string[]).includes(label);
+}
 
 function visibleProps(node: Record<string, unknown> | undefined): Record<string, unknown> {
   const out: Record<string, unknown> = {};
@@ -77,7 +80,7 @@ export const editNode = tool({
   title: TOOL_NAMES.EDIT_NODE,
   description: `
 ## Brief
-CREATE, UPDATE, or DELETE a single node in the Neo4j database using an node type already registered
+CREATE, UPDATE, or DELETE a single node in the database using an node type already registered
 by \`${TOOL_NAMES.MANAGE_SCHEMA}\`. Can be used for Character, Object, Location, and
 Disposition nodes. It is not recommended to use this tool to directly edit Note or Plot.
 
@@ -118,33 +121,30 @@ Since \`metadata\` is tagged as "json" of node Character in SCHEMA_DUMP, you can
 `.trim(),
   inputSchema,
   execute: wrapSafe(async (args: z.infer<typeof inputSchema>) => {
-    const client = getMemoryClient();
+    const db = Database.getExisting();
     const nodeManager = getNodeManager();
 
     // Validate node label ever registered
-    const nodeDef = nodeManager.get(args.nodeLabel);
+    const nodeDef = nodeManager.getNodeType(args.nodeLabel);
     if (!nodeDef) {
       const available = nodeManager
-        .getAll()
-        .filter((n) => n.type !== "INTERNAL")
+        .getAllNodeTypes()
+        .filter((n) => !INTERNAL_LABELS.has(n.name))
         .map((n) => n.name)
         .join(", ");
       return `ERROR: Node label "${args.nodeLabel}" is not registered. Available labels: ${available}.`;
     }
-    if (!nodeManager.isAllowedForWrite(args.nodeLabel)) {
-      // TODO: GM may try to use queryWorld, that should also block unauthorized writes.
-      return `ERROR: Node label "${args.nodeLabel}" is ${nodeDef.type} and cannot be written to.`;
+    if (INTERNAL_LABELS.has(args.nodeLabel)) {
+      return `ERROR: Node label "${args.nodeLabel}" is internal and cannot be written to.`;
     }
 
     // Build allowed property names from the schema.
-    // PREDEFINED and INTERNAL types accept any non-_-prefixed property.
+    // PREDEFINED types accept any non-_-prefixed property.
     // GM_DEFINED types have explicit schemas and must be validated strictly.
     const schemaProps = new Set(
       nodeDef.properties.map((p) => p.name).filter((name) => !name.startsWith("_")),
     );
-    const hasSchema = nodeDef.type === "GM_DEFINED";
-
-    // Functions are defined inline to use cached variables.
+    const hasSchema = nodeDef.category === "GM_DEFINED";
 
     function isPropsKeyExistAndNotInternal(props: Record<string, unknown>): string | null {
       const { internalKeys, unknownKeys } = extractInternalAndUnknownKeys(
@@ -174,102 +174,7 @@ Since \`metadata\` is tagged as "json" of node Character in SCHEMA_DUMP, you can
         : null;
     }
 
-    const wantsNameEmbedding = nodeDef.properties.some((p) => p.tags.includes("embedded_name"));
-    const wantsContentEmbedding = nodeDef.properties.some((p) =>
-      p.tags.includes("embedded_content"),
-    );
-    const wantsEmbedding = wantsNameEmbedding || wantsContentEmbedding;
-
-    // Derive Qdrant pointId from the node's unique identifying property.
-    function getPointId(props: Record<string, unknown>): string | null {
-      const uniqueProp = nodeDef.properties.find(
-        (p) => p.tags.includes("unique") && !p.name.startsWith("_"),
-      );
-      if (!uniqueProp) return null;
-      const val = props[uniqueProp.name];
-      return val ? `${args.nodeLabel}:${val}` : null;
-    }
-
-    async function qdrantUpsert(
-      pointId: string,
-      nameVec: number[] | null,
-      contentVec: number[] | null,
-      props: Record<string, unknown>,
-    ) {
-      try {
-        const nodeManager = getNodeManager();
-        const contentText = nodeManager.getEmbeddingContentText(args.nodeLabel, props);
-        const nameText =
-          nodeManager.getEmbeddingNameText(args.nodeLabel, props) ||
-          `[${args.nodeLabel}] ${String(props.name || "")}`;
-        const payload: Record<string, unknown> = {
-          node_type: args.nodeLabel,
-          kind: "node",
-          object_id: pointId,
-          text: contentText || nameText,
-        };
-        for (const [k, v] of Object.entries(props)) {
-          if (!k.startsWith("_")) payload[k] = v;
-        }
-        await getQdrantClient().upsert(
-          pointId,
-          {
-            nameVec: nameVec ?? undefined,
-            contentVec: contentVec ?? undefined,
-            sparseVec: nameText ? encodeSparse(nameText) : undefined,
-          },
-          payload,
-        );
-      } catch (err) {
-        console.warn(
-          `[editNode] Qdrant upsert failed for "${args.nodeLabel}":`,
-          err instanceof Error ? err.message : String(err),
-        );
-      }
-    }
-
-    async function qdrantDelete(pointId: string) {
-      try {
-        await getQdrantClient().deletePoint(pointId);
-      } catch (err) {
-        console.warn(
-          `[editNode] Qdrant delete failed for "${args.nodeLabel}":`,
-          err instanceof Error ? err.message : String(err),
-        );
-      }
-    }
-
-    async function computeNameEmbedding(props: Record<string, unknown>): Promise<number[] | null> {
-      if (!wantsNameEmbedding) return null;
-      const nodeManager = getNodeManager();
-      const nameText =
-        nodeManager.getEmbeddingNameText(args.nodeLabel, props) ||
-        `[${args.nodeLabel}] ${String(props.name || "")}`;
-      if (!nameText) return null;
-      try {
-        return await getEmbedder().embed(nameText);
-      } catch {
-        return null;
-      }
-    }
-
-    async function computeContentEmbedding(
-      props: Record<string, unknown>,
-    ): Promise<number[] | null> {
-      if (!wantsContentEmbedding) return null;
-      const nodeManager = getNodeManager();
-      const contentText = nodeManager.getEmbeddingContentText(args.nodeLabel, props);
-      if (!contentText) return null;
-      try {
-        return await getEmbedder().embed(contentText);
-      } catch {
-        return null;
-      }
-    }
-
-    // Serialize plain objects to JSON strings for Neo4j compatibility.
-    // Neo4j properties must be primitives or arrays of primitives — nested
-    // objects (e.g. flags, metadata) are rejected as Maps.
+    // Serialize plain objects to JSON strings for graph compatibility.
     function toPropertyValue(v: unknown): unknown {
       if (v === null || v === undefined) return v;
       if (typeof v === "object" && !Array.isArray(v)) return JSON.stringify(v);
@@ -285,6 +190,9 @@ Since \`metadata\` is tagged as "json" of node Character in SCHEMA_DUMP, you can
       return parts.join(" AND ");
     }
 
+    const allSchemaProps = new Set(nodeDef.properties.map((p) => p.name));
+    const useModel = isEntityLabel(args.nodeLabel);
+
     // ── DELETE ──
     if (args.action === "DELETE") {
       if (!args.match || Object.keys(args.match).length === 0) {
@@ -293,24 +201,23 @@ Since \`metadata\` is tagged as "json" of node Character in SCHEMA_DUMP, you can
       const matchErr = isMatchKeysInternal(args.match);
       if (matchErr) return `ERROR: ${matchErr}`;
 
-      // Delete Qdrant point first, then Neo4j node.
-      if (wantsEmbedding) {
-        const pointId = getPointId(args.match as Record<string, unknown>);
-        if (pointId) await qdrantDelete(pointId);
+      if (useModel) {
+        const deleted = await db.entities.delete(args.nodeLabel as EntityLabel, args.match);
+        return deleted > 0
+          ? `Node "${args.nodeLabel}" matched by ${JSON.stringify(args.match)} deleted.`
+          : `ERROR: No "${args.nodeLabel}" node found matching ${JSON.stringify(args.match)}.`;
       }
 
       const params: Record<string, unknown> = {};
       const where = buildWhere(args.match, params);
-      const result = await client.neo4j.executeWrite(
+      const result = await db.graph.query(
         `MATCH (n:\`${args.nodeLabel}\`) WHERE ${where} DETACH DELETE n RETURN count(n) AS deleted`,
         params,
       );
-      return (result[0]?.deleted as number) > 0
+      return (result.rows[0]?.deleted as number) > 0
         ? `Node "${args.nodeLabel}" matched by ${JSON.stringify(args.match)} deleted.`
         : `ERROR: No "${args.nodeLabel}" node found matching ${JSON.stringify(args.match)}.`;
     }
-
-    const allSchemaProps = new Set(nodeDef.properties.map((p) => p.name));
 
     // ── CREATE ──
     if (args.action === "CREATE") {
@@ -320,33 +227,33 @@ Since \`metadata\` is tagged as "json" of node Character in SCHEMA_DUMP, you can
       const propErr = isPropsKeyExistAndNotInternal(args.properties);
       if (propErr) return `ERROR: ${propErr}`;
 
-      const id = uuidv4();
-      const params: Record<string, unknown> = { id };
-      const setters = ["n._id = $id"];
-      if (allSchemaProps.has("_created_at")) setters.push("n._created_at = datetime()");
-      if (allSchemaProps.has("_updated_at")) setters.push("n._updated_at = datetime()");
+      if (useModel) {
+        const props = args.properties;
+        const entity = await db.entities.create(args.nodeLabel as EntityLabel, {
+          name: props.name as string,
+          brief: props.brief as string | undefined,
+          description: props.description as string | undefined,
+          metadata: props.metadata as Record<string, unknown> | undefined,
+        });
+        return `Node "${args.nodeLabel}" "${entity.name}" created.`;
+      }
+
+      // Non-entity types: use graph.query directly
+      const params: Record<string, unknown> = {};
+      const setters: string[] = [];
+      if (allSchemaProps.has("_created_at")) setters.push("n._created_at = current_timestamp()");
+      if (allSchemaProps.has("_updated_at")) setters.push("n._updated_at = current_timestamp()");
       for (const [key, value] of Object.entries(args.properties)) {
         const pName = `p_${key}`;
         params[pName] = toPropertyValue(value);
         setters.push(`n.\`${key}\` = $${pName}`);
       }
 
-      const rows = await client.neo4j.executeWrite(
+      const result = await db.graph.query(
         `CREATE (n:\`${args.nodeLabel}\`) SET ${setters.join(", ")} RETURN n`,
         params,
       );
-      const created = rows[0]?.n as Record<string, unknown> | undefined;
-
-      if (wantsEmbedding) {
-        const nameVec = await computeNameEmbedding(args.properties);
-        const contentVec = await computeContentEmbedding(args.properties);
-        if (nameVec || contentVec) {
-          const merged = { ...args.properties };
-          const pointId = getPointId(merged);
-          if (pointId) await qdrantUpsert(pointId, nameVec, contentVec, merged);
-        }
-      }
-
+      const created = result.rows[0]?.n as Record<string, unknown> | undefined;
       const v = visibleProps(created);
       const propSummary =
         Object.keys(v).length > 0 ? ` with keys: ${Object.keys(v).join(", ")}` : "";
@@ -363,17 +270,6 @@ Since \`metadata\` is tagged as "json" of node Character in SCHEMA_DUMP, you can
     const matchParams: Record<string, unknown> = {};
     const where = buildWhere(args.match, matchParams);
 
-    const existing = await client.neo4j.executeRead(
-      `MATCH (n:\`${args.nodeLabel}\`) WHERE ${where} RETURN n`,
-      matchParams,
-    );
-    if (existing.length === 0) {
-      return `ERROR: No "${args.nodeLabel}" node found matching ${JSON.stringify(args.match)}.`;
-    }
-    if (existing.length !== 1) {
-      return `ERROR: There are ${existing.length} matching results. The tool is designed to edit **single** node only.`;
-    }
-
     if (!args.properties || Object.keys(args.properties).length === 0) {
       return "ERROR: No properties to update. Nothing is edited inside the database";
     }
@@ -381,12 +277,30 @@ Since \`metadata\` is tagged as "json" of node Character in SCHEMA_DUMP, you can
     const propErr = isPropsKeyExistAndNotInternal(args.properties);
     if (propErr) return `ERROR: ${propErr}`;
 
-    const existingNode = existing[0]?.n as Record<string, unknown> | undefined;
+    if (useModel) {
+      const entity = await db.entities.update(args.nodeLabel as EntityLabel, args.match, args.properties);
+      if (!entity) {
+        return `ERROR: No "${args.nodeLabel}" node found matching ${JSON.stringify(args.match)}.`;
+      }
+      return `Node "${args.nodeLabel}" "${entity.name}" updated properties: ${Object.keys(args.properties).join(", ")}.`;
+    }
 
-    // Properties tagged "json" are stored as JSON strings in Neo4j.
-    // A plain SET would overwrite the entire property, silently dropping fields
-    // the GM didn't mention. Read the existing value and shallow-merge the
-    // incoming ones so partial updates don't clobber.
+    // Non-entity types: check existence and update via graph.query
+    const existing = await db.graph.query(
+      `MATCH (n:\`${args.nodeLabel}\`) WHERE ${where} RETURN n`,
+      matchParams,
+    );
+    if (existing.rows.length === 0) {
+      return `ERROR: No "${args.nodeLabel}" node found matching ${JSON.stringify(args.match)}.`;
+    }
+    if (existing.rows.length !== 1) {
+      return `ERROR: There are ${existing.rows.length} matching results. The tool is designed to edit **single** node only.`;
+    }
+
+    const existingNode = existing.rows[0]?.n as Record<string, unknown> | undefined;
+
+    // Properties tagged "json" are stored as JSON strings. Read the existing value
+    // and shallow-merge the incoming ones so partial updates don't clobber.
     const propertiesToSet = { ...args.properties };
     const jsonPropNames = new Set(
       nodeDef.properties.filter((p) => p.tags.includes("json")).map((p) => p.name),
@@ -395,63 +309,35 @@ Since \`metadata\` is tagged as "json" of node Character in SCHEMA_DUMP, you can
       if (!jsonPropNames.has(key)) continue;
       const incoming = args.properties[key] as Record<string, unknown>;
       const existingRaw = existingNode?.[key];
-      let existing: Record<string, unknown> = {};
+      let existingObj: Record<string, unknown> = {};
       if (typeof existingRaw === "string") {
         try {
           const parsed = JSON.parse(existingRaw);
           if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-            existing = parsed;
+            existingObj = parsed;
           }
         } catch {
           // unparseable — overwrite with incoming
         }
       } else if (existingRaw && typeof existingRaw === "object" && !Array.isArray(existingRaw)) {
-        existing = existingRaw as Record<string, unknown>;
+        existingObj = existingRaw as Record<string, unknown>;
       }
-      propertiesToSet[key] = { ...existing, ...incoming };
+      propertiesToSet[key] = { ...existingObj, ...incoming };
     }
 
     const setParams: Record<string, unknown> = { ...matchParams };
     const setters: string[] = [];
-    if (allSchemaProps.has("_updated_at")) setters.push("n._updated_at = datetime()");
+    if (allSchemaProps.has("_updated_at")) setters.push("n._updated_at = current_timestamp()");
     for (const [key, value] of Object.entries(propertiesToSet)) {
       const pName = `s_${key}`;
       setParams[pName] = toPropertyValue(value);
       setters.push(`n.\`${key}\` = $${pName}`);
     }
 
-    let updatedNameVec: number[] | null = null;
-    let updatedContentVec: number[] | null = null;
-    let updatedProps: Record<string, unknown> | null = null;
-    if (wantsEmbedding) {
-      const nameEmbeddedNames = new Set(
-        nodeDef.properties.filter((p) => p.tags.includes("embedded_name")).map((p) => p.name),
-      );
-      const contentEmbeddedNames = new Set(
-        nodeDef.properties.filter((p) => p.tags.includes("embedded_content")).map((p) => p.name),
-      );
-      const nameChanged = Object.keys(args.properties).some((k) => nameEmbeddedNames.has(k));
-      const contentChanged = Object.keys(args.properties).some((k) => contentEmbeddedNames.has(k));
-      if (nameChanged || contentChanged) {
-        updatedProps = { ...existingNode, ...args.properties } as Record<string, unknown>;
-        if (nameChanged) {
-          updatedNameVec = await computeNameEmbedding(updatedProps);
-        }
-        if (contentChanged) {
-          updatedContentVec = await computeContentEmbedding(updatedProps);
-        }
-      }
-    }
-
-    await client.neo4j.executeWrite(
+    await db.graph.query(
       `MATCH (n:\`${args.nodeLabel}\`) WHERE ${where} SET ${setters.join(", ")}`,
       setParams,
     );
-
-    if ((updatedNameVec || updatedContentVec) && updatedProps) {
-      const pointId = getPointId(updatedProps);
-      if (pointId) await qdrantUpsert(pointId, updatedNameVec, updatedContentVec, updatedProps);
-    }
 
     return `Node "${args.nodeLabel}" updated properties: ${Object.keys(args.properties).join(", ")}.`;
   }, TOOL_NAMES.EDIT_NODE),

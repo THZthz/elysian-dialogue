@@ -18,16 +18,53 @@
 
 import { tool } from "ai";
 import { z } from "zod";
-import { getMemoryClient, MemoryClient } from "@/server/memory/client";
-import { RelationshipManager } from "@/server/relationshipManager";
-import type { RelationshipPropertyDef } from "@/server/relationshipManager";
-import { getEmbedder } from "@/server/memory/embedder";
-import { getQdrantClient } from "@/server/memory/qdrant";
-import { encodeSparse } from "@/server/memory/sparseEncoder";
+import { Database } from "@/server/db";
+import { SchemaRegistry, type RelTypeDef } from "@/server/db/schema";
 import { extractInternalAndUnknownKeys, wrapSafe } from "@/server/llm/tools/shared";
+import { getEmbedder } from "@/server/search/embedder";
+import { encodeSparse } from "@/server/search/sparseEncoder";
 import { TOOL_NAMES } from "@/shared/constants";
 
 const REL_ACTIONS = ["CREATE", "UPDATE", "DELETE"] as const;
+
+// Schema stores pipe-delimited source/target labels (e.g. "Character|Object").
+// The LLM passes individual labels, so we need fuzzy matching.
+function matchesEndpoint(defLabel: string, queryLabel: string): boolean {
+  if (defLabel === queryLabel) return true;
+  if (defLabel.includes("|")) {
+    return defLabel.split("|").includes(queryLabel);
+  }
+  return false;
+}
+
+function findRelType(
+  schema: SchemaRegistry,
+  name: string,
+  srcLabel: string,
+  tgtLabel: string,
+): RelTypeDef | undefined {
+  const candidates = schema.getRelTypeByName(name);
+  return candidates.find(
+    (def) => matchesEndpoint(def.sourceLabel, srcLabel) && matchesEndpoint(def.targetLabel, tgtLabel),
+  );
+}
+
+function getRelEmbeddingContentText(def: RelTypeDef, props: Record<string, unknown>): string {
+  return def.properties
+    .filter((p) => p.tags.includes("embedded_content"))
+    .map((p) => String(props[p.name] ?? ""))
+    .filter(Boolean)
+    .join(" ");
+}
+
+function getRelEmbeddingNameText(
+  name: string,
+  _props: Record<string, unknown>,
+  srcVal: string,
+  tgtVal: string,
+): string {
+  return `[${name}] ${srcVal} -> ${tgtVal}`;
+}
 
 const inputSchema = z.object({
   action: z.enum(REL_ACTIONS).default("CREATE").describe("Action to perform."),
@@ -86,21 +123,21 @@ sub-locations nested within a larger location (e.g., a basement inside a tavern)
 `.trim(),
   inputSchema,
   execute: wrapSafe(async (args: z.infer<typeof inputSchema>) => {
-    const client = getMemoryClient();
-    const relManager = RelationshipManager.getCachedInstance();
+    const db = Database.getExisting();
+    const schema = SchemaRegistry.getInstance();
 
-    // Validate relationship type
-    const relDef = relManager.get(args.relationshipType, args.sourceLabel, args.targetLabel);
+    // Validate relationship type (supports pipe-delimited source/target labels)
+    const relDef = findRelType(schema, args.relationshipType, args.sourceLabel, args.targetLabel);
     if (!relDef) {
-      const available = relManager
-        .getAll()
-        .filter((r) => r.type !== "INTERNAL")
+      const available = schema
+        .getAllRelTypes()
+        .filter((r) => !r.name.startsWith("_"))
         .map((r) => `${r.name} (${r.sourceLabel || "?"}→${r.targetLabel || "?"})`)
         .join(", ");
       return `ERROR: Relationship type "${args.relationshipType}" with endpoints (:${args.sourceLabel})→(:${args.targetLabel}) is not registered. Available: ${available}`;
     }
-    if (!relManager.isAllowedForWrite(args.relationshipType, args.sourceLabel, args.targetLabel)) {
-      return `ERROR: Relationship type "${args.relationshipType}" (${relDef.sourceLabel}→${relDef.targetLabel}) is ${relDef.type} and cannot be written to.`;
+    if (args.relationshipType.startsWith("_")) {
+      return `ERROR: Relationship type "${args.relationshipType}" (${relDef.sourceLabel}→${relDef.targetLabel}) is internal and cannot be written to.`;
     }
 
     const srcEntries = Object.entries(args.sourceMatch);
@@ -108,7 +145,7 @@ sub-locations nested within a larger location (e.g., a basement inside a tavern)
     if (srcEntries.length === 0) return "ERROR: sourceMatch must not be empty.";
     if (tgtEntries.length === 0) return "ERROR: targetMatch must not be empty.";
 
-    // Extract first key-value pair for the neo4j layer
+    // Extract first key-value pair for the graph layer
     const [srcKey, srcVal] = srcEntries[0];
     const [tgtKey, tgtVal] = tgtEntries[0];
 
@@ -126,7 +163,7 @@ sub-locations nested within a larger location (e.g., a basement inside a tavern)
     const schemaProps = new Set(
       relDef.properties.map((p) => p.name).filter((name) => !name.startsWith("_")),
     );
-    const hasSchema = relDef.type === "GM_DEFINED" && relDef.properties.length > 0;
+    const hasSchema = relDef.category === "GM_DEFINED" && relDef.properties.length > 0;
 
     function validateProps(props: Record<string, unknown>): string | null {
       const { internalKeys, unknownKeys } = extractInternalAndUnknownKeys(
@@ -175,28 +212,19 @@ sub-locations nested within a larger location (e.g., a basement inside a tavern)
       let nameText: string | null = null;
 
       if (wantsEmbedding) {
-        const relManager = RelationshipManager.getCachedInstance();
-        nameText = relManager.getEmbeddingNameText(
-          args.relationshipType,
-          createProps,
-          srcVal,
-          tgtVal,
-        );
-        const contentText = relManager.getEmbeddingContentText(args.relationshipType, createProps);
+        nameText = getRelEmbeddingNameText(args.relationshipType, createProps, srcVal, tgtVal);
+        const contentText = getRelEmbeddingContentText(relDef, createProps);
 
+        const embedder = getEmbedder();
         const tasks: Promise<number[] | null>[] = [];
         tasks.push(
           nameText
-            ? getEmbedder()
-                .embed(nameText)
-                .catch(() => null)
+            ? embedder.embed(nameText).catch(() => null)
             : Promise.resolve(null),
         );
         tasks.push(
           contentText
-            ? getEmbedder()
-                .embed(contentText)
-                .catch(() => null)
+            ? embedder.embed(contentText).catch(() => null)
             : Promise.resolve(null),
         );
         const [nv, cv] = await Promise.all(tasks);
@@ -204,7 +232,7 @@ sub-locations nested within a larger location (e.g., a basement inside a tavern)
         contentVec = cv;
       }
 
-      const rows = await client.neo4j.mergeRelationship(
+      await db.graph.mergeRelationship(
         args.sourceLabel,
         srcKey,
         srcVal,
@@ -212,10 +240,15 @@ sub-locations nested within a larger location (e.g., a basement inside a tavern)
         tgtKey,
         tgtVal,
         safeType,
-        { onCreateProps: createProps },
+        Object.keys(createProps).length > 0 ? createProps : undefined,
       );
 
-      if (rows.length === 0) {
+      // Verify the relationship was created (endpoints must both exist for MERGE to succeed)
+      const checkResult = await db.graph.query(
+        `MATCH (src:\`${args.sourceLabel}\` {\`${srcKey}\`: $srcVal})-[r:\`${safeType}\`]->(tgt:\`${args.targetLabel}\` {\`${tgtKey}\`: $tgtVal}) RETURN count(r) AS cnt`,
+        { srcVal, tgtVal },
+      );
+      if ((checkResult.rows[0]?.cnt as number) === 0) {
         return (
           `ERROR: Could not create relationship. One or both endpoint nodes may not exist — ` +
           `source: (:\`${args.sourceLabel}\` ${JSON.stringify(args.sourceMatch)}), ` +
@@ -226,10 +259,7 @@ sub-locations nested within a larger location (e.g., a basement inside a tavern)
       if (nameVec || contentVec) {
         const pointId = `:rel:${args.relationshipType}:${srcVal}:${tgtVal}`;
         try {
-          const contentText = RelationshipManager.getCachedInstance().getEmbeddingContentText(
-            args.relationshipType,
-            createProps,
-          );
+          const contentText = getRelEmbeddingContentText(relDef, createProps);
           const payload: Record<string, unknown> = {
             node_type: args.relationshipType,
             kind: "relationship",
@@ -239,18 +269,13 @@ sub-locations nested within a larger location (e.g., a basement inside a tavern)
           for (const [k, v] of Object.entries(createProps)) {
             if (!k.startsWith("_")) payload[k] = v;
           }
-          await getQdrantClient().upsert(
-            pointId,
-            {
-              nameVec: nameVec ?? undefined,
-              contentVec: contentVec ?? undefined,
-              sparseVec: nameText ? encodeSparse(nameText) : undefined,
-            },
-            payload,
-          );
+          const nameVecFA = nameVec ? new Float32Array(nameVec) : new Float32Array(0);
+          const contentVecFA = contentVec ? new Float32Array(contentVec) : new Float32Array(0);
+          const sparse = nameText ? encodeSparse(nameText) : { indices: [] as number[], values: [] as number[] };
+          db.vectors.upsert(pointId, args.relationshipType, "relationship", nameVecFA, contentVecFA, sparse, payload);
         } catch (err) {
           console.warn(
-            `[editRelationship] Qdrant upsert failed for "${args.relationshipType}":`,
+            `[editRelationship] Vector upsert failed for "${args.relationshipType}":`,
             err instanceof Error ? err.message : String(err),
           );
         }
@@ -273,18 +298,18 @@ sub-locations nested within a larger location (e.g., a basement inside a tavern)
         srcVal: srcVal,
         tgtVal: tgtVal,
       };
-      const existing = await client.neo4j.executeRead(
+      const existing = await db.graph.query(
         `MATCH (src:\`${args.sourceLabel}\` {${srcKey}: $srcVal})-[r:${safeType}]->(tgt:\`${args.targetLabel}\` {${tgtKey}: $tgtVal}) RETURN r`,
         matchParams,
       );
-      if (existing.length === 0) {
+      if (existing.rows.length === 0) {
         return `ERROR: Relationship not found — (:\`${args.sourceLabel}\` ${JSON.stringify(args.sourceMatch)})-[:${args.relationshipType}]->(:\`${args.targetLabel}\` ${JSON.stringify(args.targetMatch)}).`;
       }
-      if (existing.length > 1) {
-        return `ERROR: Multiple (${existing.length}) matching relationships found. Use more specific match criteria.`;
+      if (existing.rows.length > 1) {
+        return `ERROR: Multiple (${existing.rows.length}) matching relationships found. Use more specific match criteria.`;
       }
 
-      const existingRel = existing[0]?.r as Record<string, unknown> | undefined;
+      const existingRel = existing.rows[0]?.r as Record<string, unknown> | undefined;
 
       // JSON partial merge: read existing JSON props and shallow-merge incoming keys
       const jsonPropNames = new Set(
@@ -336,9 +361,9 @@ sub-locations nested within a larger location (e.g., a basement inside a tavern)
         );
         if (nameChanged || contentChanged) {
           const merged = { ...existingRel, ...args.properties };
-          const relManager = RelationshipManager.getCachedInstance();
+          const embedder = getEmbedder();
           if (nameChanged) {
-            relNameText = relManager.getEmbeddingNameText(
+            relNameText = getRelEmbeddingNameText(
               args.relationshipType,
               merged,
               srcVal,
@@ -346,17 +371,17 @@ sub-locations nested within a larger location (e.g., a basement inside a tavern)
             );
             if (relNameText) {
               try {
-                relNameVec = await getEmbedder().embed(relNameText);
+                relNameVec = await embedder.embed(relNameText);
               } catch {
                 /* ignore */
               }
             }
           }
           if (contentChanged) {
-            const contentText = relManager.getEmbeddingContentText(args.relationshipType, merged);
+            const contentText = getRelEmbeddingContentText(relDef, merged);
             if (contentText) {
               try {
-                relContentVec = await getEmbedder().embed(contentText);
+                relContentVec = await embedder.embed(contentText);
               } catch {
                 /* ignore */
               }
@@ -365,7 +390,7 @@ sub-locations nested within a larger location (e.g., a basement inside a tavern)
         }
       }
 
-      await client.neo4j.executeWrite(
+      await db.graph.query(
         `MATCH (src:\`${args.sourceLabel}\` {${srcKey}: $srcVal})-[r:${safeType}]->(tgt:\`${args.targetLabel}\` {${tgtKey}: $tgtVal}) SET ${setters.join(", ")}`,
         setParams,
       );
@@ -374,10 +399,7 @@ sub-locations nested within a larger location (e.g., a basement inside a tavern)
         const pointId = `:rel:${args.relationshipType}:${srcVal}:${tgtVal}`;
         try {
           const merged = { ...existingRel, ...args.properties } as Record<string, unknown>;
-          const contentText = RelationshipManager.getCachedInstance().getEmbeddingContentText(
-            args.relationshipType,
-            merged,
-          );
+          const contentText = getRelEmbeddingContentText(relDef, merged);
           const payload: Record<string, unknown> = {
             node_type: args.relationshipType,
             kind: "relationship",
@@ -387,18 +409,13 @@ sub-locations nested within a larger location (e.g., a basement inside a tavern)
           for (const [k, v] of Object.entries(merged)) {
             if (!k.startsWith("_")) payload[k] = v;
           }
-          await getQdrantClient().upsert(
-            pointId,
-            {
-              nameVec: relNameVec ?? undefined,
-              contentVec: relContentVec ?? undefined,
-              sparseVec: relNameText ? encodeSparse(relNameText) : undefined,
-            },
-            payload,
-          );
+          const nameVecFA = relNameVec ? new Float32Array(relNameVec) : new Float32Array(0);
+          const contentVecFA = relContentVec ? new Float32Array(relContentVec) : new Float32Array(0);
+          const sparse = relNameText ? encodeSparse(relNameText) : { indices: [] as number[], values: [] as number[] };
+          db.vectors.upsert(pointId, args.relationshipType, "relationship", nameVecFA, contentVecFA, sparse, payload);
         } catch (err) {
           console.warn(
-            `[editRelationship] Qdrant upsert failed for "${args.relationshipType}":`,
+            `[editRelationship] Vector upsert failed for "${args.relationshipType}":`,
             err instanceof Error ? err.message : String(err),
           );
         }
@@ -408,20 +425,20 @@ sub-locations nested within a larger location (e.g., a basement inside a tavern)
     }
 
     // ── DELETE ──
-    // Delete Qdrant point first, then Neo4j relationship.
+    // Delete vector point first, then the relationship.
     if (wantsEmbedding) {
       const pointId = `:rel:${args.relationshipType}:${srcVal}:${tgtVal}`;
       try {
-        await getQdrantClient().deletePoint(pointId);
+        db.vectors.delete(pointId);
       } catch (err) {
         console.warn(
-          `[editRelationship] Qdrant delete failed for "${args.relationshipType}":`,
+          `[editRelationship] Vector delete failed for "${args.relationshipType}":`,
           err instanceof Error ? err.message : String(err),
         );
       }
     }
 
-    const deleted = await client.neo4j.deleteRelationship(
+    const deleted = await db.graph.deleteRelationship(
       args.sourceLabel,
       srcKey,
       srcVal,
@@ -431,7 +448,7 @@ sub-locations nested within a larger location (e.g., a basement inside a tavern)
       safeType,
     );
 
-    return deleted
+    return deleted > 0
       ? `Relationship (:\`${args.sourceLabel}\`)-[:${args.relationshipType}]->(:\`${args.targetLabel}\`) deleted.`
       : `ERROR: Relationship not found — (:\`${args.sourceLabel}\` ${JSON.stringify(args.sourceMatch)})-[:${args.relationshipType}]->(:\`${args.targetLabel}\` ${JSON.stringify(args.targetMatch)}).`;
   }, TOOL_NAMES.EDIT_RELATIONSHIP),

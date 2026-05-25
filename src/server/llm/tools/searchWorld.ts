@@ -18,28 +18,32 @@
 
 import { tool } from "ai";
 import { z } from "zod";
-import { getMemoryClient, MemoryClient } from "@/server/memory/client";
-import { stripHiddenProperties } from "@/server/memory/neo4j";
+import { Database } from "@/server/db";
+import { SchemaRegistry } from "@/server/db/schema";
 import { wrapSafe } from "@/server/llm/tools/shared";
 import { TOOL_NAMES } from "@/shared/constants";
-import { NodeDef, getNodeManager } from "@/server/nodeManager";
-import { RelationshipDef, RelationshipManager } from "@/server/relationshipManager";
+import type { NodeTypeDef, RelTypeDef } from "@/server/db/schema";
+
+function stripHidden(obj: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(obj)) {
+    if (!k.startsWith("_")) {
+      out[k] = v;
+    }
+  }
+  return out;
+}
 
 function getVectorSearchable(type: "relationship" | "label"): {
   canonical: Set<string>;
   labelToCanonical: Map<string, string>;
 } {
-  const all: RelationshipDef[] | NodeDef[] = (
+  const schema = SchemaRegistry.getInstance();
+  const all: RelTypeDef[] | NodeTypeDef[] = (
     type === "relationship"
-      ? RelationshipManager.getCachedInstance()
-      : getNodeManager()
-  )
-    .getAll()
-    .filter((def) =>
-      def.properties.some(
-        (p) => p.tags.includes("embedded_name") || p.tags.includes("embedded_content"),
-      ),
-    );
+      ? schema.getVectorSearchableRelTypes()
+      : schema.getVectorSearchableNodeTypes()
+  );
 
   // Filter out subtype labels: labels whose property definitions (names + tags)
   // are identical to another label's — they share the same vector index.
@@ -62,7 +66,7 @@ function getVectorSearchable(type: "relationship" | "label"): {
   }
 
   // Character, Object, Location share the same property fingerprint but
-  // must be independently searchable (each has its own Qdrant node_type).
+  // must be independently searchable (each has its own vector store entry).
   for (const name of ["Character", "Object", "Location"]) {
     if (labelToCanonical.has(name) && labelToCanonical.get(name) !== name) {
       canonical.delete(name);
@@ -143,26 +147,24 @@ Do not forget to use parameter \`limit\` wisely, if the search should be exact, 
       if (searchRels) relDomains.push(...relSearchable.canonical);
     }
 
-    const client = getMemoryClient();
+    const db = Database.getExisting();
     const result: Record<string, Record<string, unknown>[]> = {};
 
     const tasks: Promise<void>[] = [];
 
     for (const label of nodeDomains) {
       tasks.push(
-        client.search.searchByLabel(label, args.query, { limit: args.limit }).then((rows) => {
-          result[label] = stripHiddenProperties(rows) as Record<string, unknown>[];
+        db.search.search({ domain: label, kind: "node", query: args.query, limit: args.limit }).then((rows) => {
+          result[label] = rows.map(r => stripHidden(r as Record<string, unknown>));
         }),
       );
     }
 
     for (const type of relDomains) {
       tasks.push(
-        client.search
-          .searchByRelationshipType(type, args.query, { limit: args.limit })
-          .then((rows) => {
-            result[type] = stripHiddenProperties(rows) as Record<string, unknown>[];
-          }),
+        db.search.search({ domain: type, kind: "relationship", query: args.query, limit: args.limit }).then((rows) => {
+          result[type] = rows.map(r => stripHidden(r as Record<string, unknown>));
+        }),
       );
     }
 

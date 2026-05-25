@@ -18,14 +18,31 @@
 
 import { tool } from "ai";
 import { z } from "zod";
-import { getMemoryClient, MemoryClient } from "@/server/memory/client";
-import { CypherValidator } from "@/server/memory/validation";
-import { stripHiddenProperties } from "@/server/memory/neo4j";
+import { Database } from "@/server/db";
 import { wrapSafe } from "@/server/llm/tools/shared";
 import { TOOL_NAMES } from "@/shared/constants";
 
-const validator = new CypherValidator();
 const AUTO_LIMIT = 50;
+
+function stripHiddenProperties(rows: Record<string, unknown>[]): Record<string, unknown>[] {
+  return rows.map(row => {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(row)) {
+      if (!k.startsWith("_")) out[k] = v;
+    }
+    return out;
+  });
+}
+
+function extractLabels(query: string): string[] {
+  const labels = new Set<string>();
+  const re = /:`?([A-Za-z_][A-Za-z0-9_]*)`?/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(query)) !== null) {
+    labels.add(m[1]);
+  }
+  return [...labels];
+}
 
 export const queryWorld = tool({
   title: TOOL_NAMES.QUERY_WORLD,
@@ -60,25 +77,24 @@ Internal properties prefixed with "_" are hidden from READ results.
       ),
   }),
   execute: wrapSafe(async (args) => {
-    const client = getMemoryClient();
+    const db = Database.getExisting();
 
     if (args.action === "WRITE") {
-      const validation = validator.validateWrite(args.query);
-      if (!validation.valid) {
-        return `VALIDATION FAILED:\n${validation.errors.join("; ")}.\nRewrite your query and retry.`;
+      // Validate labels exist in schema before executing
+      const labels = extractLabels(args.query);
+      const allNodeTypes = db.schema.getAllNodeTypes();
+      const knownLabels = new Set(allNodeTypes.map(n => n.name));
+      const unknownLabels = labels.filter(l => !knownLabels.has(l));
+      if (unknownLabels.length > 0) {
+        return (
+          `SCHEMA ERROR: Unknown label(s): ${unknownLabels.join(", ")}. ` +
+          `Register new types via manageSchema before creating nodes or relationships with those labels.`
+        );
       }
 
       try {
-        try {
-          await client.neo4j.executeRead(`EXPLAIN ${args.query}`);
-        } catch (explainErr) {
-          const msg = explainErr instanceof Error ? explainErr.message : String(explainErr);
-          return `CYPHER SYNTAX ERROR:\n${msg}.\nFix your query and retry.`;
-        }
-
-        const rows = await client.neo4j.executeWrite(args.query);
-
-        return `Success. ${rows.length} row(s) affected.`;
+        const result = await db.graph.query(args.query);
+        return `Success. ${result.rows.length} row(s) affected.`;
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         return `QUERY ERROR:\n${msg}.\nAdjust your query and retry.`;
@@ -86,26 +102,14 @@ Internal properties prefixed with "_" are hidden from READ results.
     }
 
     // READ
-    const validation = validator.validateRead(args.query);
-    if (!validation.valid) {
-      return `VALIDATION FAILED:\n${validation.errors.join("; ")}.\nRewrite your query and retry.`;
-    }
-
     let query = args.query.trim();
     if (!/\bLIMIT\b/i.test(query)) {
       query = `${query} LIMIT ${AUTO_LIMIT}`;
     }
 
     try {
-      try {
-        await client.neo4j.executeRead(`EXPLAIN ${query}`);
-      } catch (explainErr) {
-        const msg = explainErr instanceof Error ? explainErr.message : String(explainErr);
-        return `CYPHER SYNTAX ERROR:\n${msg}.\nFix your query and retry.`;
-      }
-
-      const rows = await client.neo4j.executeRead(query);
-      const safeRows = stripHiddenProperties(rows);
+      const result = await db.graph.query(query);
+      const safeRows = stripHiddenProperties(result.rows);
       return JSON.stringify({ rowCount: safeRows.length, rows: safeRows }, null, 2);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
