@@ -112,10 +112,7 @@ export class PlotModel {
       brief: (p.brief as string) ?? "",
       status: (p.status as PlotStatus) ?? "PENDING",
       trigger_condition: (p.trigger_condition as string) ?? "",
-      flags:
-        typeof p.flags === "string"
-          ? (JSON.parse(p.flags) as PlotFlag[])
-          : ((p.flags as PlotFlag[]) ?? []),
+      flags: (p.flags as PlotFlag[]) ?? [],
       children,
     };
   }

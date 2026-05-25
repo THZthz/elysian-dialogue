@@ -321,15 +321,9 @@ Since \`metadata\` is tagged as "json" of node Character in SCHEMA_DUMP, you can
       const incoming = args.properties[key] as Record<string, unknown>;
       const existingRaw = existingNode?.[key];
       let existingObj: Record<string, unknown> = {};
-      if (typeof existingRaw === "string") {
-        try {
-          const parsed = JSON.parse(existingRaw);
-          if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-            existingObj = parsed;
-          }
-        } catch {
-          // unparseable — overwrite with incoming
-        }
+      if (existingRaw && typeof existingRaw === "object" && !Array.isArray(existingRaw)) {
+        existingObj = existingRaw as Record<string, unknown>;
+      }
       } else if (existingRaw && typeof existingRaw === "object" && !Array.isArray(existingRaw)) {
         existingObj = existingRaw as Record<string, unknown>;
       }

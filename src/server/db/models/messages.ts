@@ -131,7 +131,7 @@ export class MessageModel {
     );
     return result.rows.reverse().map((r) => {
       const m = (r.m as Record<string, unknown>) || r;
-      const meta = m.metadata ? (JSON.parse(m.metadata as string) as Record<string, unknown>) : {};
+      const meta = (m.metadata as Record<string, unknown>) ?? {};
       return { id: m.id as string, content: m.content as string, metadata: meta };
     });
   }
@@ -149,15 +149,7 @@ export class MessageModel {
     );
     if (r.rows.length === 0) return null;
     const row = r.rows[0];
-    const raw = row.options;
-    if (typeof raw === "string") {
-      try {
-        return { id: row.id as string, options: JSON.parse(raw) };
-      } catch {
-        return { id: row.id as string, options: raw };
-      }
-    }
-    return { id: row.id as string, options: raw };
+    return { id: row.id as string, options: row.options };
   }
 
   async saveGMMessages(
@@ -248,12 +240,8 @@ export class MessageModel {
       const m = (row.m as Record<string, unknown>) || row;
       return {
         role: m.role as string,
-        content: typeof m.content === "string" ? JSON.parse(m.content) : m.content,
-        providerOptions: m.provider_options
-          ? typeof m.provider_options === "string"
-            ? JSON.parse(m.provider_options as string)
-            : m.provider_options
-          : undefined,
+        content: m.content,
+        providerOptions: m.provider_options ?? undefined,
       };
     });
   }

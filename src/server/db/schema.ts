@@ -42,6 +42,7 @@ export interface RelTypeDef {
 }
 
 function tagToLadybugType(tags: string[]): string {
+  if (tags.includes("json")) return "JSON";
   if (tags.includes("number[]")) return "DOUBLE[]";
   if (tags.includes("number")) return "DOUBLE";
   return "STRING";
@@ -523,10 +524,7 @@ export class SchemaRegistry {
       const category = row.category as string;
       if (category === "GM_DEFINED" && !this.nodes.has(name)) {
         const description = (row.description as string) || "";
-        const props =
-          typeof row.properties === "string"
-            ? (JSON.parse(row.properties) as PropertyDef[])
-            : (row.properties as PropertyDef[]) || [];
+        const props = (row.properties as PropertyDef[]) || [];
         this.registerNode({ name, category: "GM_DEFINED", description, properties: props });
       }
     }
@@ -541,10 +539,7 @@ export class SchemaRegistry {
       const category = row.category as string;
       if (category === "GM_DEFINED" && !this.rels.has(this.relKey(name, src, tgt))) {
         const description = (row.description as string) || "";
-        const props =
-          typeof row.properties === "string"
-            ? (JSON.parse(row.properties) as PropertyDef[])
-            : (row.properties as PropertyDef[]) || [];
+        const props = (row.properties as PropertyDef[]) || [];
         this.registerRel({
           name,
           sourceLabel: src,

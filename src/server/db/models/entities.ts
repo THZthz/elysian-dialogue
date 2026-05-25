@@ -124,7 +124,7 @@ export class EntityModel {
     const name = (sets.name as string) ?? (existing.name as string);
     const brief = (sets.brief as string) ?? (existing.brief as string) ?? "";
     const description = (sets.description as string) ?? (existing.description as string) ?? "";
-    const metadata = sets.metadata ? JSON.stringify(sets.metadata) : (existing.metadata as string);
+    const metadata = JSON.stringify(sets.metadata ?? existing.metadata ?? {});
 
     const setClauses = Object.entries(sets).map(([k]) => `n.\`${k}\` = $s_${k}`);
     setClauses.push("n._updated_at = $now");
@@ -200,10 +200,7 @@ export class EntityModel {
   }
 
   parseEntity(label: string, row: Record<string, unknown>, isNew = false): Entity {
-    const meta =
-      typeof row.metadata === "string"
-        ? (JSON.parse(row.metadata) as Record<string, unknown>)
-        : ((row.metadata as Record<string, unknown>) ?? {});
+    const meta = (row.metadata as Record<string, unknown>) ?? {};
     const aliases = Array.isArray(meta.aliases) ? (meta.aliases as string[]) : [];
     return {
       uid: row.uid as string,

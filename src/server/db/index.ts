@@ -60,6 +60,10 @@ export class Database {
     await this.graph.init();
     this.vectors.init();
 
+    // Load JSON extension for native JSON column type
+    try { await this.graph.query("INSTALL json"); } catch { /* already installed */ }
+    try { await this.graph.query("LOAD EXTENSION json"); } catch { /* already loaded */ }
+
     // Execute all DDL for predefined types
     const nodeDDL = this.schema.allNodeDDL();
     const relDDL = this.schema.allRelDDL();
