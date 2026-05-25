@@ -28,7 +28,7 @@ import { editRelationship } from "@/server/llm/tools/editRelationship";
 import { editNote } from "@/server/llm/tools/editNote";
 import { editPlot } from "@/server/llm/tools/editPlot";
 import { manageSchema } from "@/server/llm/tools/manageSchema";
-import type { Message } from "@/types/dialogue";
+import type { Message, DialogueOption } from "@/types/dialogue";
 import { getContext } from "@/server/llm/tools/getContext";
 
 const debugToolRegistry: Record<string, { execute: (args: any) => Promise<string> }> = {
@@ -57,7 +57,7 @@ apiRouter.post("/chat/stream", async (req, res) => {
     console.log(
       `[chat/stream] userInput="${String(userInput).slice(0, 80)}" historyLen=${history?.length ?? 0} hasCheck=${!!check}`,
     );
-    await generateTurn(userInput, history ?? [], res, check);
+    await generateTurn(userInput, history ?? [], res, check as DialogueOption["check"] | undefined);
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
     console.error("Chat stream error:", message);
