@@ -20,8 +20,7 @@ import express from "express";
 import { generateTurn, isGenerating } from "@/server/llm";
 import { chatStreamSchema } from "@/server/validation";
 import { Database } from "@/server/db";
-import { RelationshipManager } from "@/server/relationshipManager";
-import { getCurrentOptions } from "@/server/gameState";
+import { SchemaRegistry } from "@/server/db/schema";
 import { queryWorld } from "@/server/llm/tools/queryWorld";
 import { searchWorld } from "@/server/llm/tools/searchWorld";
 import { editNode } from "@/server/llm/tools/editNode";
@@ -31,7 +30,6 @@ import { editPlot } from "@/server/llm/tools/editPlot";
 import { manageSchema } from "@/server/llm/tools/manageSchema";
 import type { Message } from "@/types/dialogue";
 import { getContext } from "@/server/llm/tools/getContext";
-import { listCheckpoints, restoreCheckpoint } from "@/server/checkpointManager";
 
 const debugToolRegistry: Record<string, { execute: (args: any) => Promise<string> }> = {
   queryWorld: queryWorld as any,
@@ -103,7 +101,8 @@ apiRouter.get("/history", async (_req, res) => {
 
 apiRouter.get("/game/current", async (_req, res) => {
   try {
-    const state = await getCurrentOptions();
+    const db = Database.getExisting();
+    const state = await db.messages.getCurrentOptions();
     res.json(state);
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
@@ -138,14 +137,7 @@ apiRouter.post("/reset", async (_req, res) => {
     const { seedDatabase } = await import("@/server/stories/seed");
     await seedDatabase();
 
-    // Reset in-memory GM_DEFINED types, then sync INTERNAL + PREDEFINED back to Neo4j
-    const relManager = RelationshipManager.getCachedInstance();
-    relManager.reset();
-    const nodeManager = (await import("@/server/nodeManager")).getNodeManager();
-    nodeManager.reset();
-    const db = await Database.getInstance();
-    await relManager.syncToNeo4j(db.graph);
-    await nodeManager.syncToNeo4j(db.graph);
+    // Database.reset() reinitializes everything — SchemaRegistry, tables, seed
 
     res.json({ success: true });
   } catch (error: unknown) {
@@ -158,7 +150,8 @@ apiRouter.post("/reset", async (_req, res) => {
 
 apiRouter.get("/checkpoints", async (_req, res) => {
   try {
-    const checkpoints = await listCheckpoints();
+    const db = Database.getExisting();
+    const checkpoints = await db.checkpoint.list();
     res.json(checkpoints);
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
@@ -177,10 +170,11 @@ apiRouter.post("/checkpoint/restore/:turnNumber", async (req, res) => {
     return;
   }
   try {
+    const db = Database.getExisting();
     await Database.closeInstance();
-    const result = await restoreCheckpoint(turnNumber);
+    await db.checkpoint.restore(turnNumber);
     await Database.getInstance();
-    res.json(result);
+    res.json({ success: true, turn: turnNumber });
   } catch (error: unknown) {
     try { await Database.getInstance(); } catch {}
     const message = error instanceof Error ? error.message : String(error);
