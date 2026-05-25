@@ -117,7 +117,10 @@ async function getPlayerStats(): Promise<Record<string, number> | null> {
   const db = Database.getExisting();
   const r = await db.graph.query("MATCH (e:Character {uid: '#player#'}) RETURN e LIMIT 1");
   if (r.rows.length === 0) return null;
-  const entity = db.entities.parseEntity("Character", (r.rows[0].e || r.rows[0]) as Record<string, unknown>);
+  const entity = db.entities.parseEntity(
+    "Character",
+    (r.rows[0].e || r.rows[0]) as Record<string, unknown>,
+  );
 
   if (!entity?.metadata.stats) return null;
   return entity.metadata.stats as Record<string, number>;

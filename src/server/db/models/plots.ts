@@ -29,7 +29,13 @@ export class PlotModel {
     private readonly embedder: Embedder,
   ) {}
 
-  async create(name: string, description: string, brief: string, status: PlotStatus, trigger_condition?: string): Promise<void> {
+  async create(
+    name: string,
+    description: string,
+    brief: string,
+    status: PlotStatus,
+    trigger_condition?: string,
+  ): Promise<void> {
     const now = new Date().toISOString();
     await this.graph.query(
       `MERGE (p:Plot {name: $name})
@@ -38,13 +44,35 @@ export class PlotModel {
       { name, desc: description, brief, status, trigger: trigger_condition ?? "", now },
     );
 
-    const contentText = getNodeManager().getEmbeddingContentText("Plot", { name, description, brief });
+    const contentText = getNodeManager().getEmbeddingContentText("Plot", {
+      name,
+      description,
+      brief,
+    });
     const [nameVec, contentVec] = await Promise.all([
       this.embedder.embed(name),
       this.embedder.embed(contentText || `${name} ${brief} ${description}`),
     ]);
-    this.vectors.upsert(`Plot:${name}`, "Plot", "node", new Float32Array(nameVec), new Float32Array(contentVec),
-      encodeSparse(contentText || name), { node_type: "Plot", kind: "node", object_id: `Plot:${name}`, text: contentText, name, description, brief, status, trigger_condition: trigger_condition ?? "", flags: "[]" });
+    this.vectors.upsert(
+      `Plot:${name}`,
+      "Plot",
+      "node",
+      new Float32Array(nameVec),
+      new Float32Array(contentVec),
+      encodeSparse(contentText || name),
+      {
+        node_type: "Plot",
+        kind: "node",
+        object_id: `Plot:${name}`,
+        text: contentText,
+        name,
+        description,
+        brief,
+        status,
+        trigger_condition: trigger_condition ?? "",
+        flags: "[]",
+      },
+    );
   }
 
   async getByName(name: string): Promise<MemoryPlot | null> {
@@ -58,12 +86,23 @@ export class PlotModel {
       brief: (p.brief as string) ?? "",
       status: (p.status as PlotStatus) ?? "PENDING",
       trigger_condition: (p.trigger_condition as string) ?? "",
-      flags: typeof p.flags === "string" ? JSON.parse(p.flags) as PlotFlag[] : (p.flags as PlotFlag[]) ?? [],
+      flags:
+        typeof p.flags === "string"
+          ? (JSON.parse(p.flags) as PlotFlag[])
+          : ((p.flags as PlotFlag[]) ?? []),
       children,
     };
   }
 
-  async update(name: string, props: { description?: string; brief?: string; status?: PlotStatus; trigger_condition?: string }): Promise<void> {
+  async update(
+    name: string,
+    props: {
+      description?: string;
+      brief?: string;
+      status?: PlotStatus;
+      trigger_condition?: string;
+    },
+  ): Promise<void> {
     const setClauses: string[] = ["p._updated_at = $now"];
     const params: Record<string, unknown> = { name, now: new Date().toISOString() };
     for (const [k, v] of Object.entries(props)) {
@@ -81,21 +120,42 @@ export class PlotModel {
   }
 
   async setFlags(name: string, flags: string[]): Promise<void> {
-    const plotFlags: PlotFlag[] = flags.map(f => ({ flagId: f, description: "" }));
-    await this.graph.query("MATCH (p:Plot {name: $name}) SET p.flags = $flags, p._updated_at = $now",
-      { name, flags: JSON.stringify(plotFlags), now: new Date().toISOString() });
+    const plotFlags: PlotFlag[] = flags.map((f) => ({ flagId: f, description: "" }));
+    await this.graph.query(
+      "MATCH (p:Plot {name: $name}) SET p.flags = $flags, p._updated_at = $now",
+      { name, flags: JSON.stringify(plotFlags), now: new Date().toISOString() },
+    );
   }
 
   async branch(parentName: string, childName: string): Promise<void> {
-    await this.graph.mergeRelationship("Plot", "name", parentName, "Plot", "name", childName, "BRANCHES_TO");
+    await this.graph.mergeRelationship(
+      "Plot",
+      "name",
+      parentName,
+      "Plot",
+      "name",
+      childName,
+      "BRANCHES_TO",
+    );
   }
 
   async unbranch(parentName: string, childName: string): Promise<void> {
-    await this.graph.deleteRelationship("Plot", "name", parentName, "Plot", "name", childName, "BRANCHES_TO");
+    await this.graph.deleteRelationship(
+      "Plot",
+      "name",
+      parentName,
+      "Plot",
+      "name",
+      childName,
+      "BRANCHES_TO",
+    );
   }
 
   async getChildren(name: string): Promise<string[]> {
-    const r = await this.graph.query("MATCH (p:Plot {name: $name})-[:BRANCHES_TO]->(child:Plot) RETURN child.name AS name", { name });
+    const r = await this.graph.query(
+      "MATCH (p:Plot {name: $name})-[:BRANCHES_TO]->(child:Plot) RETURN child.name AS name",
+      { name },
+    );
     return r.rows.map((row) => row.name as string);
   }
 

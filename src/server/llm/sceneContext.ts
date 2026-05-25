@@ -427,7 +427,10 @@ export async function buildRelationshipDump(): Promise<string> {
          LIMIT 200`,
       );
       for (const row of r.rows) {
-        if (!internalNames.has(row.sourceLabel as string) && !internalNames.has(row.targetLabel as string)) {
+        if (
+          !internalNames.has(row.sourceLabel as string) &&
+          !internalNames.has(row.targetLabel as string)
+        ) {
           results.push(row as unknown as RelRow);
         }
       }

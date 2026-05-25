@@ -71,11 +71,28 @@ const ENTITY_PROPS: PropertyDef[] = [
 ];
 
 const PREDEFINED_NODES: NodeTypeDef[] = [
-  { name: "Character", category: "PREDEFINED", description: "Player or NPC", properties: ENTITY_PROPS },
-  { name: "Object", category: "PREDEFINED", description: "World objects, items", properties: ENTITY_PROPS },
-  { name: "Location", category: "PREDEFINED", description: "Rooms, buildings, areas", properties: ENTITY_PROPS },
   {
-    name: "Message", category: "PREDEFINED", description: "Conversation messages",
+    name: "Character",
+    category: "PREDEFINED",
+    description: "Player or NPC",
+    properties: ENTITY_PROPS,
+  },
+  {
+    name: "Object",
+    category: "PREDEFINED",
+    description: "World objects, items",
+    properties: ENTITY_PROPS,
+  },
+  {
+    name: "Location",
+    category: "PREDEFINED",
+    description: "Rooms, buildings, areas",
+    properties: ENTITY_PROPS,
+  },
+  {
+    name: "Message",
+    category: "PREDEFINED",
+    description: "Conversation messages",
     properties: [
       { name: "id", description: "Message ID", tags: ["string", "unique"] },
       { name: "content", description: "Message text", tags: ["string", "embedded_content"] },
@@ -84,7 +101,9 @@ const PREDEFINED_NODES: NodeTypeDef[] = [
     ],
   },
   {
-    name: "Note", category: "PREDEFINED", description: "GM scratchpad notes",
+    name: "Note",
+    category: "PREDEFINED",
+    description: "GM scratchpad notes",
     properties: [
       { name: "name", description: "Note name", tags: ["string", "unique", "embedded_name"] },
       { name: "content", description: "Note text", tags: ["string", "embedded_content"] },
@@ -93,10 +112,16 @@ const PREDEFINED_NODES: NodeTypeDef[] = [
     ],
   },
   {
-    name: "Plot", category: "PREDEFINED", description: "Narrative plots",
+    name: "Plot",
+    category: "PREDEFINED",
+    description: "Narrative plots",
     properties: [
       { name: "name", description: "Plot name", tags: ["string", "unique", "embedded_name"] },
-      { name: "description", description: "Plot description", tags: ["string", "embedded_content"] },
+      {
+        name: "description",
+        description: "Plot description",
+        tags: ["string", "embedded_content"],
+      },
       { name: "brief", description: "One-line summary", tags: ["string", "embedded_content"] },
       { name: "status", description: "PENDING/ACTIVE/COMPLETED/ABANDONED", tags: ["string"] },
       { name: "trigger_condition", description: "Activation condition", tags: ["string"] },
@@ -106,7 +131,9 @@ const PREDEFINED_NODES: NodeTypeDef[] = [
     ],
   },
   {
-    name: "Disposition", category: "PREDEFINED", description: "NPC sentiment toward target",
+    name: "Disposition",
+    category: "PREDEFINED",
+    description: "NPC sentiment toward target",
     properties: [
       { name: "uid", description: "UUID", tags: ["string", "unique"] },
       { name: "source_name", description: "NPC name", tags: ["string"] },
@@ -118,7 +145,9 @@ const PREDEFINED_NODES: NodeTypeDef[] = [
     ],
   },
   {
-    name: "TimePoint", category: "PREDEFINED", description: "Point in game time",
+    name: "TimePoint",
+    category: "PREDEFINED",
+    description: "Point in game time",
     properties: [
       { name: "uid", description: "UUID", tags: ["string", "unique"] },
       { name: "day", description: "Day number", tags: ["number"] },
@@ -128,13 +157,15 @@ const PREDEFINED_NODES: NodeTypeDef[] = [
     ],
   },
   {
-    name: "TimeAnchor", category: "PREDEFINED", description: "Singleton anchor to current TimePoint",
-    properties: [
-      { name: "uid", description: "Always 'anchor'", tags: ["string", "unique"] },
-    ],
+    name: "TimeAnchor",
+    category: "PREDEFINED",
+    description: "Singleton anchor to current TimePoint",
+    properties: [{ name: "uid", description: "Always 'anchor'", tags: ["string", "unique"] }],
   },
   {
-    name: "Conversation", category: "PREDEFINED", description: "Singleton game session",
+    name: "Conversation",
+    category: "PREDEFINED",
+    description: "Singleton game session",
     properties: [
       { name: "uid", description: "UUID", tags: ["string", "unique"] },
       { name: "options", description: "JSON: current dialogue options", tags: ["json"] },
@@ -143,7 +174,9 @@ const PREDEFINED_NODES: NodeTypeDef[] = [
     ],
   },
   {
-    name: "GMTurnMessage", category: "PREDEFINED", description: "AI SDK messages for GM continuity",
+    name: "GMTurnMessage",
+    category: "PREDEFINED",
+    description: "AI SDK messages for GM continuity",
     properties: [
       { name: "uid", description: "UUID", tags: ["string", "unique"] },
       { name: "turn_number", description: "Turn number", tags: ["number"] },
@@ -155,14 +188,18 @@ const PREDEFINED_NODES: NodeTypeDef[] = [
     ],
   },
   {
-    name: "IdCounter", category: "PREDEFINED", description: "Atomic message ID counter",
+    name: "IdCounter",
+    category: "PREDEFINED",
+    description: "Atomic message ID counter",
     properties: [
       { name: "uid", description: "UUID", tags: ["string", "unique"] },
       { name: "value", description: "Current counter value", tags: ["number"] },
     ],
   },
   {
-    name: "NodeType", category: "PREDEFINED", description: "Schema node type metadata",
+    name: "NodeType",
+    category: "PREDEFINED",
+    description: "Schema node type metadata",
     properties: [
       { name: "name", description: "Node type name", tags: ["string", "unique"] },
       { name: "category", description: "PREDEFINED or GM_DEFINED", tags: ["string"] },
@@ -171,7 +208,9 @@ const PREDEFINED_NODES: NodeTypeDef[] = [
     ],
   },
   {
-    name: "RelationshipType", category: "PREDEFINED", description: "Schema relationship type metadata",
+    name: "RelationshipType",
+    category: "PREDEFINED",
+    description: "Schema relationship type metadata",
     properties: [
       { name: "uid", description: "UUID", tags: ["string", "unique"] },
       { name: "name", description: "Relationship type name", tags: ["string"] },
@@ -184,32 +223,212 @@ const PREDEFINED_NODES: NodeTypeDef[] = [
   },
 ];
 
-const CREATED_AT = { name: "_created_at", description: "Creation timestamp", tags: ["string"] } as PropertyDef;
+const CREATED_AT = {
+  name: "_created_at",
+  description: "Creation timestamp",
+  tags: ["string"],
+} as PropertyDef;
 
 const PREDEFINED_RELS: RelTypeDef[] = [
-  { name: "LOCATED_AT", sourceLabel: "Character", targetLabel: "Location", category: "PREDEFINED", description: "Character at location", properties: [{ name: "brief", description: "Narrative context", tags: ["string", "embedded_content"] }, CREATED_AT] },
-  { name: "LOCATED_AT", sourceLabel: "Object", targetLabel: "Location", category: "PREDEFINED", description: "Object at location", properties: [{ name: "brief", description: "Narrative context", tags: ["string", "embedded_content"] }, CREATED_AT] },
-  { name: "CARRIES", sourceLabel: "Character", targetLabel: "Object", category: "PREDEFINED", description: "Character carries object", properties: [{ name: "brief", description: "How/why carried", tags: ["string", "embedded_content"] }, CREATED_AT] },
-  { name: "LOCATED_IN", sourceLabel: "Location", targetLabel: "Location", category: "PREDEFINED", description: "Location hierarchy", properties: [{ name: "brief", description: "Narrative context", tags: ["string", "embedded_content"] }, CREATED_AT] },
-  { name: "HAS_DISPOSITION", sourceLabel: "Character", targetLabel: "Disposition", category: "PREDEFINED", description: "Character has disposition", properties: [CREATED_AT] },
-  { name: "ABOUT_ENTITY", sourceLabel: "Note", targetLabel: "Character", category: "PREDEFINED", description: "Note about character", properties: [CREATED_AT] },
-  { name: "ABOUT_ENTITY", sourceLabel: "Note", targetLabel: "Object", category: "PREDEFINED", description: "Note about object", properties: [CREATED_AT] },
-  { name: "ABOUT_ENTITY", sourceLabel: "Note", targetLabel: "Location", category: "PREDEFINED", description: "Note about location", properties: [CREATED_AT] },
-  { name: "ABOUT_MESSAGE", sourceLabel: "Note", targetLabel: "Message", category: "PREDEFINED", description: "Note about message", properties: [CREATED_AT] },
-  { name: "ABOUT_PLOT", sourceLabel: "Note", targetLabel: "Plot", category: "PREDEFINED", description: "Note about plot", properties: [CREATED_AT] },
-  { name: "HAS_MESSAGE", sourceLabel: "Conversation", targetLabel: "Message", category: "PREDEFINED", description: "Conversation has message", properties: [CREATED_AT] },
-  { name: "FIRST_MESSAGE", sourceLabel: "Conversation", targetLabel: "Message", category: "PREDEFINED", description: "First message link", properties: [CREATED_AT] },
-  { name: "NEXT_MESSAGE", sourceLabel: "Message", targetLabel: "Message", category: "PREDEFINED", description: "Message linked list", properties: [CREATED_AT] },
-  { name: "BRANCHES_TO", sourceLabel: "Plot", targetLabel: "Plot", category: "PREDEFINED", description: "Plot branching", properties: [CREATED_AT] },
-  { name: "CURRENT_TIMEPOINT", sourceLabel: "TimeAnchor", targetLabel: "TimePoint", category: "PREDEFINED", description: "Current time", properties: [CREATED_AT] },
-  { name: "NEXT_TIMEPOINT", sourceLabel: "TimePoint", targetLabel: "TimePoint", category: "PREDEFINED", description: "Time progression", properties: [{ name: "reason", description: "Why time advanced", tags: ["string"] }, CREATED_AT] },
-  { name: "AT_TIME", sourceLabel: "Message", targetLabel: "TimePoint", category: "PREDEFINED", description: "Message at time", properties: [CREATED_AT] },
-  { name: "STARTED_AT", sourceLabel: "Plot", targetLabel: "TimePoint", category: "PREDEFINED", description: "Plot start time", properties: [CREATED_AT] },
-  { name: "ACTIVE_AT", sourceLabel: "Plot", targetLabel: "TimePoint", category: "PREDEFINED", description: "Plot active time", properties: [CREATED_AT] },
-  { name: "COMPLETED_AT", sourceLabel: "Plot", targetLabel: "TimePoint", category: "PREDEFINED", description: "Plot completion time", properties: [CREATED_AT] },
-  { name: "_HAS_GM_MESSAGE", sourceLabel: "Conversation", targetLabel: "GMTurnMessage", category: "PREDEFINED", description: "GM message container", properties: [CREATED_AT] },
-  { name: "_FIRST_GM_MESSAGE", sourceLabel: "Conversation", targetLabel: "GMTurnMessage", category: "PREDEFINED", description: "First GM message", properties: [CREATED_AT] },
-  { name: "_NEXT_GM_MESSAGE", sourceLabel: "GMTurnMessage", targetLabel: "GMTurnMessage", category: "PREDEFINED", description: "GM message chain", properties: [CREATED_AT] },
+  {
+    name: "LOCATED_AT",
+    sourceLabel: "Character",
+    targetLabel: "Location",
+    category: "PREDEFINED",
+    description: "Character at location",
+    properties: [
+      { name: "brief", description: "Narrative context", tags: ["string", "embedded_content"] },
+      CREATED_AT,
+    ],
+  },
+  {
+    name: "LOCATED_AT",
+    sourceLabel: "Object",
+    targetLabel: "Location",
+    category: "PREDEFINED",
+    description: "Object at location",
+    properties: [
+      { name: "brief", description: "Narrative context", tags: ["string", "embedded_content"] },
+      CREATED_AT,
+    ],
+  },
+  {
+    name: "CARRIES",
+    sourceLabel: "Character",
+    targetLabel: "Object",
+    category: "PREDEFINED",
+    description: "Character carries object",
+    properties: [
+      { name: "brief", description: "How/why carried", tags: ["string", "embedded_content"] },
+      CREATED_AT,
+    ],
+  },
+  {
+    name: "LOCATED_IN",
+    sourceLabel: "Location",
+    targetLabel: "Location",
+    category: "PREDEFINED",
+    description: "Location hierarchy",
+    properties: [
+      { name: "brief", description: "Narrative context", tags: ["string", "embedded_content"] },
+      CREATED_AT,
+    ],
+  },
+  {
+    name: "HAS_DISPOSITION",
+    sourceLabel: "Character",
+    targetLabel: "Disposition",
+    category: "PREDEFINED",
+    description: "Character has disposition",
+    properties: [CREATED_AT],
+  },
+  {
+    name: "ABOUT_ENTITY",
+    sourceLabel: "Note",
+    targetLabel: "Character",
+    category: "PREDEFINED",
+    description: "Note about character",
+    properties: [CREATED_AT],
+  },
+  {
+    name: "ABOUT_ENTITY",
+    sourceLabel: "Note",
+    targetLabel: "Object",
+    category: "PREDEFINED",
+    description: "Note about object",
+    properties: [CREATED_AT],
+  },
+  {
+    name: "ABOUT_ENTITY",
+    sourceLabel: "Note",
+    targetLabel: "Location",
+    category: "PREDEFINED",
+    description: "Note about location",
+    properties: [CREATED_AT],
+  },
+  {
+    name: "ABOUT_MESSAGE",
+    sourceLabel: "Note",
+    targetLabel: "Message",
+    category: "PREDEFINED",
+    description: "Note about message",
+    properties: [CREATED_AT],
+  },
+  {
+    name: "ABOUT_PLOT",
+    sourceLabel: "Note",
+    targetLabel: "Plot",
+    category: "PREDEFINED",
+    description: "Note about plot",
+    properties: [CREATED_AT],
+  },
+  {
+    name: "HAS_MESSAGE",
+    sourceLabel: "Conversation",
+    targetLabel: "Message",
+    category: "PREDEFINED",
+    description: "Conversation has message",
+    properties: [CREATED_AT],
+  },
+  {
+    name: "FIRST_MESSAGE",
+    sourceLabel: "Conversation",
+    targetLabel: "Message",
+    category: "PREDEFINED",
+    description: "First message link",
+    properties: [CREATED_AT],
+  },
+  {
+    name: "NEXT_MESSAGE",
+    sourceLabel: "Message",
+    targetLabel: "Message",
+    category: "PREDEFINED",
+    description: "Message linked list",
+    properties: [CREATED_AT],
+  },
+  {
+    name: "BRANCHES_TO",
+    sourceLabel: "Plot",
+    targetLabel: "Plot",
+    category: "PREDEFINED",
+    description: "Plot branching",
+    properties: [CREATED_AT],
+  },
+  {
+    name: "CURRENT_TIMEPOINT",
+    sourceLabel: "TimeAnchor",
+    targetLabel: "TimePoint",
+    category: "PREDEFINED",
+    description: "Current time",
+    properties: [CREATED_AT],
+  },
+  {
+    name: "NEXT_TIMEPOINT",
+    sourceLabel: "TimePoint",
+    targetLabel: "TimePoint",
+    category: "PREDEFINED",
+    description: "Time progression",
+    properties: [
+      { name: "reason", description: "Why time advanced", tags: ["string"] },
+      CREATED_AT,
+    ],
+  },
+  {
+    name: "AT_TIME",
+    sourceLabel: "Message",
+    targetLabel: "TimePoint",
+    category: "PREDEFINED",
+    description: "Message at time",
+    properties: [CREATED_AT],
+  },
+  {
+    name: "STARTED_AT",
+    sourceLabel: "Plot",
+    targetLabel: "TimePoint",
+    category: "PREDEFINED",
+    description: "Plot start time",
+    properties: [CREATED_AT],
+  },
+  {
+    name: "ACTIVE_AT",
+    sourceLabel: "Plot",
+    targetLabel: "TimePoint",
+    category: "PREDEFINED",
+    description: "Plot active time",
+    properties: [CREATED_AT],
+  },
+  {
+    name: "COMPLETED_AT",
+    sourceLabel: "Plot",
+    targetLabel: "TimePoint",
+    category: "PREDEFINED",
+    description: "Plot completion time",
+    properties: [CREATED_AT],
+  },
+  {
+    name: "_HAS_GM_MESSAGE",
+    sourceLabel: "Conversation",
+    targetLabel: "GMTurnMessage",
+    category: "PREDEFINED",
+    description: "GM message container",
+    properties: [CREATED_AT],
+  },
+  {
+    name: "_FIRST_GM_MESSAGE",
+    sourceLabel: "Conversation",
+    targetLabel: "GMTurnMessage",
+    category: "PREDEFINED",
+    description: "First GM message",
+    properties: [CREATED_AT],
+  },
+  {
+    name: "_NEXT_GM_MESSAGE",
+    sourceLabel: "GMTurnMessage",
+    targetLabel: "GMTurnMessage",
+    category: "PREDEFINED",
+    description: "GM message chain",
+    properties: [CREATED_AT],
+  },
 ];
 
 export class SchemaRegistry {
@@ -278,27 +497,44 @@ export class SchemaRegistry {
   }
 
   async syncFromDB(client: LadybugClient): Promise<void> {
-    const nodeTypes = await client.query("MATCH (nt:NodeType) RETURN nt.name AS name, nt.category AS category, nt.description AS description, nt.properties AS properties");
+    const nodeTypes = await client.query(
+      "MATCH (nt:NodeType) RETURN nt.name AS name, nt.category AS category, nt.description AS description, nt.properties AS properties",
+    );
     for (const row of nodeTypes.rows) {
       const name = row.name as string;
       const category = row.category as string;
       if (category === "GM_DEFINED" && !this.nodes.has(name)) {
-        const description = row.description as string || "";
-        const props = typeof row.properties === "string" ? JSON.parse(row.properties) as PropertyDef[] : (row.properties as PropertyDef[]) || [];
+        const description = (row.description as string) || "";
+        const props =
+          typeof row.properties === "string"
+            ? (JSON.parse(row.properties) as PropertyDef[])
+            : (row.properties as PropertyDef[]) || [];
         this.registerNode({ name, category: "GM_DEFINED", description, properties: props });
       }
     }
 
-    const relTypes = await client.query("MATCH (rt:RelationshipType) RETURN rt.name AS name, rt.source_label AS source_label, rt.target_label AS target_label, rt.category AS category, rt.description AS description, rt.properties AS properties");
+    const relTypes = await client.query(
+      "MATCH (rt:RelationshipType) RETURN rt.name AS name, rt.source_label AS source_label, rt.target_label AS target_label, rt.category AS category, rt.description AS description, rt.properties AS properties",
+    );
     for (const row of relTypes.rows) {
       const name = row.name as string;
       const src = row.source_label as string;
       const tgt = row.target_label as string;
       const category = row.category as string;
       if (category === "GM_DEFINED" && !this.rels.has(this.relKey(name, src, tgt))) {
-        const description = row.description as string || "";
-        const props = typeof row.properties === "string" ? JSON.parse(row.properties) as PropertyDef[] : (row.properties as PropertyDef[]) || [];
-        this.registerRel({ name, sourceLabel: src, targetLabel: tgt, category: "GM_DEFINED", description, properties: props });
+        const description = (row.description as string) || "";
+        const props =
+          typeof row.properties === "string"
+            ? (JSON.parse(row.properties) as PropertyDef[])
+            : (row.properties as PropertyDef[]) || [];
+        this.registerRel({
+          name,
+          sourceLabel: src,
+          targetLabel: tgt,
+          category: "GM_DEFINED",
+          description,
+          properties: props,
+        });
       }
     }
 
@@ -307,7 +543,12 @@ export class SchemaRegistry {
       const tableName = row.name as string;
       const tableType = row.type as string;
       if (tableType === "NODE" && !this.nodes.has(tableName)) {
-        this.registerNode({ name: tableName, category: "GM_DEFINED", description: "", properties: [] });
+        this.registerNode({
+          name: tableName,
+          category: "GM_DEFINED",
+          description: "",
+          properties: [],
+        });
       }
     }
   }
@@ -318,11 +559,21 @@ export class SchemaRegistry {
     await client.query(
       `MERGE (nt:NodeType {name: $name})
        SET nt.category = $category, nt.description = $description, nt.properties = $properties`,
-      { name: def.name, category: def.category, description: def.description, properties: JSON.stringify(def.properties) },
+      {
+        name: def.name,
+        category: def.category,
+        description: def.description,
+        properties: JSON.stringify(def.properties),
+      },
     );
   }
 
-  async persistRelType(client: LadybugClient, name: string, source: string, target: string): Promise<void> {
+  async persistRelType(
+    client: LadybugClient,
+    name: string,
+    source: string,
+    target: string,
+  ): Promise<void> {
     const def = this.rels.get(this.relKey(name, source, target));
     if (!def) return;
 
@@ -335,12 +586,25 @@ export class SchemaRegistry {
     if (existing.rows.length > 0) {
       await client.query(
         "MATCH (rt:RelationshipType {uid: $uid}) SET rt.category = $category, rt.description = $description, rt.properties = $properties",
-        { uid: existing.rows[0].uid, category: def.category, description: def.description, properties: JSON.stringify(def.properties) },
+        {
+          uid: existing.rows[0].uid,
+          category: def.category,
+          description: def.description,
+          properties: JSON.stringify(def.properties),
+        },
       );
     } else {
       await client.query(
         "CREATE (rt:RelationshipType {uid: $uid, name: $name, source_label: $src, target_label: $tgt, category: $category, description: $description, properties: $properties})",
-        { uid: uuidv4(), name: def.name, src: def.sourceLabel, tgt: def.targetLabel, category: def.category, description: def.description, properties: JSON.stringify(def.properties) },
+        {
+          uid: uuidv4(),
+          name: def.name,
+          src: def.sourceLabel,
+          tgt: def.targetLabel,
+          category: def.category,
+          description: def.description,
+          properties: JSON.stringify(def.properties),
+        },
       );
     }
   }
@@ -366,23 +630,36 @@ export class SchemaRegistry {
   }
 
   getEmbeddingText(label: string, props: Record<string, unknown>): string {
-    return [this.getEmbeddingNameText(label, props), this.getEmbeddingContentText(label, props)].filter(Boolean).join(" ");
+    return [this.getEmbeddingNameText(label, props), this.getEmbeddingContentText(label, props)]
+      .filter(Boolean)
+      .join(" ");
   }
 
   getVectorSearchableNodeTypes(): NodeTypeDef[] {
     return this.getAllNodeTypes().filter((def) =>
-      def.properties.some((p) => p.tags.includes("embedded_name") || p.tags.includes("embedded_content"))
+      def.properties.some(
+        (p) => p.tags.includes("embedded_name") || p.tags.includes("embedded_content"),
+      ),
     );
   }
 
   getVectorSearchableRelTypes(): RelTypeDef[] {
     return this.getAllRelTypes().filter((def) =>
-      def.properties.some((p) => p.tags.includes("embedded_name") || p.tags.includes("embedded_content"))
+      def.properties.some(
+        (p) => p.tags.includes("embedded_name") || p.tags.includes("embedded_content"),
+      ),
     );
   }
 
   getInternalTypeNames(): string[] {
-    return ["Conversation", "GMTurnMessage", "IdCounter", "NodeType", "RelationshipType", "TimeAnchor"];
+    return [
+      "Conversation",
+      "GMTurnMessage",
+      "IdCounter",
+      "NodeType",
+      "RelationshipType",
+      "TimeAnchor",
+    ];
   }
 
   private static instance: SchemaRegistry | null = null;

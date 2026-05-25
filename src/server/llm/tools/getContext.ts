@@ -72,13 +72,17 @@ async function buildSchemaDump(): Promise<string> {
     try {
       const r = await db.graph.query(`MATCH (n:\`${nt.name}\`) RETURN count(n) AS cnt`);
       counts[nt.name] = (r.rows[0]?.cnt as number) ?? 0;
-    } catch { counts[nt.name] = 0; }
+    } catch {
+      counts[nt.name] = 0;
+    }
   }
   for (const rt of relTypes) {
     try {
       const r = await db.graph.query(`MATCH ()-[r:\`${rt.name}\`]->() RETURN count(r) AS cnt`);
       counts[rt.name] = (r.rows[0]?.cnt as number) ?? 0;
-    } catch { counts[rt.name] = 0; }
+    } catch {
+      counts[rt.name] = 0;
+    }
   }
 
   const lines: string[] = [];

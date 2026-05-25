@@ -24,7 +24,9 @@ describe("VectorStore", () => {
     const contentVec = new Float32Array([0.4, 0.5, 0.6]);
     const sparseVec = { indices: [0, 2], values: [1.0, 2.0] };
 
-    store.upsert("Character:Alice", "Character", "node", nameVec, contentVec, sparseVec, { name: "Alice" });
+    store.upsert("Character:Alice", "Character", "node", nameVec, contentVec, sparseVec, {
+      name: "Alice",
+    });
     const results = store.getAllByFilter("Character", "node");
     expect(results).toHaveLength(1);
     expect(results[0].pointId).toBe("Character:Alice");
@@ -33,7 +35,15 @@ describe("VectorStore", () => {
 
   it("delete removes a single point", () => {
     const vec = new Float32Array([1.0, 0.0]);
-    store.upsert("Note:Test", "Note", "node", vec, vec, { indices: [], values: [] }, { name: "Test" });
+    store.upsert(
+      "Note:Test",
+      "Note",
+      "node",
+      vec,
+      vec,
+      { indices: [], values: [] },
+      { name: "Test" },
+    );
     expect(store.getAllByFilter("Note", "node")).toHaveLength(1);
     store.delete("Note:Test");
     expect(store.getAllByFilter("Note", "node")).toHaveLength(0);
@@ -61,8 +71,24 @@ describe("VectorStore", () => {
   it("upsert with same pointId replaces existing", () => {
     const v1 = new Float32Array([0.1, 0.2]);
     const v2 = new Float32Array([0.9, 0.8]);
-    store.upsert("Character:Bob", "Character", "node", v1, v1, { indices: [], values: [] }, { name: "Bob", version: 1 });
-    store.upsert("Character:Bob", "Character", "node", v2, v2, { indices: [], values: [] }, { name: "Bob", version: 2 });
+    store.upsert(
+      "Character:Bob",
+      "Character",
+      "node",
+      v1,
+      v1,
+      { indices: [], values: [] },
+      { name: "Bob", version: 1 },
+    );
+    store.upsert(
+      "Character:Bob",
+      "Character",
+      "node",
+      v2,
+      v2,
+      { indices: [], values: [] },
+      { name: "Bob", version: 2 },
+    );
     const results = store.getAllByFilter("Character", "node");
     expect(results).toHaveLength(1);
     expect(results[0].payload.version).toBe(2);

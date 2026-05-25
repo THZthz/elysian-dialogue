@@ -29,7 +29,15 @@ export class EntityModel {
     this.embedder = embedder;
   }
 
-  async create(label: EntityLabel, props: { name: string; brief?: string; description?: string; metadata?: Record<string, unknown> }): Promise<MemoryEntity> {
+  async create(
+    label: EntityLabel,
+    props: {
+      name: string;
+      brief?: string;
+      description?: string;
+      metadata?: Record<string, unknown>;
+    },
+  ): Promise<MemoryEntity> {
     const uid = uuidv4();
     const now = new Date().toISOString();
     const brief = props.brief ?? "";
@@ -50,13 +58,42 @@ export class EntityModel {
     ]);
     const sparseVec = encodeSparse(contentText || props.name);
 
-    this.vectors.upsert(`${label}:${props.name}`, label, "node", new Float32Array(nameVec), new Float32Array(contentVec), sparseVec,
-      { node_type: label, kind: "node", object_id: `${label}:${props.name}`, text: contentText, name: props.name, brief, description, metadata });
+    this.vectors.upsert(
+      `${label}:${props.name}`,
+      label,
+      "node",
+      new Float32Array(nameVec),
+      new Float32Array(contentVec),
+      sparseVec,
+      {
+        node_type: label,
+        kind: "node",
+        object_id: `${label}:${props.name}`,
+        text: contentText,
+        name: props.name,
+        brief,
+        description,
+        metadata,
+      },
+    );
 
-    return { uid, name: props.name, label, brief, description, metadata: props.metadata ?? {}, aliases: [], isNew: true };
+    return {
+      uid,
+      name: props.name,
+      label,
+      brief,
+      description,
+      metadata: props.metadata ?? {},
+      aliases: [],
+      isNew: true,
+    };
   }
 
-  async update(label: EntityLabel, where: Record<string, unknown>, sets: Record<string, unknown>): Promise<MemoryEntity | null> {
+  async update(
+    label: EntityLabel,
+    where: Record<string, unknown>,
+    sets: Record<string, unknown>,
+  ): Promise<MemoryEntity | null> {
     const whereClauses = Object.entries(where).map(([k]) => `n.\`${k}\` = $w_${k}`);
     const r = await this.graph.query(
       `MATCH (n:\`${label}\`) WHERE ${whereClauses.join(" AND ")} RETURN n`,
@@ -79,7 +116,10 @@ export class EntityModel {
       now: new Date().toISOString(),
     };
 
-    await this.graph.query(`MATCH (n:\`${label}\`) WHERE ${whereClauses.join(" AND ")} SET ${setClauses.join(", ")}`, allParams);
+    await this.graph.query(
+      `MATCH (n:\`${label}\`) WHERE ${whereClauses.join(" AND ")} SET ${setClauses.join(", ")}`,
+      allParams,
+    );
 
     const entityProps = { name, brief, description };
     const nameText = getNodeManager().getEmbeddingNameText(label, entityProps);
@@ -93,8 +133,24 @@ export class EntityModel {
     if (oldName !== name) {
       this.vectors.delete(`${label}:${oldName}`);
     }
-    this.vectors.upsert(`${label}:${name}`, label, "node", new Float32Array(nameVec), new Float32Array(contentVec), sparseVec,
-      { node_type: label, kind: "node", object_id: `${label}:${name}`, text: contentText, name, brief, description, metadata });
+    this.vectors.upsert(
+      `${label}:${name}`,
+      label,
+      "node",
+      new Float32Array(nameVec),
+      new Float32Array(contentVec),
+      sparseVec,
+      {
+        node_type: label,
+        kind: "node",
+        object_id: `${label}:${name}`,
+        text: contentText,
+        name,
+        brief,
+        description,
+        metadata,
+      },
+    );
 
     return this.parseEntity(label, { ...existing, ...sets, name, brief, description, metadata });
   }
@@ -126,12 +182,20 @@ export class EntityModel {
   }
 
   parseEntity(label: string, row: Record<string, unknown>, isNew = false): MemoryEntity {
-    const meta = typeof row.metadata === "string" ? JSON.parse(row.metadata) as Record<string, unknown> : (row.metadata as Record<string, unknown>) ?? {};
-    const aliases = Array.isArray(meta.aliases) ? meta.aliases as string[] : [];
+    const meta =
+      typeof row.metadata === "string"
+        ? (JSON.parse(row.metadata) as Record<string, unknown>)
+        : ((row.metadata as Record<string, unknown>) ?? {});
+    const aliases = Array.isArray(meta.aliases) ? (meta.aliases as string[]) : [];
     return {
-      uid: row.uid as string, name: row.name as string, label,
-      brief: (row.brief as string) ?? "", description: (row.description as string) ?? "",
-      metadata: meta, aliases, isNew,
+      uid: row.uid as string,
+      name: row.name as string,
+      label,
+      brief: (row.brief as string) ?? "",
+      description: (row.description as string) ?? "",
+      metadata: meta,
+      aliases,
+      isNew,
     };
   }
 }

@@ -16,11 +16,17 @@ export class TimeModel {
   async getCurrentTimePoint(): Promise<TimePoint | null> {
     const result = await this.graph.query(
       `MATCH (a:TimeAnchor {uid: 'anchor'})-[:CURRENT_TIMEPOINT]->(tp:TimePoint)
-       RETURN tp`
+       RETURN tp`,
     );
     if (result.rows.length === 0) return null;
     const tp = (result.rows[0].tp || result.rows[0]) as Record<string, unknown>;
-    return { uid: tp.uid as string, day: tp.day as number, hour: tp.hour as number, label: tp.label as string, _created_at: (tp._created_at as string) ?? "" };
+    return {
+      uid: tp.uid as string,
+      day: tp.day as number,
+      hour: tp.hour as number,
+      label: tp.label as string,
+      _created_at: (tp._created_at as string) ?? "",
+    };
   }
 
   async setInitialTime(day: number, hour: number, label: string): Promise<void> {

@@ -2,8 +2,12 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { setupTestDb, teardownTestDb, getTestDb } from "../helpers";
 
 describe("Entity CRUD", () => {
-  beforeAll(async () => { await setupTestDb(); });
-  afterAll(async () => { await teardownTestDb(); });
+  beforeAll(async () => {
+    await setupTestDb();
+  });
+  afterAll(async () => {
+    await teardownTestDb();
+  });
 
   it("creates a Character with vectors", async () => {
     const db = getTestDb();
@@ -23,13 +27,17 @@ describe("Entity CRUD", () => {
     // Verify vector was stored
     const vectors = db.vectors.getAllByFilter("Character", "node");
     expect(vectors.length).toBeGreaterThanOrEqual(1);
-    expect(vectors.some(v => v.pointId === "Character:Alice")).toBe(true);
+    expect(vectors.some((v) => v.pointId === "Character:Alice")).toBe(true);
   });
 
   it("updates an entity and re-syncs vectors", async () => {
     const db = getTestDb();
     await db.entities.create("Character", { name: "Bob", brief: "Original" });
-    await db.entities.update("Character", { name: "Bob" }, { brief: "Updated brief", description: "New desc" });
+    await db.entities.update(
+      "Character",
+      { name: "Bob" },
+      { brief: "Updated brief", description: "New desc" },
+    );
     const entity = await db.entities.getByName("Character", "Bob");
     expect(entity?.brief).toBe("Updated brief");
     expect(entity?.description).toBe("New desc");
@@ -43,7 +51,7 @@ describe("Entity CRUD", () => {
     const found = await db.entities.getByName("Character", "Charlie");
     expect(found).toBeNull();
     const vectors = db.vectors.getAllByFilter("Character", "node");
-    expect(vectors.some(v => v.pointId === "Character:Charlie")).toBe(false);
+    expect(vectors.some((v) => v.pointId === "Character:Charlie")).toBe(false);
   });
 
   it("getById finds entity across all entity types", async () => {

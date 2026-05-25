@@ -25,7 +25,7 @@ import { TOOL_NAMES } from "@/shared/constants";
 const AUTO_LIMIT = 50;
 
 function stripHiddenProperties(rows: Record<string, unknown>[]): Record<string, unknown>[] {
-  return rows.map(row => {
+  return rows.map((row) => {
     const out: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(row)) {
       if (!k.startsWith("_")) out[k] = v;
@@ -83,8 +83,8 @@ Internal properties prefixed with "_" are hidden from READ results.
       // Validate labels exist in schema before executing
       const labels = extractLabels(args.query);
       const allNodeTypes = db.schema.getAllNodeTypes();
-      const knownLabels = new Set(allNodeTypes.map(n => n.name));
-      const unknownLabels = labels.filter(l => !knownLabels.has(l));
+      const knownLabels = new Set(allNodeTypes.map((n) => n.name));
+      const unknownLabels = labels.filter((l) => !knownLabels.has(l));
       if (unknownLabels.length > 0) {
         return (
           `SCHEMA ERROR: Unknown label(s): ${unknownLabels.join(", ")}. ` +

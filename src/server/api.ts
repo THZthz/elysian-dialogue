@@ -176,7 +176,9 @@ apiRouter.post("/checkpoint/restore/:turnNumber", async (req, res) => {
     await Database.getInstance();
     res.json({ success: true, turn: turnNumber });
   } catch (error: unknown) {
-    try { await Database.getInstance(); } catch {}
+    try {
+      await Database.getInstance();
+    } catch {}
     const message = error instanceof Error ? error.message : String(error);
     res.status(500).json({ error: message });
   }

@@ -501,10 +501,7 @@ export async function generateTurn(
     // Persist this turn's messages for multi-turn continuity
     try {
       const response = await result.response;
-      await db.messages.saveGMMessages(
-        response.messages as ModelMessage[],
-        turnNumber,
-      );
+      await db.messages.saveGMMessages(response.messages as ModelMessage[], turnNumber);
     } catch (err) {
       console.error("[generateTurn] Failed to save GM messages:", err);
     }
@@ -548,16 +545,21 @@ export async function generateTurn(
 
     // Persist current options so the player can resume from this point
     if (finalOptions.length > 0) {
-      db.messages.saveCurrentOptions(finalOptions).catch((err) =>
-        console.error("[generateTurn] failed to persist options:", err),
-      );
+      db.messages
+        .saveCurrentOptions(finalOptions)
+        .catch((err) => console.error("[generateTurn] failed to persist options:", err));
     }
 
     // Save checkpoint at end of successful turn (blocking so next turn doesn't start mid-save)
     try {
-      await db.checkpoint.save(turnNumber,
-        async () => { await Database.closeInstance(); },
-        async () => { await Database.getInstance(); }
+      await db.checkpoint.save(
+        turnNumber,
+        async () => {
+          await Database.closeInstance();
+        },
+        async () => {
+          await Database.getInstance();
+        },
       );
     } catch (err) {
       console.error("[generateTurn] failed to save checkpoint:", err);

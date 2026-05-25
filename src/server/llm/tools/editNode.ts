@@ -25,8 +25,15 @@ import { TOOL_NAMES } from "@/shared/constants";
 
 const NODE_ACTIONS = ["CREATE", "UPDATE", "DELETE"] as const;
 const ENTITY_LABELS = ["Character", "Object", "Location"] as const;
-type EntityLabel = typeof ENTITY_LABELS[number];
-const INTERNAL_LABELS = new Set(["Conversation", "GMTurnMessage", "IdCounter", "NodeType", "RelationshipType", "TimeAnchor"]);
+type EntityLabel = (typeof ENTITY_LABELS)[number];
+const INTERNAL_LABELS = new Set([
+  "Conversation",
+  "GMTurnMessage",
+  "IdCounter",
+  "NodeType",
+  "RelationshipType",
+  "TimeAnchor",
+]);
 
 function isEntityLabel(label: string): label is EntityLabel {
   return (ENTITY_LABELS as readonly string[]).includes(label);
@@ -278,7 +285,11 @@ Since \`metadata\` is tagged as "json" of node Character in SCHEMA_DUMP, you can
     if (propErr) return `ERROR: ${propErr}`;
 
     if (useModel) {
-      const entity = await db.entities.update(args.nodeLabel as EntityLabel, args.match, args.properties);
+      const entity = await db.entities.update(
+        args.nodeLabel as EntityLabel,
+        args.match,
+        args.properties,
+      );
       if (!entity) {
         return `ERROR: No "${args.nodeLabel}" node found matching ${JSON.stringify(args.match)}.`;
       }

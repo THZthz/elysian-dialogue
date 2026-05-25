@@ -38,11 +38,7 @@ const inputSchema = z.object({
       "Plot description. CREATE: required. UPDATE: optional (set to overwrite — should be rare). DELETE: omit.",
     ),
   brief: z.string().nullable().optional().describe("Short one-line summary of the plot."),
-  status: z
-    .enum(PLOT_STATUSES)
-    .nullable()
-    .optional()
-    .describe("Plot status."),
+  status: z.enum(PLOT_STATUSES).nullable().optional().describe("Plot status."),
   triggerCondition: z
     .string()
     .nullable()
@@ -53,7 +49,11 @@ const inputSchema = z.object({
     .nullable()
     .optional()
     .describe("Add or update flags on this plot."),
-  removeFlags: z.array(z.string()).nullable().optional().describe("Array of flag IDs to remove from this plot."),
+  removeFlags: z
+    .array(z.string())
+    .nullable()
+    .optional()
+    .describe("Array of flag IDs to remove from this plot."),
   branchTo: z
     .string()
     .nullable()
@@ -91,7 +91,8 @@ of action or allegiance, not a single line of dialogue.
     }
 
     if (args.action == "CREATE") {
-      if (!args.description) return `ERROR: Parameter \`description\` is required for action CREATE.`;
+      if (!args.description)
+        return `ERROR: Parameter \`description\` is required for action CREATE.`;
       await db.plots.create(
         args.plotName,
         args.description,
@@ -147,7 +148,7 @@ of action or allegiance, not a single line of dialogue.
     if (args.setFlag || (args.removeFlags && args.removeFlags.length > 0)) {
       let newFlags = [...existing.flags];
       if (args.setFlag) {
-        const idx = newFlags.findIndex(f => f.flagId === args.setFlag!.flagId);
+        const idx = newFlags.findIndex((f) => f.flagId === args.setFlag!.flagId);
         if (idx >= 0) {
           newFlags[idx] = { flagId: args.setFlag!.flagId, description: args.setFlag!.description };
         } else {
@@ -156,10 +157,13 @@ of action or allegiance, not a single line of dialogue.
         changes.push(`flag "${args.setFlag.flagId}"`);
       }
       if (args.removeFlags && args.removeFlags.length > 0) {
-        newFlags = newFlags.filter(f => !args.removeFlags!.includes(f.flagId));
+        newFlags = newFlags.filter((f) => !args.removeFlags!.includes(f.flagId));
         changes.push(`flags "${args.removeFlags.join(", ")}" removed`);
       }
-      await db.plots.setFlags(args.plotName, newFlags.map(f => f.flagId));
+      await db.plots.setFlags(
+        args.plotName,
+        newFlags.map((f) => f.flagId),
+      );
     }
 
     if (args.branchTo) {

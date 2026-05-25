@@ -110,7 +110,8 @@ or ABOUT_MESSAGE first if you have a clear target.
     }
 
     // Handle link changes: clearLinks removes all link types, so batch together.
-    const anyLinksChanged = args.aboutEntities != null || args.aboutMessages != null || args.aboutPlots != null;
+    const anyLinksChanged =
+      args.aboutEntities != null || args.aboutMessages != null || args.aboutPlots != null;
     if (anyLinksChanged) {
       await db.notes.clearLinks(args.noteName);
       // Rebuild from provided arrays, preserving existing links for arrays not provided.

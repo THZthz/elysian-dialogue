@@ -2,8 +2,12 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { setupTestDb, teardownTestDb, getTestDb } from "../helpers";
 
 describe("CheckpointManager", () => {
-  beforeAll(async () => { await setupTestDb(); });
-  afterAll(async () => { await teardownTestDb(); });
+  beforeAll(async () => {
+    await setupTestDb();
+  });
+  afterAll(async () => {
+    await teardownTestDb();
+  });
 
   it("lists empty checkpoints initially", async () => {
     const db = getTestDb();

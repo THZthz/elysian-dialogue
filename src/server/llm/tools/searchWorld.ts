@@ -39,11 +39,10 @@ function getVectorSearchable(type: "relationship" | "label"): {
   labelToCanonical: Map<string, string>;
 } {
   const schema = SchemaRegistry.getInstance();
-  const all: RelTypeDef[] | NodeTypeDef[] = (
+  const all: RelTypeDef[] | NodeTypeDef[] =
     type === "relationship"
       ? schema.getVectorSearchableRelTypes()
-      : schema.getVectorSearchableNodeTypes()
-  );
+      : schema.getVectorSearchableNodeTypes();
 
   // Filter out subtype labels: labels whose property definitions (names + tags)
   // are identical to another label's — they share the same vector index.
@@ -154,17 +153,21 @@ Do not forget to use parameter \`limit\` wisely, if the search should be exact, 
 
     for (const label of nodeDomains) {
       tasks.push(
-        db.search.search({ domain: label, kind: "node", query: args.query, limit: args.limit }).then((rows) => {
-          result[label] = rows.map(r => stripHidden(r as Record<string, unknown>));
-        }),
+        db.search
+          .search({ domain: label, kind: "node", query: args.query, limit: args.limit })
+          .then((rows) => {
+            result[label] = rows.map((r) => stripHidden(r as Record<string, unknown>));
+          }),
       );
     }
 
     for (const type of relDomains) {
       tasks.push(
-        db.search.search({ domain: type, kind: "relationship", query: args.query, limit: args.limit }).then((rows) => {
-          result[type] = rows.map(r => stripHidden(r as Record<string, unknown>));
-        }),
+        db.search
+          .search({ domain: type, kind: "relationship", query: args.query, limit: args.limit })
+          .then((rows) => {
+            result[type] = rows.map((r) => stripHidden(r as Record<string, unknown>));
+          }),
       );
     }
 

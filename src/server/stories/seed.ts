@@ -66,7 +66,11 @@ export async function seedDatabase(): Promise<void> {
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err);
           const code = (err as { code?: string }).code;
-          if (code === "CATALOG_ALREADY_EXISTS" || msg.toLowerCase().includes("already exists") || msg.toLowerCase().includes("duplicate table")) {
+          if (
+            code === "CATALOG_ALREADY_EXISTS" ||
+            msg.toLowerCase().includes("already exists") ||
+            msg.toLowerCase().includes("duplicate table")
+          ) {
             continue;
           }
           throw err;
@@ -92,10 +96,10 @@ export async function seedDatabase(): Promise<void> {
 
     // Preserve player entity convention: uid = "#player#"
     if (entity.id === "#player#") {
-      await db.graph.query(
-        `MATCH (e:\`${label}\` {name: $name}) SET e.uid = $id`,
-        { name: entity.name, id: "#player#" },
-      );
+      await db.graph.query(`MATCH (e:\`${label}\` {name: $name}) SET e.uid = $id`, {
+        name: entity.name,
+        id: "#player#",
+      });
     }
   }
 
@@ -104,8 +108,12 @@ export async function seedDatabase(): Promise<void> {
     const srcLabel = nameToLabel.get(rel.sourceName) ?? "Character";
     const tgtLabel = nameToLabel.get(rel.targetName) ?? "Location";
     await db.graph.mergeRelationship(
-      srcLabel, "name", rel.sourceName,
-      tgtLabel, "name", rel.targetName,
+      srcLabel,
+      "name",
+      rel.sourceName,
+      tgtLabel,
+      "name",
+      rel.targetName,
       rel.type,
       rel.description ? { description: rel.description } : undefined,
     );
@@ -134,7 +142,14 @@ export async function seedDatabase(): Promise<void> {
       `MERGE (d:Disposition {source_name: $src, target_name: $tgt})
        ON CREATE SET d.uid = $uid, d.sentiment = $sentiment, d.summary = $summary, d._created_at = $now, d._updated_at = $now
        ON MATCH SET d.sentiment = $sentiment, d.summary = $summary, d._updated_at = $now`,
-      { src: srcName, tgt: tgtName, uid: uuidv4(), sentiment: disp.sentiment, summary: disp.summary, now },
+      {
+        src: srcName,
+        tgt: tgtName,
+        uid: uuidv4(),
+        sentiment: disp.sentiment,
+        summary: disp.summary,
+        now,
+      },
     );
 
     // Link NPC to Disposition

@@ -23,18 +23,33 @@ import { wrapSafe } from "@/server/llm/tools/shared";
 import { TOOL_NAMES } from "@/shared/constants";
 
 const NODE_PROPERTY_TAGS = [
-  "string", "number", "number[]", "json",
-  "embedded_name", "embedded_content",
-  "unique", "index",
-  "composite_unique_1", "composite_unique_2", "composite_unique_3",
-  "composite_index_1", "composite_index_2", "composite_index_3",
+  "string",
+  "number",
+  "number[]",
+  "json",
+  "embedded_name",
+  "embedded_content",
+  "unique",
+  "index",
+  "composite_unique_1",
+  "composite_unique_2",
+  "composite_unique_3",
+  "composite_index_1",
+  "composite_index_2",
+  "composite_index_3",
 ] as const;
 
 const RELATIONSHIP_PROPERTY_TAGS = [
-  "string", "number", "number[]", "json",
-  "embedded_name", "embedded_content",
+  "string",
+  "number",
+  "number[]",
+  "json",
+  "embedded_name",
+  "embedded_content",
   "index",
-  "composite_index_1", "composite_index_2", "composite_index_3",
+  "composite_index_1",
+  "composite_index_2",
+  "composite_index_3",
 ] as const;
 
 export const manageSchema = tool({
@@ -132,7 +147,7 @@ Only GM_DEFINED types can be unregistered. PREDEFINED and INTERNAL types are per
 
         const inputProps = (args.properties ?? []).filter((p) => !!p?.name);
         // Preserve existing properties if none provided on update
-        const props = (existing && inputProps.length === 0) ? existing.properties : inputProps;
+        const props = existing && inputProps.length === 0 ? existing.properties : inputProps;
 
         db.schema.registerNode({
           name: args.name,
@@ -174,7 +189,7 @@ Only GM_DEFINED types can be unregistered. PREDEFINED and INTERNAL types are per
             ),
           }));
         // Preserve existing properties if none provided on update
-        const relProps = (existing && inputProps.length === 0) ? existing.properties : inputProps;
+        const relProps = existing && inputProps.length === 0 ? existing.properties : inputProps;
 
         db.schema.registerRel({
           name: args.name,

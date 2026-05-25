@@ -1,11 +1,12 @@
-
 import { VectorStore } from "@/server/db/vectorstore";
 import type { Embedder } from "@/server/search/embedder";
 import { encodeSparse, type SparseVector } from "@/server/search/sparseEncoder";
 import { getReranker, applyRerank } from "@/server/search/reranker";
 
 function cosineSim(a: Float32Array, b: Float32Array): number {
-  let dot = 0, normA = 0, normB = 0;
+  let dot = 0,
+    normA = 0,
+    normB = 0;
   for (let i = 0; i < a.length; i++) {
     dot += a[i] * b[i];
     normA += a[i] * a[i];
@@ -105,14 +106,21 @@ export class HybridSearcher {
 
     const topCandidates = fusedOrder.slice(0, fetchLimit).map((idx) => {
       const c = candidates[idx];
-      const clean = { ...stripHidden(c.payload), similarity: Math.max(nameScores[idx].score, contentScores[idx].score) } as Record<string, unknown>;
+      const clean = {
+        ...stripHidden(c.payload),
+        similarity: Math.max(nameScores[idx].score, contentScores[idx].score),
+      } as Record<string, unknown>;
       return clean;
     });
 
     if (rerankerAvailable && topCandidates.length > 0) {
       const withText = topCandidates.map((item) => ({
         ...item,
-        text: (item as Record<string, unknown>).text as string || (item as Record<string, unknown>).name as string || (item as Record<string, unknown>).content as string || "",
+        text:
+          ((item as Record<string, unknown>).text as string) ||
+          ((item as Record<string, unknown>).name as string) ||
+          ((item as Record<string, unknown>).content as string) ||
+          "",
       }));
       const reranked = await applyRerank(query, withText, limit);
       return reranked.map((r) => {

@@ -41,7 +41,12 @@ describe("SchemaRegistry", () => {
       { name: "name", description: "Faction name", tags: ["string", "unique"] },
       { name: "power", description: "Power level", tags: ["number"] },
     ];
-    schema.registerNode({ name: "Faction", category: "GM_DEFINED", description: "A faction", properties: props });
+    schema.registerNode({
+      name: "Faction",
+      category: "GM_DEFINED",
+      description: "A faction",
+      properties: props,
+    });
 
     const def = schema.getNodeType("Faction");
     expect(def).toBeDefined();
@@ -52,7 +57,9 @@ describe("SchemaRegistry", () => {
   it("generates correct DDL for GM_DEFINED type", () => {
     const schema = SchemaRegistry.getInstance();
     schema.registerNode({
-      name: "Faction", category: "GM_DEFINED", description: "A faction",
+      name: "Faction",
+      category: "GM_DEFINED",
+      description: "A faction",
       properties: [
         { name: "name", description: "Name", tags: ["string", "unique"] },
         { name: "power", description: "Power", tags: ["number"] },
@@ -68,8 +75,12 @@ describe("SchemaRegistry", () => {
   it("registers and retrieves GM_DEFINED relationship types", () => {
     const schema = SchemaRegistry.getInstance();
     schema.registerRel({
-      name: "ALLIED_WITH", sourceLabel: "Character", targetLabel: "Character",
-      category: "GM_DEFINED", description: "Alliance", properties: [],
+      name: "ALLIED_WITH",
+      sourceLabel: "Character",
+      targetLabel: "Character",
+      category: "GM_DEFINED",
+      description: "Alliance",
+      properties: [],
     });
     const def = schema.getRelType("ALLIED_WITH", "Character", "Character");
     expect(def).toBeDefined();
@@ -80,13 +91,15 @@ describe("SchemaRegistry", () => {
     const schema = SchemaRegistry.getInstance();
     const results = schema.getRelTypeByName("LOCATED_AT");
     expect(results.length).toBeGreaterThan(0);
-    expect(results.every(r => r.name === "LOCATED_AT")).toBe(true);
+    expect(results.every((r) => r.name === "LOCATED_AT")).toBe(true);
   });
 
   it("generates correct embedding content text", () => {
     const schema = SchemaRegistry.getInstance();
     const text = schema.getEmbeddingContentText("Character", {
-      name: "Alice", brief: "A brave knight", description: "Alice wields a glowing sword",
+      name: "Alice",
+      brief: "A brave knight",
+      description: "Alice wields a glowing sword",
     });
     expect(text).toContain("A brave knight");
     expect(text).toContain("Alice wields a glowing sword");
@@ -103,18 +116,18 @@ describe("SchemaRegistry", () => {
     const searchable = schema.getVectorSearchableNodeTypes();
     expect(searchable.length).toBeGreaterThan(0);
     // TimeAnchor has no embedded properties — should not appear
-    expect(searchable.some(t => t.name === "TimeAnchor")).toBe(false);
+    expect(searchable.some((t) => t.name === "TimeAnchor")).toBe(false);
     // Character has embedded_name + embedded_content — should appear
-    expect(searchable.some(t => t.name === "Character")).toBe(true);
+    expect(searchable.some((t) => t.name === "Character")).toBe(true);
   });
 
   it("getVectorSearchableRelTypes returns embeddable relationships", () => {
     const schema = SchemaRegistry.getInstance();
     const searchable = schema.getVectorSearchableRelTypes();
     // LOCATED_AT has embedded_content brief — should appear
-    expect(searchable.some(t => t.name === "LOCATED_AT")).toBe(true);
+    expect(searchable.some((t) => t.name === "LOCATED_AT")).toBe(true);
     // HAS_MESSAGE has no embedded props — should not appear
-    expect(searchable.some(t => t.name === "HAS_MESSAGE")).toBe(false);
+    expect(searchable.some((t) => t.name === "HAS_MESSAGE")).toBe(false);
   });
 
   it("getInternalTypeNames excludes hidden types from schema dump", () => {

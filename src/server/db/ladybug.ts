@@ -1,4 +1,3 @@
-
 import type { Database as LadybugDatabase, Connection as LadybugConnection } from "@ladybugdb/core";
 
 export interface QueryResult {
@@ -24,7 +23,10 @@ export class LadybugClient {
     if (!this.conn) throw new Error("LadybugClient not initialized");
     // conn.query() does not accept params — use prepare + execute for parameterized queries.
     const stmt = await this.conn.prepare(cypher);
-    const raw = await this.conn.execute(stmt, params as Record<string, import("@ladybugdb/core").LbugValue> | undefined);
+    const raw = await this.conn.execute(
+      stmt,
+      params as Record<string, import("@ladybugdb/core").LbugValue> | undefined,
+    );
     const result = Array.isArray(raw) ? raw[0] : raw;
     const rows: Record<string, unknown>[] = [];
     const all = await result.getAll();
@@ -46,9 +48,14 @@ export class LadybugClient {
   }
 
   async mergeRelationship(
-    srcLabel: string, srcKey: string, srcVal: unknown,
-    tgtLabel: string, tgtKey: string, tgtVal: unknown,
-    type: string, props?: Record<string, unknown>,
+    srcLabel: string,
+    srcKey: string,
+    srcVal: unknown,
+    tgtLabel: string,
+    tgtKey: string,
+    tgtVal: unknown,
+    type: string,
+    props?: Record<string, unknown>,
   ): Promise<void> {
     const setClauses: string[] = ["r._created_at = current_timestamp()"];
     const setParams: Record<string, unknown> = { srcVal, tgtVal };
@@ -68,8 +75,12 @@ export class LadybugClient {
   }
 
   async deleteRelationship(
-    srcLabel: string, srcKey: string, srcVal: unknown,
-    tgtLabel: string, tgtKey: string, tgtVal: unknown,
+    srcLabel: string,
+    srcKey: string,
+    srcVal: unknown,
+    tgtLabel: string,
+    tgtKey: string,
+    tgtVal: unknown,
     type: string,
   ): Promise<number> {
     const result = await this.query(

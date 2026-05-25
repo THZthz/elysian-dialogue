@@ -1,4 +1,3 @@
-
 import Database from "better-sqlite3";
 import type { SparseVector } from "@/server/search/sparseEncoder";
 
@@ -59,19 +58,21 @@ export class VectorStore {
     payload: Record<string, unknown>,
   ): void {
     if (!this.db) throw new Error("VectorStore not initialized");
-    this.db.prepare(
-      `INSERT OR REPLACE INTO vectors (point_id, node_type, kind, name_vec, content_vec, sparse_vec, payload, created_at)
+    this.db
+      .prepare(
+        `INSERT OR REPLACE INTO vectors (point_id, node_type, kind, name_vec, content_vec, sparse_vec, payload, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    ).run(
-      pointId,
-      nodeType,
-      kind,
-      float32ToBlob(nameVec),
-      float32ToBlob(contentVec),
-      JSON.stringify(sparseVec),
-      JSON.stringify(payload),
-      new Date().toISOString(),
-    );
+      )
+      .run(
+        pointId,
+        nodeType,
+        kind,
+        float32ToBlob(nameVec),
+        float32ToBlob(contentVec),
+        JSON.stringify(sparseVec),
+        JSON.stringify(payload),
+        new Date().toISOString(),
+      );
   }
 
   delete(pointId: string): void {
@@ -86,9 +87,11 @@ export class VectorStore {
 
   getAllByFilter(nodeType: string, kind: string): StoredVector[] {
     if (!this.db) throw new Error("VectorStore not initialized");
-    const rows = this.db.prepare(
-      "SELECT point_id, name_vec, content_vec, sparse_vec, payload FROM vectors WHERE node_type = ? AND kind = ?",
-    ).all(nodeType, kind) as Array<{
+    const rows = this.db
+      .prepare(
+        "SELECT point_id, name_vec, content_vec, sparse_vec, payload FROM vectors WHERE node_type = ? AND kind = ?",
+      )
+      .all(nodeType, kind) as Array<{
       point_id: string;
       name_vec: Buffer;
       content_vec: Buffer;

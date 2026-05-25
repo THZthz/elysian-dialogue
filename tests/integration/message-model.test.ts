@@ -2,8 +2,12 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { setupTestDb, teardownTestDb, getTestDb } from "../helpers";
 
 describe("MessageModel", () => {
-  beforeAll(async () => { await setupTestDb(); });
-  afterAll(async () => { await teardownTestDb(); });
+  beforeAll(async () => {
+    await setupTestDb();
+  });
+  afterAll(async () => {
+    await teardownTestDb();
+  });
 
   it("creates and retrieves messages", async () => {
     const db = getTestDb();
@@ -14,7 +18,7 @@ describe("MessageModel", () => {
 
     const history = await db.messages.getConversation();
     expect(history.length).toBeGreaterThanOrEqual(1);
-    expect(history.some(m => m.id === msg.id)).toBe(true);
+    expect(history.some((m) => m.id === msg.id)).toBe(true);
   });
 
   it("saves and loads game options", async () => {
@@ -27,9 +31,10 @@ describe("MessageModel", () => {
 
   it("saves and loads GM messages with turn tracking", async () => {
     const db = getTestDb();
-    await db.messages.saveGMMessages([
-      { role: "assistant", content: [{ type: "text", text: "The room darkens." }] },
-    ], 1);
+    await db.messages.saveGMMessages(
+      [{ role: "assistant", content: [{ type: "text", text: "The room darkens." }] }],
+      1,
+    );
 
     const loaded = await db.messages.loadGMMessages();
     expect(loaded.length).toBeGreaterThan(0);
@@ -39,7 +44,10 @@ describe("MessageModel", () => {
   it("getNextTurnNumber increments correctly", async () => {
     const db = getTestDb();
     const turn1 = await db.messages.getNextTurnNumber();
-    await db.messages.saveGMMessages([{ role: "assistant", content: [{ type: "text", text: "Turn 1" }] }], turn1);
+    await db.messages.saveGMMessages(
+      [{ role: "assistant", content: [{ type: "text", text: "Turn 1" }] }],
+      turn1,
+    );
     const turn2 = await db.messages.getNextTurnNumber();
     expect(turn2).toBe(turn1 + 1);
   });

@@ -1,4 +1,3 @@
-
 import * as fs from "fs";
 import * as path from "path";
 
@@ -20,7 +19,11 @@ export class CheckpointManager {
     this.dir = checkpointDir;
   }
 
-  async save(turnNumber: number, closeCallback: () => Promise<void>, reopenCallback: () => Promise<void>): Promise<void> {
+  async save(
+    turnNumber: number,
+    closeCallback: () => Promise<void>,
+    reopenCallback: () => Promise<void>,
+  ): Promise<void> {
     if (!fs.existsSync(this.dir)) fs.mkdirSync(this.dir, { recursive: true });
 
     const turnDir = path.join(this.dir, `turn_${String(turnNumber).padStart(4, "0")}`);
@@ -51,14 +54,21 @@ export class CheckpointManager {
     }
 
     const index = this.loadIndex();
-    index.push({ turn: turnNumber, graphFile: graphDest, vectorFile: vectorDest, createdAt: new Date().toISOString() });
+    index.push({
+      turn: turnNumber,
+      graphFile: graphDest,
+      vectorFile: vectorDest,
+      createdAt: new Date().toISOString(),
+    });
     fs.writeFileSync(path.join(this.dir, "index.json"), JSON.stringify(index, null, 2));
   }
 
   async restore(turnNumber: number): Promise<void> {
     const sentinelPath = path.join(this.dir, ".restore_in_progress");
     if (fs.existsSync(sentinelPath)) {
-      throw new Error("Restore already in progress — sentinel file exists from a prior crashed restore");
+      throw new Error(
+        "Restore already in progress — sentinel file exists from a prior crashed restore",
+      );
     }
 
     const index = this.loadIndex();
@@ -67,8 +77,10 @@ export class CheckpointManager {
 
     fs.writeFileSync(sentinelPath, "");
 
-    if (!fs.existsSync(entry.graphFile)) throw new Error(`Checkpoint graph file missing: ${entry.graphFile}`);
-    if (!fs.existsSync(entry.vectorFile)) throw new Error(`Checkpoint vector file missing: ${entry.vectorFile}`);
+    if (!fs.existsSync(entry.graphFile))
+      throw new Error(`Checkpoint graph file missing: ${entry.graphFile}`);
+    if (!fs.existsSync(entry.vectorFile))
+      throw new Error(`Checkpoint vector file missing: ${entry.vectorFile}`);
 
     fs.copyFileSync(entry.graphFile, this.graphPath);
     // Also restore .wal file if present in checkpoint
@@ -94,7 +106,9 @@ export class CheckpointManager {
       }
     } catch (err) {
       // Validation failed — keep sentinel to block further restores
-      throw new Error(`Restored checkpoint file is corrupt: ${err instanceof Error ? err.message : String(err)}`);
+      throw new Error(
+        `Restored checkpoint file is corrupt: ${err instanceof Error ? err.message : String(err)}`,
+      );
     }
 
     // Delete later checkpoints

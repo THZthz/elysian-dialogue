@@ -17,7 +17,7 @@ class StubEmbedder implements Embedder {
     return [0.5, 0.5, 0.5, 0.5]; // neutral
   }
   async embedBatch(texts: string[]): Promise<number[][]> {
-    return Promise.all(texts.map(t => this.embed(t)));
+    return Promise.all(texts.map((t) => this.embed(t)));
   }
 }
 
@@ -43,10 +43,32 @@ describe("HybridSearcher", () => {
     // Query "knight" → [1,0,0,0] should match Alice better than Bob
     const vAlice = new Float32Array([1.0, 0, 0, 0]);
     const vBob = new Float32Array([0, 1.0, 0, 0]);
-    store.upsert("Character:Alice", "Character", "node", vAlice, vAlice, { indices: [], values: [] }, { name: "Alice", text: "brave knight" });
-    store.upsert("Character:Bob", "Character", "node", vBob, vBob, { indices: [], values: [] }, { name: "Bob", text: "cowardly mage" });
+    store.upsert(
+      "Character:Alice",
+      "Character",
+      "node",
+      vAlice,
+      vAlice,
+      { indices: [], values: [] },
+      { name: "Alice", text: "brave knight" },
+    );
+    store.upsert(
+      "Character:Bob",
+      "Character",
+      "node",
+      vBob,
+      vBob,
+      { indices: [], values: [] },
+      { name: "Bob", text: "cowardly mage" },
+    );
 
-    const results = await searcher.search({ domain: "Character", kind: "node", query: "knight", limit: 2, rerank: false });
+    const results = await searcher.search({
+      domain: "Character",
+      kind: "node",
+      query: "knight",
+      limit: 2,
+      rerank: false,
+    });
     expect(results.length).toBe(2);
     // Alice (brave knight) should rank first since query "knight" matches her vector
     expect(results[0].name).toBe("Alice");
@@ -56,16 +78,36 @@ describe("HybridSearcher", () => {
   });
 
   it("returns empty for unknown domain", async () => {
-    const results = await searcher.search({ domain: "NonExistent", kind: "node", query: "test", limit: 5, rerank: false });
+    const results = await searcher.search({
+      domain: "NonExistent",
+      kind: "node",
+      query: "test",
+      limit: 5,
+      rerank: false,
+    });
     expect(results).toHaveLength(0);
   });
 
   it("respects limit parameter", async () => {
     const v = new Float32Array([0.5, 0.5, 0.5, 0.5]);
     for (const name of ["A", "B", "C", "D", "E"]) {
-      store.upsert(`Character:${name}`, "Character", "node", v, v, { indices: [], values: [] }, { name });
+      store.upsert(
+        `Character:${name}`,
+        "Character",
+        "node",
+        v,
+        v,
+        { indices: [], values: [] },
+        { name },
+      );
     }
-    const results = await searcher.search({ domain: "Character", kind: "node", query: "test", limit: 3, rerank: false });
+    const results = await searcher.search({
+      domain: "Character",
+      kind: "node",
+      query: "test",
+      limit: 3,
+      rerank: false,
+    });
     expect(results.length).toBeLessThanOrEqual(3);
   });
 });

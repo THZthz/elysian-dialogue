@@ -45,7 +45,10 @@ export async function resetDb(): Promise<void> {
   await Database.getExisting().reset();
 }
 
-export async function exec(query: string, params?: Record<string, unknown>): Promise<Record<string, unknown>[]> {
+export async function exec(
+  query: string,
+  params?: Record<string, unknown>,
+): Promise<Record<string, unknown>[]> {
   const result = await Database.getExisting().graph.query(query, params);
   return result.rows;
 }

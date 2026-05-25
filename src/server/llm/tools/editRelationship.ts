@@ -45,7 +45,8 @@ function findRelType(
 ): RelTypeDef | undefined {
   const candidates = schema.getRelTypeByName(name);
   return candidates.find(
-    (def) => matchesEndpoint(def.sourceLabel, srcLabel) && matchesEndpoint(def.targetLabel, tgtLabel),
+    (def) =>
+      matchesEndpoint(def.sourceLabel, srcLabel) && matchesEndpoint(def.targetLabel, tgtLabel),
   );
 }
 
@@ -78,7 +79,9 @@ const inputSchema = z.object({
     .describe("Label of the source node (e.g. 'Character', 'Object', 'Location')."),
   sourceMatch: z
     .record(z.string(), z.string())
-    .describe("Key-value pairs to locate the source node (e.g. { name: 'Tavern' } for a Location)."),
+    .describe(
+      "Key-value pairs to locate the source node (e.g. { name: 'Tavern' } for a Location).",
+    ),
   targetLabel: z.string().describe("Label of the target node."),
   targetMatch: z
     .record(z.string(), z.string())
@@ -217,15 +220,9 @@ sub-locations nested within a larger location (e.g., a basement inside a tavern)
 
         const embedder = getEmbedder();
         const tasks: Promise<number[] | null>[] = [];
+        tasks.push(nameText ? embedder.embed(nameText).catch(() => null) : Promise.resolve(null));
         tasks.push(
-          nameText
-            ? embedder.embed(nameText).catch(() => null)
-            : Promise.resolve(null),
-        );
-        tasks.push(
-          contentText
-            ? embedder.embed(contentText).catch(() => null)
-            : Promise.resolve(null),
+          contentText ? embedder.embed(contentText).catch(() => null) : Promise.resolve(null),
         );
         const [nv, cv] = await Promise.all(tasks);
         nameVec = nv;
@@ -271,8 +268,18 @@ sub-locations nested within a larger location (e.g., a basement inside a tavern)
           }
           const nameVecFA = nameVec ? new Float32Array(nameVec) : new Float32Array(0);
           const contentVecFA = contentVec ? new Float32Array(contentVec) : new Float32Array(0);
-          const sparse = nameText ? encodeSparse(nameText) : { indices: [] as number[], values: [] as number[] };
-          db.vectors.upsert(pointId, args.relationshipType, "relationship", nameVecFA, contentVecFA, sparse, payload);
+          const sparse = nameText
+            ? encodeSparse(nameText)
+            : { indices: [] as number[], values: [] as number[] };
+          db.vectors.upsert(
+            pointId,
+            args.relationshipType,
+            "relationship",
+            nameVecFA,
+            contentVecFA,
+            sparse,
+            payload,
+          );
         } catch (err) {
           console.warn(
             `[editRelationship] Vector upsert failed for "${args.relationshipType}":`,
@@ -363,12 +370,7 @@ sub-locations nested within a larger location (e.g., a basement inside a tavern)
           const merged = { ...existingRel, ...args.properties };
           const embedder = getEmbedder();
           if (nameChanged) {
-            relNameText = getRelEmbeddingNameText(
-              args.relationshipType,
-              merged,
-              srcVal,
-              tgtVal,
-            );
+            relNameText = getRelEmbeddingNameText(args.relationshipType, merged, srcVal, tgtVal);
             if (relNameText) {
               try {
                 relNameVec = await embedder.embed(relNameText);
@@ -410,9 +412,21 @@ sub-locations nested within a larger location (e.g., a basement inside a tavern)
             if (!k.startsWith("_")) payload[k] = v;
           }
           const nameVecFA = relNameVec ? new Float32Array(relNameVec) : new Float32Array(0);
-          const contentVecFA = relContentVec ? new Float32Array(relContentVec) : new Float32Array(0);
-          const sparse = relNameText ? encodeSparse(relNameText) : { indices: [] as number[], values: [] as number[] };
-          db.vectors.upsert(pointId, args.relationshipType, "relationship", nameVecFA, contentVecFA, sparse, payload);
+          const contentVecFA = relContentVec
+            ? new Float32Array(relContentVec)
+            : new Float32Array(0);
+          const sparse = relNameText
+            ? encodeSparse(relNameText)
+            : { indices: [] as number[], values: [] as number[] };
+          db.vectors.upsert(
+            pointId,
+            args.relationshipType,
+            "relationship",
+            nameVecFA,
+            contentVecFA,
+            sparse,
+            payload,
+          );
         } catch (err) {
           console.warn(
             `[editRelationship] Vector upsert failed for "${args.relationshipType}":`,

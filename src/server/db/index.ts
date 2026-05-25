@@ -51,7 +51,11 @@ export class Database {
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         const code = (err as { code?: string }).code;
-        if (code === "CATALOG_ALREADY_EXISTS" || msg.toLowerCase().includes("already exists") || msg.toLowerCase().includes("duplicate table")) {
+        if (
+          code === "CATALOG_ALREADY_EXISTS" ||
+          msg.toLowerCase().includes("already exists") ||
+          msg.toLowerCase().includes("duplicate table")
+        ) {
           continue;
         }
         throw err;
@@ -66,7 +70,12 @@ export class Database {
       await this.schema.persistNodeType(this.graph, nodeDef.name);
     }
     for (const relDef of this.schema.getAllRelTypes()) {
-      await this.schema.persistRelType(this.graph, relDef.name, relDef.sourceLabel, relDef.targetLabel);
+      await this.schema.persistRelType(
+        this.graph,
+        relDef.name,
+        relDef.sourceLabel,
+        relDef.targetLabel,
+      );
     }
 
     // Wire domain models
@@ -90,14 +99,22 @@ export class Database {
     if (fs.existsSync(this.vectorPath)) fs.unlinkSync(this.vectorPath);
     Database.instance = null;
     SchemaRegistry.resetInstance();
-    await Database.getInstance({ graphPath: this.graphPath, vectorPath: this.vectorPath, checkpointDir: this.checkpointDir });
+    await Database.getInstance({
+      graphPath: this.graphPath,
+      vectorPath: this.vectorPath,
+      checkpointDir: this.checkpointDir,
+    });
   }
 
   // ── Singleton ──
 
   private static instance: Database | null = null;
 
-  static async getInstance(options?: { graphPath?: string; vectorPath?: string; checkpointDir?: string }): Promise<Database> {
+  static async getInstance(options?: {
+    graphPath?: string;
+    vectorPath?: string;
+    checkpointDir?: string;
+  }): Promise<Database> {
     if (Database.instance) return Database.instance;
 
     const graphPath = options?.graphPath ?? "data/chorus.lbug";
