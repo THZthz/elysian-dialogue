@@ -19,28 +19,8 @@
 import "dotenv/config";
 import express from "express";
 import apiRouter from "@/server/api";
-import { getMemoryClient, MemoryClient } from "@/server/memory/client";
+import { Database } from "@/server/db";
 import { seedDatabase } from "@/server/stories/seed";
-
-const NEO4J_RETRY_MS = 10000;
-
-async function initMemory(): Promise<void> {
-  // eslint-disable-next-line no-constant-condition
-  while (true) {
-    try {
-      console.log("[memory] connecting to Neo4j...");
-      await MemoryClient.getInstance();
-      console.log("[memory] connected.");
-      return;
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      console.error(
-        `[memory] Neo4j unavailable (${msg}), retrying in ${NEO4J_RETRY_MS / 1000}s...`,
-      );
-      await new Promise((r) => setTimeout(r, NEO4J_RETRY_MS));
-    }
-  }
-}
 
 async function start() {
   try {
@@ -50,10 +30,10 @@ async function start() {
     app.use(express.json());
     app.use("/api", apiRouter);
 
-    // Initialize MemoryClient (retries until Neo4j is available)
-    await initMemory();
+    console.log("[db] initializing...");
+    await Database.getInstance();
+    console.log("[db] ready.");
 
-    // Seed Neo4j with initial world data
     await seedDatabase();
 
     app.listen(PORT, "0.0.0.0", () => {
@@ -62,7 +42,7 @@ async function start() {
 
     const shutdown = async () => {
       console.log("\nShutting down...");
-      await MemoryClient.closeInstance();
+      await Database.closeInstance();
       process.exit(0);
     };
     process.on("SIGINT", shutdown);

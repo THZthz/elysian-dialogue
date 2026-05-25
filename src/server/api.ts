@@ -19,7 +19,7 @@
 import express from "express";
 import { generateTurn, isGenerating } from "@/server/llm";
 import { chatStreamSchema } from "@/server/validation";
-import { getMemoryClient, MemoryClient } from "@/server/memory/client";
+import { Database } from "@/server/db";
 import { RelationshipManager } from "@/server/relationshipManager";
 import { getCurrentOptions } from "@/server/gameState";
 import { queryWorld } from "@/server/llm/tools/queryWorld";
@@ -76,8 +76,8 @@ apiRouter.post("/chat/stream", async (req, res) => {
 
 apiRouter.get("/history", async (_req, res) => {
   try {
-    const client = getMemoryClient();
-    const messages = await client.shortTerm.getConversation();
+    const db = Database.getExisting();
+    const messages = await db.messages.getConversation();
     const history: Message[] = messages.map((m, i) => {
       const meta = m.metadata || {};
       const msg: Message = {
@@ -134,8 +134,7 @@ apiRouter.post("/debug/tools/:toolName", async (req, res) => {
 apiRouter.post("/reset", async (_req, res) => {
   try {
     // Clear Neo4j and re-seed
-    const { clearNeo4jDatabase } = await import("@/server/memory/reset");
-    await clearNeo4jDatabase();
+    await Database.getExisting().reset();
     const { seedDatabase } = await import("@/server/stories/seed");
     await seedDatabase();
 
@@ -144,9 +143,9 @@ apiRouter.post("/reset", async (_req, res) => {
     relManager.reset();
     const nodeManager = (await import("@/server/nodeManager")).getNodeManager();
     nodeManager.reset();
-    const client = await MemoryClient.getInstance();
-    await relManager.syncToNeo4j(client.neo4j);
-    await nodeManager.syncToNeo4j(client.neo4j);
+    const db = await Database.getInstance();
+    await relManager.syncToNeo4j(db.graph);
+    await nodeManager.syncToNeo4j(db.graph);
 
     res.json({ success: true });
   } catch (error: unknown) {
@@ -178,9 +177,12 @@ apiRouter.post("/checkpoint/restore/:turnNumber", async (req, res) => {
     return;
   }
   try {
+    await Database.closeInstance();
     const result = await restoreCheckpoint(turnNumber);
+    await Database.getInstance();
     res.json(result);
   } catch (error: unknown) {
+    try { await Database.getInstance(); } catch {}
     const message = error instanceof Error ? error.message : String(error);
     res.status(500).json({ error: message });
   }
