@@ -16,6 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+
 import { v4 as uuidv4 } from "uuid";
 import { getActiveSeedStory } from "@/server/stories";
 import { Database } from "@/server/db";
@@ -112,9 +113,9 @@ export async function seedDatabase(): Promise<void> {
       metadata: Object.keys(cleanMetadata).length > 0 ? cleanMetadata : undefined,
     });
 
-    // Preserve player entity convention: uid = "#player#"
+    // Preserve player entity convention: _uid = "#player#"
     if (entity.id === "#player#") {
-      await db.graph.query(`MATCH (e:\`${label}\` {name: $name}) SET e.uid = $id`, {
+      await db.graph.query(`MATCH (e:\`${label}\` {name: $name}) SET e._uid = $id`, {
         name: entity.name,
         id: "#player#",
       });
@@ -158,12 +159,12 @@ export async function seedDatabase(): Promise<void> {
     // Merge Disposition node (composite key: source_name, target_name)
     await db.graph.query(
       `MERGE (d:Disposition {source_name: $src, target_name: $tgt})
-       ON CREATE SET d.uid = $uid, d.sentiment = $sentiment, d.summary = $summary, d._created_at = $now, d._updated_at = $now
+       ON CREATE SET d._uid = $_uid, d.sentiment = $sentiment, d.summary = $summary, d._created_at = $now, d._updated_at = $now
        ON MATCH SET d.sentiment = $sentiment, d.summary = $summary, d._updated_at = $now`,
       {
         src: srcName,
         tgt: tgtName,
-        uid: uuidv4(),
+        _uid: uuidv4(),
         sentiment: disp.sentiment,
         summary: disp.summary,
         now,

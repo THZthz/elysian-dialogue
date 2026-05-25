@@ -116,58 +116,58 @@ flowchart TD
 
 ## LLM Tools
 
-| Category | Tool | Purpose |
-|---|---|---|
-| **SENSE** | `getContext` | Scene context, entity briefs, plot tree, schema/relationship dump (in-memory) |
-| | `searchWorld` | 3-way hybrid vector search across nodes and relationships |
-| | `queryWorld` | Cypher READ/WRITE with limited rows |
-| **ACT** | `editNode` | Node CRUD with auto-embedding |
-| | `editRelationship` | Relationship CRUD with auto-embedding |
-| | `manageSchema` | Register/unregister types; generates DDL |
-| | `advanceTime` | Advance in-game clock by hours/days |
-| **TRACK** | `editNote` | GM scratchpad notes linked to entities, messages, plots |
-| | `editPlot` | Plot lifecycle with status transitions, flags, branching |
-| **SPEAK** | `generateDialogueStep` | Narrative output + player options |
+| Category  | Tool                   | Purpose                                                                       |
+|-----------|------------------------|-------------------------------------------------------------------------------|
+| **SENSE** | `getContext`           | Scene context, entity briefs, plot tree, schema/relationship dump (in-memory) |
+|           | `searchWorld`          | 3-way hybrid vector search across nodes and relationships                     |
+|           | `queryWorld`           | Cypher READ/WRITE with limited rows                                           |
+| **ACT**   | `editNode`             | Node CRUD with auto-embedding                                                 |
+|           | `editRelationship`     | Relationship CRUD with auto-embedding                                         |
+|           | `manageSchema`         | Register/unregister types; generates DDL                                      |
+|           | `advanceTime`          | Advance in-game clock by hours/days                                           |
+| **TRACK** | `editNote`             | GM scratchpad notes linked to entities, messages, plots                       |
+|           | `editPlot`             | Plot lifecycle with status transitions, flags, branching                      |
+| **SPEAK** | `generateDialogueStep` | Narrative output + player options                                             |
 
 ---
 
 ## SSE Events
 
-| Event | Payload | Trigger |
-|---|---|---|
-| `step_start` | `{ stepId }` | Turn begins |
-| `streaming_messages` | `{ messages }` | Progressive during dialogue generation |
-| `streaming_reset` | `{}` | LLM retried — discard previous |
-| `time_update` | `{ day, segment, segmentsAdvanced }` | `advanceTime` executes |
-| `options` | `{ options }` | Options available mid-stream |
-| `parsed` | `{ messages, options }` | Final structured output |
-| `error` | `{ message }` | Error during generation |
-| `done` | `{}` | Turn complete |
-| `roll_result` | `{ skill, difficulty, dice[], total, statBonus, success }` | Skill check resolved |
+| Event                | Payload                                                    | Trigger                                |
+|----------------------|------------------------------------------------------------|----------------------------------------|
+| `step_start`         | `{ stepId }`                                               | Turn begins                            |
+| `streaming_messages` | `{ messages }`                                             | Progressive during dialogue generation |
+| `streaming_reset`    | `{}`                                                       | LLM retried — discard previous         |
+| `time_update`        | `{ day, segment, segmentsAdvanced }`                       | `advanceTime` executes                 |
+| `options`            | `{ options }`                                              | Options available mid-stream           |
+| `parsed`             | `{ messages, options }`                                    | Final structured output                |
+| `error`              | `{ message }`                                              | Error during generation                |
+| `done`               | `{}`                                                       | Turn complete                          |
+| `roll_result`        | `{ skill, difficulty, dice[], total, statBonus, success }` | Skill check resolved                   |
 
 ---
 
 ## API Endpoints
 
-| Method | Path | Purpose |
-|---|---|---|
-| `POST` | `/api/chat/stream` | Primary AI turn (SSE) |
-| `GET` | `/api/history` | Full conversation history |
-| `GET` | `/api/game/current` | Current dialogue options |
-| `POST` | `/api/debug/tools/:toolName` | Invoke any GM tool directly |
-| `POST` | `/api/reset` | Clear database and re-seed |
-| `GET` | `/api/checkpoints` | List saved checkpoints |
-| `POST` | `/api/checkpoint/restore/:turn` | Restore to a checkpoint |
+| Method | Path                            | Purpose                     |
+|--------|---------------------------------|-----------------------------|
+| `POST` | `/api/chat/stream`              | Primary AI turn (SSE)       |
+| `GET`  | `/api/history`                  | Full conversation history   |
+| `GET`  | `/api/game/current`             | Current dialogue options    |
+| `POST` | `/api/debug/tools/:toolName`    | Invoke any GM tool directly |
+| `POST` | `/api/reset`                    | Clear database and re-seed  |
+| `GET`  | `/api/checkpoints`              | List saved checkpoints      |
+| `POST` | `/api/checkpoint/restore/:turn` | Restore to a checkpoint     |
 
 ---
 
 ## Data Files
 
-| File | Purpose |
-|---|---|
-| `data/chorus.lbug` | LadybugDB graph database |
-| `data/chorus_vectors.db` | SQLite vector store |
-| `data/checkpoints/` | Turn-level checkpoint snapshots |
+| File                     | Purpose                         |
+|--------------------------|---------------------------------|
+| `data/chorus.lbug`       | LadybugDB graph database        |
+| `data/chorus_vectors.db` | SQLite vector store             |
+| `data/checkpoints/`      | Turn-level checkpoint snapshots |
 
 ---
 

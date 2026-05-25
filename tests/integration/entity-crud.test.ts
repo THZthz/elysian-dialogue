@@ -35,7 +35,7 @@ describe("Entity CRUD", () => {
       description: "Alice is used for testing",
     });
     expect(entity.name).toBe("Alice");
-    expect(entity.uid).toBeTruthy();
+    expect(entity._uid).toBeTruthy();
     expect(entity.isNew).toBe(true);
 
     const found = await db.entities.getByName("Character", "Alice");
@@ -75,7 +75,7 @@ describe("Entity CRUD", () => {
   it("getById finds entity across all entity types", async () => {
     const db = getTestDb();
     const obj = await db.entities.create("Object", { name: "Sword" });
-    const found = await db.entities.getById(obj.uid);
+    const found = await db.entities.getById(obj._uid);
     expect(found).not.toBeNull();
     expect(found!.name).toBe("Sword");
   });

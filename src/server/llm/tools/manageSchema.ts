@@ -19,6 +19,7 @@
 import { tool } from "ai";
 import { z } from "zod";
 import { Database } from "@/server/db";
+import type { RelPropertyDef } from "@/server/db/schema";
 import { wrapSafe } from "@/server/llm/tools/shared";
 import { TOOL_NAMES } from "@/shared/constants";
 
@@ -189,7 +190,7 @@ Only GM_DEFINED types can be unregistered. PREDEFINED and INTERNAL types are per
             ),
           }));
         // Preserve existing properties if none provided on update
-        const relProps = existing && inputProps.length === 0 ? existing.properties : inputProps;
+        const relProps: RelPropertyDef[] = existing && inputProps.length === 0 ? existing.properties : (inputProps as RelPropertyDef[]);
 
         db.schema.registerRel({
           name: args.name,

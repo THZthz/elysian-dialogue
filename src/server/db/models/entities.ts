@@ -24,7 +24,7 @@ import { getNodeManager } from "@/server/db/schema";
 import { encodeSparse } from "@/server/search/sparseEncoder";
 
 export interface Entity {
-  uid: string;
+  _uid: string;
   name: string;
   label: string;
   brief: string;
@@ -56,15 +56,15 @@ export class EntityModel {
       metadata?: Record<string, unknown>;
     },
   ): Promise<Entity> {
-    const uid = uuidv4();
+    const _uid = uuidv4();
     const now = new Date().toISOString();
     const brief = props.brief ?? "";
     const description = props.description ?? "";
     const metadata = JSON.stringify(props.metadata ?? {});
 
     await this.graph.query(
-      `CREATE (e:\`${label}\` {uid: $uid, name: $name, brief: $brief, description: $description, metadata: $metadata, _created_at: $now, _updated_at: $now})`,
-      { uid, name: props.name, brief, description, metadata, now },
+      `CREATE (e:\`${label}\` {_uid: $_uid, name: $name, brief: $brief, description: $description, metadata: $metadata, _created_at: $now, _updated_at: $now})`,
+      { _uid, name: props.name, brief, description, metadata, now },
     );
 
     const entityProps = { name: props.name, brief, description };
@@ -96,7 +96,7 @@ export class EntityModel {
     );
 
     return {
-      uid,
+      _uid,
       name: props.name,
       label,
       brief,
@@ -199,7 +199,7 @@ export class EntityModel {
 
   async getById(id: string): Promise<Entity | null> {
     for (const label of ["Character", "Object", "Location"] as EntityLabel[]) {
-      const r = await this.graph.query(`MATCH (n:\`${label}\` {uid: $id}) RETURN n`, { id });
+      const r = await this.graph.query(`MATCH (n:\`${label}\` {_uid: $id}) RETURN n`, { id });
       if (r.rows.length > 0) {
         return this.parseEntity(label, (r.rows[0].n || r.rows[0]) as Record<string, unknown>);
       }
@@ -211,7 +211,7 @@ export class EntityModel {
     const meta = (row.metadata as Record<string, unknown>) ?? {};
     const aliases = Array.isArray(meta.aliases) ? (meta.aliases as string[]) : [];
     return {
-      uid: row.uid as string,
+      _uid: row._uid as string,
       name: row.name as string,
       label,
       brief: (row.brief as string) ?? "",

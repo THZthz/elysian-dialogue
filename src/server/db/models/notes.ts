@@ -174,7 +174,7 @@ export class NoteModel {
 
   async getLinkedMessages(noteName: string): Promise<string[]> {
     const r = await this.graph.query(
-      "MATCH (n:Note {name: $name})-[:ABOUT_MESSAGE]->(m:Message) RETURN m.id AS id",
+      "MATCH (n:Note {name: $name})-[:ABOUT_MESSAGE]->(m:Message) RETURN m.name AS id",
       { name: noteName },
     );
     return r.rows.map((row) => row.id as string);

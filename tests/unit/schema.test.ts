@@ -17,7 +17,7 @@
  */
 
 import { describe, it, expect, beforeEach } from "vitest";
-import { SchemaRegistry, NodeTypeDef, RelTypeDef, PropertyDef } from "@/server/db/schema";
+import { SchemaRegistry, NodeTypeDef, RelTypeDef, NodePropertyDef } from "@/server/db/schema";
 
 describe("SchemaRegistry", () => {
   beforeEach(() => {
@@ -41,7 +41,7 @@ describe("SchemaRegistry", () => {
     expect(ddl).toContain("CREATE NODE TABLE");
     expect(ddl).toContain("Character");
     expect(ddl).toContain("PRIMARY KEY");
-    expect(ddl).toContain("uid");
+    expect(ddl).toContain("name");
   });
 
   it("generates valid relationship DDL", () => {
@@ -55,7 +55,7 @@ describe("SchemaRegistry", () => {
 
   it("registers and retrieves GM_DEFINED node types", () => {
     const schema = SchemaRegistry.getInstance();
-    const props: PropertyDef[] = [
+    const props: NodePropertyDef[] = [
       { name: "name", description: "Faction name", tags: ["string", "unique"] },
       { name: "power", description: "Power level", tags: ["number"] },
     ];

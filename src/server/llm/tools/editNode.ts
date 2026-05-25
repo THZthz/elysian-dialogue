@@ -78,7 +78,7 @@ e.g. { name: 'Tavern' } for a Location, or { source_name: 'Guard', target_name: 
       `
 Key-value pairs to set on the node. Must match the property schema for this node type.
 CREATE: sets initial properties. UPDATE: only include properties you want to change.
-System properties (uid, _created_at, _updated_at) are managed automatically.
+System properties (_uid, _created_at, _updated_at) are managed automatically.
 `.trim(),
     ),
 });
@@ -113,7 +113,7 @@ Since \`metadata\` is tagged as "json" of node Character in SCHEMA_DUMP, you can
   "nodeLabel": "Character",
   "action": "UPDATE",
   "match": {
-    "uid": "#player#"
+    "_uid": "#player#"
   },
   "properties": {
     "metadata": {
@@ -322,9 +322,6 @@ Since \`metadata\` is tagged as "json" of node Character in SCHEMA_DUMP, you can
       const existingRaw = existingNode?.[key];
       let existingObj: Record<string, unknown> = {};
       if (existingRaw && typeof existingRaw === "object" && !Array.isArray(existingRaw)) {
-        existingObj = existingRaw as Record<string, unknown>;
-      }
-      } else if (existingRaw && typeof existingRaw === "object" && !Array.isArray(existingRaw)) {
         existingObj = existingRaw as Record<string, unknown>;
       }
       propertiesToSet[key] = { ...existingObj, ...incoming };

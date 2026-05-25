@@ -421,9 +421,9 @@ export async function buildRelationshipDump(): Promise<string> {
     try {
       const r = await db.graph.query(
         `MATCH (a)-[r:\`${relDef.name}\`]->(b)
-         RETURN label(a) AS sourceLabel, COALESCE(a.name, a.uid) AS sourceName,
+         RETURN label(a) AS sourceLabel, COALESCE(a.name, a._uid) AS sourceName,
                 type(r) AS type, properties(r) AS props,
-                label(b) AS targetLabel, COALESCE(b.name, b.uid) AS targetName
+                label(b) AS targetLabel, COALESCE(b.name, b._uid) AS targetName
          LIMIT 200`,
       );
       for (const row of r.rows) {
