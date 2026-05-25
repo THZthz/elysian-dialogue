@@ -71,7 +71,7 @@ e.g. { name: 'Tavern' } for a Location, or { source_name: 'Guard', target_name: 
       `
 Key-value pairs to set on the node. Must match the property schema for this node type.
 CREATE: sets initial properties. UPDATE: only include properties you want to change.
-System properties (_id, _created_at, _updated_at) are managed automatically.
+System properties (uid, _created_at, _updated_at) are managed automatically.
 `.trim(),
     ),
 });
@@ -106,7 +106,7 @@ Since \`metadata\` is tagged as "json" of node Character in SCHEMA_DUMP, you can
   "nodeLabel": "Character",
   "action": "UPDATE",
   "match": {
-    "_id": "#player#"
+    "uid": "#player#"
   },
   "properties": {
     "metadata": {

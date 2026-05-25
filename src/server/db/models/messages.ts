@@ -24,7 +24,7 @@ export class MessageModel {
   async nextId(): Promise<string> {
     const result = await this.graph.query(
       `MERGE (c:IdCounter)
-       ON CREATE SET c.value = 0, c._id = $uuid
+       ON CREATE SET c.value = 0, c.uid = $uuid
        SET c.value = c.value + 1
        RETURN c.value AS value`,
       { uuid: uuidv4() },
@@ -56,7 +56,7 @@ export class MessageModel {
     const merged = { ...metadata };
 
     await this.graph.query(
-      `MATCH (c:Conversation {_id: $convId})
+      `MATCH (c:Conversation {uid: $convId})
        CREATE (m:Message {
          id: $id, content: $content,
          timestamp: $now,
@@ -90,7 +90,7 @@ export class MessageModel {
     if (linkToCurrentTime) {
       try {
         await this.graph.query(
-          `MATCH (a:TimeAnchor {_id: 'anchor'})-[:CURRENT_TIMEPOINT]->(tp:TimePoint)
+          `MATCH (a:TimeAnchor {uid: 'anchor'})-[:CURRENT_TIMEPOINT]->(tp:TimePoint)
            MATCH (m:Message {id: $msgId})
            MERGE (m)-[r:AT_TIME]->(tp)
            ON CREATE SET r._created_at = current_timestamp()`,
@@ -125,14 +125,14 @@ export class MessageModel {
   }
 
   async getCurrentOptions(): Promise<{ id: string; options: unknown } | null> {
-    const r = await this.graph.query("MATCH (c:Conversation) RETURN c._id AS id, c.options AS options");
+    const r = await this.graph.query("MATCH (c:Conversation) RETURN c.uid AS id, c.options AS options");
     if (r.rows.length === 0) return null;
     const row = r.rows[0];
     return { id: row.id as string, options: typeof row.options === "string" ? JSON.parse(row.options) : row.options };
   }
 
   async saveGMMessages(messages: Array<{ role: string; content: unknown; providerOptions?: unknown }>, turnNumber: number): Promise<void> {
-    const convRows = await this.graph.query("MATCH (c:Conversation) RETURN c._id AS id");
+    const convRows = await this.graph.query("MATCH (c:Conversation) RETURN c.uid AS id");
     if (convRows.rows.length === 0) return;
     const convId = convRows.rows[0].id as string;
 
@@ -142,9 +142,9 @@ export class MessageModel {
       const now = new Date().toISOString();
 
       await this.graph.query(
-        `MATCH (c:Conversation {_id: $convId})
+        `MATCH (c:Conversation {uid: $convId})
          CREATE (c)-[r:_HAS_GM_MESSAGE]->(m:GMTurnMessage {
-           _id: $msgId, role: $role,
+           uid: $msgId, role: $role,
            content: $content, provider_options: $providerOpts,
            turn_number: $turn, message_index: $idx,
            _created_at: $now
@@ -156,25 +156,25 @@ export class MessageModel {
       );
 
       const lastRows = await this.graph.query(
-        `MATCH (c:Conversation {_id: $convId})-[:_HAS_GM_MESSAGE]->(m:GMTurnMessage)
+        `MATCH (c:Conversation {uid: $convId})-[:_HAS_GM_MESSAGE]->(m:GMTurnMessage)
          WHERE NOT (m)-[:_NEXT_GM_MESSAGE]->(:GMTurnMessage)
-         RETURN m._id AS id ORDER BY m._created_at DESC LIMIT 1`,
+         RETURN m.uid AS id ORDER BY m._created_at DESC LIMIT 1`,
         { convId },
       );
       if (lastRows.rows.length > 0 && lastRows.rows[0].id !== msgId) {
-        await this.graph.mergeRelationship("GMTurnMessage", "_id", lastRows.rows[0].id, "GMTurnMessage", "_id", msgId, "_NEXT_GM_MESSAGE");
+        await this.graph.mergeRelationship("GMTurnMessage", "uid", lastRows.rows[0].id, "GMTurnMessage", "uid", msgId, "_NEXT_GM_MESSAGE");
       }
     }
 
     if (turnNumber === 1) {
       const firstRows = await this.graph.query(
-        `MATCH (c:Conversation {_id: $convId})-[:_HAS_GM_MESSAGE]->(m:GMTurnMessage)
-         RETURN m._id AS id ORDER BY m._created_at LIMIT 1`,
+        `MATCH (c:Conversation {uid: $convId})-[:_HAS_GM_MESSAGE]->(m:GMTurnMessage)
+         RETURN m.uid AS id ORDER BY m._created_at LIMIT 1`,
         { convId },
       );
       if (firstRows.rows.length > 0) {
         try {
-          await this.graph.mergeRelationship("Conversation", "_id", convId, "GMTurnMessage", "_id", firstRows.rows[0].id, "_FIRST_GM_MESSAGE");
+          await this.graph.mergeRelationship("Conversation", "uid", convId, "GMTurnMessage", "uid", firstRows.rows[0].id, "_FIRST_GM_MESSAGE");
         } catch { /* may already exist */ }
       }
     }
@@ -202,17 +202,17 @@ export class MessageModel {
   }
 
   private async ensureConversation(): Promise<string> {
-    const r = await this.graph.query("MATCH (c:Conversation) RETURN c._id AS id");
+    const r = await this.graph.query("MATCH (c:Conversation) RETURN c.uid AS id");
     if (r.rows.length > 0) return r.rows[0].id as string;
     const convId = uuidv4();
     const now = new Date().toISOString();
-    await this.graph.query("CREATE (c:Conversation {_id: $id, _created_at: $now, _updated_at: $now})", { id: convId, now });
+    await this.graph.query("CREATE (c:Conversation {uid: $id, _created_at: $now, _updated_at: $now})", { id: convId, now });
     return convId;
   }
 
   private async getLastMessageId(convId: string, excludeId: string): Promise<string | null> {
     const r = await this.graph.query(
-      `MATCH (c:Conversation {_id: $convId})-[:HAS_MESSAGE]->(m:Message)
+      `MATCH (c:Conversation {uid: $convId})-[:HAS_MESSAGE]->(m:Message)
        WHERE m.id <> $excludeId AND NOT (m)-[:NEXT_MESSAGE]->(:Message)
        RETURN m.id AS id ORDER BY m.timestamp DESC LIMIT 1`,
       { convId, excludeId },
@@ -229,7 +229,7 @@ export class MessageModel {
       await this.graph.mergeRelationship("Message", "id", messageIds[i], "Message", "id", messageIds[i + 1], "NEXT_MESSAGE");
     }
     if (isFirst && messageIds.length > 0) {
-      await this.graph.mergeRelationship("Conversation", "_id", convId, "Message", "id", messageIds[0], "FIRST_MESSAGE");
+      await this.graph.mergeRelationship("Conversation", "uid", convId, "Message", "id", messageIds[0], "FIRST_MESSAGE");
     }
   }
 }

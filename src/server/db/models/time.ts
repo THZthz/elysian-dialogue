@@ -2,7 +2,7 @@ import { v4 as uuidv4 } from "uuid";
 import type { LadybugClient } from "@/server/db/ladybug";
 
 export interface TimePoint {
-  _id: string;
+  uid: string;
   day: number;
   hour: number;
   label: string;
@@ -14,22 +14,22 @@ export class TimeModel {
 
   async getCurrentTimePoint(): Promise<TimePoint | null> {
     const result = await this.graph.query(
-      `MATCH (a:TimeAnchor {_id: 'anchor'})-[:CURRENT_TIMEPOINT]->(tp:TimePoint)
+      `MATCH (a:TimeAnchor {uid: 'anchor'})-[:CURRENT_TIMEPOINT]->(tp:TimePoint)
        RETURN tp`
     );
     if (result.rows.length === 0) return null;
     const tp = (result.rows[0].tp || result.rows[0]) as Record<string, unknown>;
-    return { _id: tp._id as string, day: tp.day as number, hour: tp.hour as number, label: tp.label as string, _created_at: (tp._created_at as string) ?? "" };
+    return { uid: tp.uid as string, day: tp.day as number, hour: tp.hour as number, label: tp.label as string, _created_at: (tp._created_at as string) ?? "" };
   }
 
   async setInitialTime(day: number, hour: number, label: string): Promise<void> {
-    const _id = uuidv4();
+    const uid = uuidv4();
     const now = new Date().toISOString();
     await this.graph.query(
-      `MERGE (a:TimeAnchor {_id: 'anchor'})
-       CREATE (new:TimePoint {_id: $_id, day: $day, hour: $hour, label: $label, _created_at: $now})
+      `MERGE (a:TimeAnchor {uid: 'anchor'})
+       CREATE (new:TimePoint {uid: $uid, day: $day, hour: $hour, label: $label, _created_at: $now})
        CREATE (a)-[r:CURRENT_TIMEPOINT {_created_at: $now}]->(new)`,
-      { _id, day, hour, label, now },
+      { uid, day, hour, label, now },
     );
   }
 
@@ -45,28 +45,28 @@ export class TimeModel {
     const segmentIdx = Math.floor(newHour / 2);
     const newLabel = SEGMENT_LABELS[Math.min(segmentIdx, SEGMENT_LABELS.length - 1)];
 
-    const _id = uuidv4();
+    const uid = uuidv4();
     const now = new Date().toISOString();
 
     await this.graph.query(
-      `MATCH (a:TimeAnchor {_id: 'anchor'})
-       MATCH (old:TimePoint {_id: $oldId})
+      `MATCH (a:TimeAnchor {uid: 'anchor'})
+       MATCH (old:TimePoint {uid: $oldId})
        MATCH (a)-[r_del:CURRENT_TIMEPOINT]->(old)
-       CREATE (new:TimePoint {_id: $_id, day: $newDay, hour: $newHour, label: $newLabel, _created_at: $now})
+       CREATE (new:TimePoint {uid: $uid, day: $newDay, hour: $newHour, label: $newLabel, _created_at: $now})
        CREATE (old)-[r1:NEXT_TIMEPOINT]->(new)
        DELETE r_del
        CREATE (a)-[r2:CURRENT_TIMEPOINT {_created_at: $now}]->(new)`,
-      { oldId: current._id, _id, newDay, newHour, newLabel, now },
+      { oldId: current.uid, uid, newDay, newHour, newLabel, now },
     );
 
     if (reason) {
       await this.graph.query(
-        `MATCH (old:TimePoint {_id: $oldId})-[r:NEXT_TIMEPOINT]->(new:TimePoint {_id: $_id})
+        `MATCH (old:TimePoint {uid: $oldId})-[r:NEXT_TIMEPOINT]->(new:TimePoint {uid: $uid})
          SET r.reason = $reason`,
-        { oldId: current._id, _id, reason },
+        { oldId: current.uid, uid, reason },
       );
     }
 
-    return { _id, day: newDay, hour: newHour, label: newLabel, _created_at: now };
+    return { uid, day: newDay, hour: newHour, label: newLabel, _created_at: now };
   }
 }

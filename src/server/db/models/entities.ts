@@ -6,7 +6,7 @@ import { getNodeManager } from "@/server/db/schema";
 import { encodeSparse } from "@/server/search/sparseEncoder";
 
 export interface MemoryEntity {
-  _id: string;
+  uid: string;
   name: string;
   label: string;
   brief: string;
@@ -30,15 +30,15 @@ export class EntityModel {
   }
 
   async create(label: EntityLabel, props: { name: string; brief?: string; description?: string; metadata?: Record<string, unknown> }): Promise<MemoryEntity> {
-    const _id = uuidv4();
+    const uid = uuidv4();
     const now = new Date().toISOString();
     const brief = props.brief ?? "";
     const description = props.description ?? "";
     const metadata = JSON.stringify(props.metadata ?? {});
 
     await this.graph.query(
-      `CREATE (e:\`${label}\` {_id: $_id, name: $name, brief: $brief, description: $description, metadata: $metadata, _created_at: $now, _updated_at: $now})`,
-      { _id, name: props.name, brief, description, metadata, now },
+      `CREATE (e:\`${label}\` {uid: $uid, name: $name, brief: $brief, description: $description, metadata: $metadata, _created_at: $now, _updated_at: $now})`,
+      { uid, name: props.name, brief, description, metadata, now },
     );
 
     const entityProps = { name: props.name, brief, description };
@@ -53,7 +53,7 @@ export class EntityModel {
     this.vectors.upsert(`${label}:${props.name}`, label, "node", new Float32Array(nameVec), new Float32Array(contentVec), sparseVec,
       { node_type: label, kind: "node", object_id: `${label}:${props.name}`, text: contentText, name: props.name, brief, description, metadata });
 
-    return { _id, name: props.name, label, brief, description, metadata: props.metadata ?? {}, aliases: [], isNew: true };
+    return { uid, name: props.name, label, brief, description, metadata: props.metadata ?? {}, aliases: [], isNew: true };
   }
 
   async update(label: EntityLabel, where: Record<string, unknown>, sets: Record<string, unknown>): Promise<MemoryEntity | null> {
@@ -112,7 +112,7 @@ export class EntityModel {
 
   async getById(id: string): Promise<MemoryEntity | null> {
     for (const label of ["Character", "Object", "Location"] as EntityLabel[]) {
-      const r = await this.graph.query(`MATCH (n:\`${label}\` {_id: $id}) RETURN n`, { id });
+      const r = await this.graph.query(`MATCH (n:\`${label}\` {uid: $id}) RETURN n`, { id });
       if (r.rows.length > 0) {
         return this.parseEntity(label, (r.rows[0].n || r.rows[0]) as Record<string, unknown>);
       }
@@ -124,7 +124,7 @@ export class EntityModel {
     const meta = typeof row.metadata === "string" ? JSON.parse(row.metadata) as Record<string, unknown> : (row.metadata as Record<string, unknown>) ?? {};
     const aliases = Array.isArray(meta.aliases) ? meta.aliases as string[] : [];
     return {
-      _id: row._id as string, name: row.name as string, label,
+      uid: row.uid as string, name: row.name as string, label,
       brief: (row.brief as string) ?? "", description: (row.description as string) ?? "",
       metadata: meta, aliases, isNew,
     };

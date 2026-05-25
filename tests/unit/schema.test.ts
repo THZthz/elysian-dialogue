@@ -23,7 +23,7 @@ describe("SchemaRegistry", () => {
     expect(ddl).toContain("CREATE NODE TABLE");
     expect(ddl).toContain("Character");
     expect(ddl).toContain("PRIMARY KEY");
-    expect(ddl).toContain("_id");
+    expect(ddl).toContain("uid");
   });
 
   it("generates valid relationship DDL", () => {

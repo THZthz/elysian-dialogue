@@ -93,10 +93,10 @@ export async function seedDatabase(): Promise<void> {
       metadata: Object.keys(cleanMetadata).length > 0 ? cleanMetadata : undefined,
     });
 
-    // Preserve player entity convention: _id = "#player#"
+    // Preserve player entity convention: uid = "#player#"
     if (entity.id === "#player#") {
       await db.graph.query(
-        `MATCH (e:\`${label}\` {name: $name}) SET e._id = $id`,
+        `MATCH (e:\`${label}\` {name: $name}) SET e.uid = $id`,
         { name: entity.name, id: "#player#" },
       );
     }

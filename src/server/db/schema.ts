@@ -58,7 +58,7 @@ function generateRelDDL(def: RelTypeDef): string {
 }
 
 const ENTITY_PROPS: PropertyDef[] = [
-  { name: "_id", description: "UUID primary key", tags: ["string", "unique"] },
+  { name: "uid", description: "UUID primary key", tags: ["string", "unique"] },
   { name: "name", description: "Entity name", tags: ["string", "embedded_name"] },
   { name: "brief", description: "One-line summary", tags: ["string", "embedded_content"] },
   { name: "description", description: "Full description", tags: ["string", "embedded_content"] },
@@ -116,7 +116,7 @@ const PREDEFINED_NODES: NodeTypeDef[] = [
   {
     name: "TimePoint", category: "PREDEFINED", description: "Point in game time",
     properties: [
-      { name: "_id", description: "UUID", tags: ["string", "unique"] },
+      { name: "uid", description: "UUID", tags: ["string", "unique"] },
       { name: "day", description: "Day number", tags: ["number"] },
       { name: "hour", description: "Hour (0-23.5)", tags: ["number"] },
       { name: "label", description: "Time segment label", tags: ["string"] },
@@ -126,13 +126,13 @@ const PREDEFINED_NODES: NodeTypeDef[] = [
   {
     name: "TimeAnchor", category: "PREDEFINED", description: "Singleton anchor to current TimePoint",
     properties: [
-      { name: "_id", description: "Always 'anchor'", tags: ["string", "unique"] },
+      { name: "uid", description: "Always 'anchor'", tags: ["string", "unique"] },
     ],
   },
   {
     name: "Conversation", category: "PREDEFINED", description: "Singleton game session",
     properties: [
-      { name: "_id", description: "UUID", tags: ["string", "unique"] },
+      { name: "uid", description: "UUID", tags: ["string", "unique"] },
       { name: "options", description: "JSON: current dialogue options", tags: ["json"] },
       { name: "_created_at", description: "Creation timestamp", tags: ["string"] },
       { name: "_updated_at", description: "Update timestamp", tags: ["string"] },
@@ -141,7 +141,7 @@ const PREDEFINED_NODES: NodeTypeDef[] = [
   {
     name: "GMTurnMessage", category: "PREDEFINED", description: "AI SDK messages for GM continuity",
     properties: [
-      { name: "_id", description: "UUID", tags: ["string", "unique"] },
+      { name: "uid", description: "UUID", tags: ["string", "unique"] },
       { name: "turn_number", description: "Turn number", tags: ["number"] },
       { name: "message_index", description: "Message index within turn", tags: ["number"] },
       { name: "role", description: "Message role", tags: ["string"] },
@@ -153,7 +153,7 @@ const PREDEFINED_NODES: NodeTypeDef[] = [
   {
     name: "IdCounter", category: "PREDEFINED", description: "Atomic message ID counter",
     properties: [
-      { name: "_id", description: "UUID", tags: ["string", "unique"] },
+      { name: "uid", description: "UUID", tags: ["string", "unique"] },
       { name: "value", description: "Current counter value", tags: ["number"] },
     ],
   },

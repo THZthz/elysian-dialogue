@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import { setupTestDb, teardownTestDb, getTestDb } from "@/tests/helpers";
+import { setupTestDb, teardownTestDb, getTestDb } from "../helpers";
 
 describe("CheckpointManager", () => {
   beforeAll(async () => { await setupTestDb(); });
