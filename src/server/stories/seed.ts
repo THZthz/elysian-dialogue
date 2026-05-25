@@ -1,3 +1,4 @@
+import { v4 as uuidv4 } from "uuid";
 import { getActiveSeedStory } from "@/server/stories";
 import { Database } from "@/server/db";
 
@@ -135,9 +136,9 @@ export async function seedDatabase(): Promise<void> {
     // Merge Disposition node (composite key: source_name, target_name)
     await db.graph.query(
       `MERGE (d:Disposition {source_name: $src, target_name: $tgt})
-       ON CREATE SET d.sentiment = $sentiment, d.summary = $summary, d._created_at = $now, d._updated_at = $now
+       ON CREATE SET d.uid = $uid, d.sentiment = $sentiment, d.summary = $summary, d._created_at = $now, d._updated_at = $now
        ON MATCH SET d.sentiment = $sentiment, d.summary = $summary, d._updated_at = $now`,
-      { src: srcName, tgt: tgtName, sentiment: disp.sentiment, summary: disp.summary, now },
+      { src: srcName, tgt: tgtName, uid: uuidv4(), sentiment: disp.sentiment, summary: disp.summary, now },
     );
 
     // Link NPC to Disposition

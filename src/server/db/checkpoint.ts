@@ -20,7 +20,7 @@ export class CheckpointManager {
     this.dir = checkpointDir;
   }
 
-  async save(turnNumber: number): Promise<void> {
+  async save(turnNumber: number, closeCallback: () => Promise<void>, reopenCallback: () => Promise<void>): Promise<void> {
     if (!fs.existsSync(this.dir)) fs.mkdirSync(this.dir, { recursive: true });
 
     const turnDir = path.join(this.dir, `turn_${String(turnNumber).padStart(4, "0")}`);
@@ -29,8 +29,15 @@ export class CheckpointManager {
     const graphDest = path.join(turnDir, "graph.lbug");
     const vectorDest = path.join(turnDir, "vectors.db");
 
-    fs.copyFileSync(this.graphPath, graphDest);
-    fs.copyFileSync(this.vectorPath, vectorDest);
+    await closeCallback();
+    // LadybugDB may not release file locks immediately
+    await new Promise((r) => setTimeout(r, 500));
+    try {
+      fs.copyFileSync(this.graphPath, graphDest);
+      fs.copyFileSync(this.vectorPath, vectorDest);
+    } finally {
+      await reopenCallback();
+    }
 
     const index = this.loadIndex();
     index.push({ turn: turnNumber, graphFile: graphDest, vectorFile: vectorDest, createdAt: new Date().toISOString() });

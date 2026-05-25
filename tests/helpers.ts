@@ -1,12 +1,27 @@
 import { Database } from "@/server/db";
+import { setEmbedder } from "@/server/search/embedder";
+import type { Embedder } from "@/server/search/embedder";
 import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
+
+class StubEmbedder implements Embedder {
+  readonly dimensions = 4;
+  async embed(_text: string): Promise<number[]> {
+    return [0.1, 0.2, 0.3, 0.4];
+  }
+  async embedBatch(texts: string[]): Promise<number[][]> {
+    return texts.map(() => [0.1, 0.2, 0.3, 0.4]);
+  }
+}
 
 let testDir: string;
 let db: Database;
 
 export async function setupTestDb(): Promise<Database> {
+  // Inject stub embedder to avoid llama-server dependency
+  setEmbedder(new StubEmbedder());
+
   testDir = fs.mkdtempSync(path.join(os.tmpdir(), "chorus-test-"));
   const graphPath = path.join(testDir, "test.lbug");
   const vectorPath = path.join(testDir, "test_vectors.db");

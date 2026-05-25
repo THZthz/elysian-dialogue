@@ -1,3 +1,4 @@
+import { v4 as uuidv4 } from "uuid";
 import type { LadybugClient } from "@/server/db/ladybug";
 
 export interface PropertyDef {
@@ -28,8 +29,10 @@ function tagToLadybugType(tags: string[]): string {
   return "STRING";
 }
 
-function buildColumnDef(p: PropertyDef): string {
-  return `\`${p.name}\` ${tagToLadybugType(p.tags)}`;
+function buildColumnDef(p: PropertyDef, isPk: boolean): string {
+  const lbType = tagToLadybugType(p.tags);
+  const pkSuffix = isPk ? " PRIMARY KEY" : "";
+  return `\`${p.name}\` ${lbType}${pkSuffix}`;
 }
 
 function buildPKColumns(props: PropertyDef[]): string[] {
@@ -44,12 +47,12 @@ function buildPKColumns(props: PropertyDef[]): string[] {
 }
 
 function generateNodeDDL(def: NodeTypeDef): string {
-  const cols = def.properties.map(buildColumnDef);
   const pk = buildPKColumns(def.properties);
-  if (pk.length > 0) {
-    cols.push(`PRIMARY KEY (${pk.map((c) => `\`${c}\``).join(", ")})`);
-  }
-  return `CREATE NODE TABLE \`${def.name}\` (${cols.join(", ")});`;
+  const pkSet = new Set(pk);
+  const cols = def.properties.map((p) => buildColumnDef(p, pk.length === 1 && pkSet.has(p.name)));
+  const colStr = cols.join(", ");
+  const pkStr = pk.length > 1 ? `, PRIMARY KEY (${pk.join(", ")})` : "";
+  return `CREATE NODE TABLE \`${def.name}\` (${colStr}${pkStr});`;
 }
 
 function generateRelDDL(def: RelTypeDef): string {
@@ -105,8 +108,9 @@ const PREDEFINED_NODES: NodeTypeDef[] = [
   {
     name: "Disposition", category: "PREDEFINED", description: "NPC sentiment toward target",
     properties: [
-      { name: "source_name", description: "NPC name", tags: ["string", "composite_unique_1"] },
-      { name: "target_name", description: "Target name", tags: ["string", "composite_unique_2"] },
+      { name: "uid", description: "UUID", tags: ["string", "unique"] },
+      { name: "source_name", description: "NPC name", tags: ["string"] },
+      { name: "target_name", description: "Target name", tags: ["string"] },
       { name: "sentiment", description: "Sentiment label", tags: ["string"] },
       { name: "summary", description: "Brief explanation", tags: ["string"] },
       { name: "_created_at", description: "Creation timestamp", tags: ["string"] },
@@ -169,9 +173,10 @@ const PREDEFINED_NODES: NodeTypeDef[] = [
   {
     name: "RelationshipType", category: "PREDEFINED", description: "Schema relationship type metadata",
     properties: [
-      { name: "name", description: "Relationship type name", tags: ["string", "composite_unique_1"] },
-      { name: "source_label", description: "Source node label", tags: ["string", "composite_unique_2"] },
-      { name: "target_label", description: "Target node label", tags: ["string", "composite_unique_3"] },
+      { name: "uid", description: "UUID", tags: ["string", "unique"] },
+      { name: "name", description: "Relationship type name", tags: ["string"] },
+      { name: "source_label", description: "Source node label", tags: ["string"] },
+      { name: "target_label", description: "Target node label", tags: ["string"] },
       { name: "category", description: "PREDEFINED or GM_DEFINED", tags: ["string"] },
       { name: "description", description: "Type description", tags: ["string"] },
       { name: "properties", description: "JSON property definitions", tags: ["json"] },
@@ -179,27 +184,32 @@ const PREDEFINED_NODES: NodeTypeDef[] = [
   },
 ];
 
+const CREATED_AT = { name: "_created_at", description: "Creation timestamp", tags: ["string"] } as PropertyDef;
+
 const PREDEFINED_RELS: RelTypeDef[] = [
-  { name: "LOCATED_AT", sourceLabel: "Character|Object", targetLabel: "Location", category: "PREDEFINED", description: "Entity at location", properties: [{ name: "brief", description: "Narrative context", tags: ["string", "embedded_content"] }] },
-  { name: "CARRIES", sourceLabel: "Character", targetLabel: "Object", category: "PREDEFINED", description: "Character carries object", properties: [{ name: "brief", description: "How/why carried", tags: ["string", "embedded_content"] }] },
-  { name: "LOCATED_IN", sourceLabel: "Location", targetLabel: "Location", category: "PREDEFINED", description: "Location hierarchy", properties: [{ name: "brief", description: "Narrative context", tags: ["string", "embedded_content"] }] },
-  { name: "HAS_DISPOSITION", sourceLabel: "Character", targetLabel: "Disposition", category: "PREDEFINED", description: "Character has disposition", properties: [] },
-  { name: "ABOUT_ENTITY", sourceLabel: "Note", targetLabel: "Character|Object|Location", category: "PREDEFINED", description: "Note about entity", properties: [] },
-  { name: "ABOUT_MESSAGE", sourceLabel: "Note", targetLabel: "Message", category: "PREDEFINED", description: "Note about message", properties: [] },
-  { name: "ABOUT_PLOT", sourceLabel: "Note", targetLabel: "Plot", category: "PREDEFINED", description: "Note about plot", properties: [] },
-  { name: "HAS_MESSAGE", sourceLabel: "Conversation", targetLabel: "Message", category: "PREDEFINED", description: "Conversation has message", properties: [] },
-  { name: "FIRST_MESSAGE", sourceLabel: "Conversation", targetLabel: "Message", category: "PREDEFINED", description: "First message link", properties: [] },
-  { name: "NEXT_MESSAGE", sourceLabel: "Message", targetLabel: "Message", category: "PREDEFINED", description: "Message linked list", properties: [] },
-  { name: "BRANCHES_TO", sourceLabel: "Plot", targetLabel: "Plot", category: "PREDEFINED", description: "Plot branching", properties: [] },
-  { name: "CURRENT_TIMEPOINT", sourceLabel: "TimeAnchor", targetLabel: "TimePoint", category: "PREDEFINED", description: "Current time", properties: [] },
-  { name: "NEXT_TIMEPOINT", sourceLabel: "TimePoint", targetLabel: "TimePoint", category: "PREDEFINED", description: "Time progression", properties: [{ name: "reason", description: "Why time advanced", tags: ["string"] }] },
-  { name: "AT_TIME", sourceLabel: "Message", targetLabel: "TimePoint", category: "PREDEFINED", description: "Message at time", properties: [] },
-  { name: "STARTED_AT", sourceLabel: "Plot", targetLabel: "TimePoint", category: "PREDEFINED", description: "Plot start time", properties: [] },
-  { name: "ACTIVE_AT", sourceLabel: "Plot", targetLabel: "TimePoint", category: "PREDEFINED", description: "Plot active time", properties: [] },
-  { name: "COMPLETED_AT", sourceLabel: "Plot", targetLabel: "TimePoint", category: "PREDEFINED", description: "Plot completion time", properties: [] },
-  { name: "_HAS_GM_MESSAGE", sourceLabel: "Conversation", targetLabel: "GMTurnMessage", category: "PREDEFINED", description: "GM message container", properties: [] },
-  { name: "_FIRST_GM_MESSAGE", sourceLabel: "Conversation", targetLabel: "GMTurnMessage", category: "PREDEFINED", description: "First GM message", properties: [] },
-  { name: "_NEXT_GM_MESSAGE", sourceLabel: "GMTurnMessage", targetLabel: "GMTurnMessage", category: "PREDEFINED", description: "GM message chain", properties: [] },
+  { name: "LOCATED_AT", sourceLabel: "Character", targetLabel: "Location", category: "PREDEFINED", description: "Character at location", properties: [{ name: "brief", description: "Narrative context", tags: ["string", "embedded_content"] }, CREATED_AT] },
+  { name: "LOCATED_AT", sourceLabel: "Object", targetLabel: "Location", category: "PREDEFINED", description: "Object at location", properties: [{ name: "brief", description: "Narrative context", tags: ["string", "embedded_content"] }, CREATED_AT] },
+  { name: "CARRIES", sourceLabel: "Character", targetLabel: "Object", category: "PREDEFINED", description: "Character carries object", properties: [{ name: "brief", description: "How/why carried", tags: ["string", "embedded_content"] }, CREATED_AT] },
+  { name: "LOCATED_IN", sourceLabel: "Location", targetLabel: "Location", category: "PREDEFINED", description: "Location hierarchy", properties: [{ name: "brief", description: "Narrative context", tags: ["string", "embedded_content"] }, CREATED_AT] },
+  { name: "HAS_DISPOSITION", sourceLabel: "Character", targetLabel: "Disposition", category: "PREDEFINED", description: "Character has disposition", properties: [CREATED_AT] },
+  { name: "ABOUT_ENTITY", sourceLabel: "Note", targetLabel: "Character", category: "PREDEFINED", description: "Note about character", properties: [CREATED_AT] },
+  { name: "ABOUT_ENTITY", sourceLabel: "Note", targetLabel: "Object", category: "PREDEFINED", description: "Note about object", properties: [CREATED_AT] },
+  { name: "ABOUT_ENTITY", sourceLabel: "Note", targetLabel: "Location", category: "PREDEFINED", description: "Note about location", properties: [CREATED_AT] },
+  { name: "ABOUT_MESSAGE", sourceLabel: "Note", targetLabel: "Message", category: "PREDEFINED", description: "Note about message", properties: [CREATED_AT] },
+  { name: "ABOUT_PLOT", sourceLabel: "Note", targetLabel: "Plot", category: "PREDEFINED", description: "Note about plot", properties: [CREATED_AT] },
+  { name: "HAS_MESSAGE", sourceLabel: "Conversation", targetLabel: "Message", category: "PREDEFINED", description: "Conversation has message", properties: [CREATED_AT] },
+  { name: "FIRST_MESSAGE", sourceLabel: "Conversation", targetLabel: "Message", category: "PREDEFINED", description: "First message link", properties: [CREATED_AT] },
+  { name: "NEXT_MESSAGE", sourceLabel: "Message", targetLabel: "Message", category: "PREDEFINED", description: "Message linked list", properties: [CREATED_AT] },
+  { name: "BRANCHES_TO", sourceLabel: "Plot", targetLabel: "Plot", category: "PREDEFINED", description: "Plot branching", properties: [CREATED_AT] },
+  { name: "CURRENT_TIMEPOINT", sourceLabel: "TimeAnchor", targetLabel: "TimePoint", category: "PREDEFINED", description: "Current time", properties: [CREATED_AT] },
+  { name: "NEXT_TIMEPOINT", sourceLabel: "TimePoint", targetLabel: "TimePoint", category: "PREDEFINED", description: "Time progression", properties: [{ name: "reason", description: "Why time advanced", tags: ["string"] }, CREATED_AT] },
+  { name: "AT_TIME", sourceLabel: "Message", targetLabel: "TimePoint", category: "PREDEFINED", description: "Message at time", properties: [CREATED_AT] },
+  { name: "STARTED_AT", sourceLabel: "Plot", targetLabel: "TimePoint", category: "PREDEFINED", description: "Plot start time", properties: [CREATED_AT] },
+  { name: "ACTIVE_AT", sourceLabel: "Plot", targetLabel: "TimePoint", category: "PREDEFINED", description: "Plot active time", properties: [CREATED_AT] },
+  { name: "COMPLETED_AT", sourceLabel: "Plot", targetLabel: "TimePoint", category: "PREDEFINED", description: "Plot completion time", properties: [CREATED_AT] },
+  { name: "_HAS_GM_MESSAGE", sourceLabel: "Conversation", targetLabel: "GMTurnMessage", category: "PREDEFINED", description: "GM message container", properties: [CREATED_AT] },
+  { name: "_FIRST_GM_MESSAGE", sourceLabel: "Conversation", targetLabel: "GMTurnMessage", category: "PREDEFINED", description: "First GM message", properties: [CREATED_AT] },
+  { name: "_NEXT_GM_MESSAGE", sourceLabel: "GMTurnMessage", targetLabel: "GMTurnMessage", category: "PREDEFINED", description: "GM message chain", properties: [CREATED_AT] },
 ];
 
 export class SchemaRegistry {
@@ -315,11 +325,24 @@ export class SchemaRegistry {
   async persistRelType(client: LadybugClient, name: string, source: string, target: string): Promise<void> {
     const def = this.rels.get(this.relKey(name, source, target));
     if (!def) return;
-    await client.query(
-      `MERGE (rt:RelationshipType {name: $name, source_label: $src, target_label: $tgt})
-       SET rt.category = $category, rt.description = $description, rt.properties = $properties`,
-      { name: def.name, src: def.sourceLabel, tgt: def.targetLabel, category: def.category, description: def.description, properties: JSON.stringify(def.properties) },
+
+    // LadybugDB requires PK in the node pattern. MATCH by business key first.
+    const existing = await client.query(
+      "MATCH (rt:RelationshipType {name: $name, source_label: $src, target_label: $tgt}) RETURN rt.uid AS uid",
+      { name: def.name, src: def.sourceLabel, tgt: def.targetLabel },
     );
+
+    if (existing.rows.length > 0) {
+      await client.query(
+        "MATCH (rt:RelationshipType {uid: $uid}) SET rt.category = $category, rt.description = $description, rt.properties = $properties",
+        { uid: existing.rows[0].uid, category: def.category, description: def.description, properties: JSON.stringify(def.properties) },
+      );
+    } else {
+      await client.query(
+        "CREATE (rt:RelationshipType {uid: $uid, name: $name, source_label: $src, target_label: $tgt, category: $category, description: $description, properties: $properties})",
+        { uid: uuidv4(), name: def.name, src: def.sourceLabel, tgt: def.targetLabel, category: def.category, description: def.description, properties: JSON.stringify(def.properties) },
+      );
+    }
   }
 
   getEmbeddingContentText(label: string, props: Record<string, unknown>): string {

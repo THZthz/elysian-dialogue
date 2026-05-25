@@ -28,10 +28,10 @@ describe("SchemaRegistry", () => {
 
   it("generates valid relationship DDL", () => {
     const schema = SchemaRegistry.getInstance();
-    const ddl = schema.generateRelDDL("LOCATED_AT", "Character|Object", "Location");
+    const ddl = schema.generateRelDDL("LOCATED_AT", "Character", "Location");
     expect(ddl).toContain("CREATE REL TABLE");
     expect(ddl).toContain("LOCATED_AT");
-    expect(ddl).toContain("Character|Object");
+    expect(ddl).toContain("Character");
     expect(ddl).toContain("Location");
   });
 
@@ -61,7 +61,7 @@ describe("SchemaRegistry", () => {
     const ddl = schema.generateNodeDDL("Faction");
     expect(ddl).toContain("CREATE NODE TABLE");
     expect(ddl).toContain("Faction");
-    expect(ddl).toContain("PRIMARY KEY (`name`)");
+    expect(ddl).toContain("`name` STRING PRIMARY KEY");
     expect(ddl).toContain("`power` DOUBLE");
   });
 

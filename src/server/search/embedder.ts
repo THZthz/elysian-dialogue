@@ -60,6 +60,10 @@ class LlamaEmbedder implements Embedder {
 
 let embedder: Embedder | null = null;
 
+export function setEmbedder(e: Embedder): void {
+  embedder = e;
+}
+
 export function getEmbedder(): Embedder {
   if (embedder) return embedder;
 

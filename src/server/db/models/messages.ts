@@ -23,11 +23,10 @@ export class MessageModel {
 
   async nextId(): Promise<string> {
     const result = await this.graph.query(
-      `MERGE (c:IdCounter)
-       ON CREATE SET c.value = 0, c.uid = $uuid
+      `MERGE (c:IdCounter {uid: 'counter'})
+       ON CREATE SET c.value = 0
        SET c.value = c.value + 1
-       RETURN c.value AS value`,
-      { uuid: uuidv4() },
+       RETURN c.value AS value`
     );
     const value = result.rows[0]?.value as number;
     return String(value).padStart(4, "0");
@@ -119,7 +118,7 @@ export class MessageModel {
 
   async saveCurrentOptions(options: unknown): Promise<void> {
     await this.graph.query(
-      `MERGE (c:Conversation) SET c.options = $options, c._updated_at = $now`,
+      `MERGE (c:Conversation {uid: 'singleton'}) SET c.options = $options, c._updated_at = $now`,
       { options: JSON.stringify(options), now: new Date().toISOString() },
     );
   }
@@ -128,7 +127,11 @@ export class MessageModel {
     const r = await this.graph.query("MATCH (c:Conversation) RETURN c.uid AS id, c.options AS options");
     if (r.rows.length === 0) return null;
     const row = r.rows[0];
-    return { id: row.id as string, options: typeof row.options === "string" ? JSON.parse(row.options) : row.options };
+    const raw = row.options;
+    if (typeof raw === "string") {
+      try { return { id: row.id as string, options: JSON.parse(raw) }; } catch { return { id: row.id as string, options: raw }; }
+    }
+    return { id: row.id as string, options: raw };
   }
 
   async saveGMMessages(messages: Array<{ role: string; content: unknown; providerOptions?: unknown }>, turnNumber: number): Promise<void> {
@@ -202,12 +205,11 @@ export class MessageModel {
   }
 
   private async ensureConversation(): Promise<string> {
-    const r = await this.graph.query("MATCH (c:Conversation) RETURN c.uid AS id");
+    const r = await this.graph.query("MATCH (c:Conversation {uid: 'singleton'}) RETURN c.uid AS id");
     if (r.rows.length > 0) return r.rows[0].id as string;
-    const convId = uuidv4();
     const now = new Date().toISOString();
-    await this.graph.query("CREATE (c:Conversation {uid: $id, _created_at: $now, _updated_at: $now})", { id: convId, now });
-    return convId;
+    await this.graph.query("CREATE (c:Conversation {uid: 'singleton', _created_at: $now, _updated_at: $now})", { now });
+    return "singleton";
   }
 
   private async getLastMessageId(convId: string, excludeId: string): Promise<string | null> {
