@@ -105,14 +105,14 @@ export class HybridSearcher {
 
     const topCandidates = fusedOrder.slice(0, fetchLimit).map((idx) => {
       const c = candidates[idx];
-      const clean = { ...stripHidden(c.payload), similarity: Math.max(nameScores[idx].score, contentScores[idx].score) };
+      const clean = { ...stripHidden(c.payload), similarity: Math.max(nameScores[idx].score, contentScores[idx].score) } as Record<string, unknown>;
       return clean;
     });
 
     if (rerankerAvailable && topCandidates.length > 0) {
       const withText = topCandidates.map((item) => ({
         ...item,
-        text: (item.text as string) || (item.name as string) || (item.content as string) || "",
+        text: (item as Record<string, unknown>).text as string || (item as Record<string, unknown>).name as string || (item as Record<string, unknown>).content as string || "",
       }));
       const reranked = await applyRerank(query, withText, limit);
       return reranked.map((r) => {
@@ -121,6 +121,9 @@ export class HybridSearcher {
       });
     }
 
-    return topCandidates.map(({ text: _, ...rest }) => rest as SearchResult);
+    return topCandidates.map((item) => {
+      const { text: _, ...rest } = item as Record<string, unknown>;
+      return rest as SearchResult;
+    });
   }
 }

@@ -22,7 +22,10 @@ export class LadybugClient {
 
   async query(cypher: string, params?: Record<string, unknown>): Promise<QueryResult> {
     if (!this.conn) throw new Error("LadybugClient not initialized");
-    const result = await this.conn.query(cypher, params);
+    // conn.query() does not accept params — use prepare + execute for parameterized queries.
+    const stmt = await this.conn.prepare(cypher);
+    const raw = await this.conn.execute(stmt, params as Record<string, import("@ladybugdb/core").LbugValue> | undefined);
+    const result = Array.isArray(raw) ? raw[0] : raw;
     const rows: Record<string, unknown>[] = [];
     const all = await result.getAll();
     for (const row of all) {

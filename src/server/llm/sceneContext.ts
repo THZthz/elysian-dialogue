@@ -16,9 +16,23 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { describeTime, getCurrentTimePoint } from "@/server/models/time";
 import { Database } from "@/server/db";
 import { SchemaRegistry } from "@/server/db/schema";
+
+// ── Time helpers ──
+
+function formatHour(hour: number): string {
+  const h = Math.floor(hour);
+  const m = hour % 1 === 0.5 ? 30 : 0;
+  const period = h < 12 ? "AM" : "PM";
+  const displayH = h === 0 ? 12 : h > 12 ? h - 12 : h;
+  const mm = m === 0 ? "00" : "30";
+  return `${displayH}:${mm} ${period}`;
+}
+
+function describeTime(time: { day: number; hour: number }): string {
+  return `Day ${time.day}, ${formatHour(time.hour)}`;
+}
 
 // ── Types ──
 
@@ -88,7 +102,7 @@ function buildPlotTreeFromNodes(plots: PlotNode[]): string {
 export async function buildSceneContext(): Promise<string> {
   const db = Database.getExisting();
 
-  const gameTime = await getCurrentTimePoint().catch((err) => {
+  const gameTime = await db.time.getCurrentTimePoint().catch((err) => {
     console.error(
       "[sceneContext] getCurrentTimePoint failed:",
       err instanceof Error ? err.message : String(err),

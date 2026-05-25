@@ -84,7 +84,7 @@ export async function generateTurn(
     let previousMessages: ModelMessage[] = [];
     let turnNumber = 1;
     try {
-      previousMessages = await db.messages.loadGMMessages();
+      previousMessages = (await db.messages.loadGMMessages()) as ModelMessage[];
       turnNumber = await db.messages.getNextTurnNumber();
     } catch (err) {
       console.error("[generateTurn] Failed to load GM messages, starting fresh:", err);

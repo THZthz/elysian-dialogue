@@ -19,7 +19,7 @@ export class TimeModel {
     );
     if (result.rows.length === 0) return null;
     const tp = (result.rows[0].tp || result.rows[0]) as Record<string, unknown>;
-    return { _id: tp._id as string, day: tp.day as number, hour: tp.hour as number, label: tp.label as string };
+    return { _id: tp._id as string, day: tp.day as number, hour: tp.hour as number, label: tp.label as string, _created_at: (tp._created_at as string) ?? "" };
   }
 
   async setInitialTime(day: number, hour: number, label: string): Promise<void> {
@@ -67,6 +67,6 @@ export class TimeModel {
       );
     }
 
-    return { _id, day: newDay, hour: newHour, label: newLabel };
+    return { _id, day: newDay, hour: newHour, label: newLabel, _created_at: now };
   }
 }
