@@ -8,11 +8,11 @@ A concise guide to Cypher on LadybugDB. Assumes no prior Cypher knowledge. Cover
 
 Cypher is to graph databases what SQL is to relational databases. The key insight: **joins are expressed as graph patterns** instead of `JOIN ... ON` clauses.
 
-| Concept | SQL | Cypher |
-|---------|-----|--------|
-| Read | `SELECT ... FROM ... WHERE` | `MATCH ... WHERE ... RETURN` |
-| Write | `INSERT` / `UPDATE` / `DELETE` | `CREATE` / `SET` / `DELETE` |
-| Grouping | Explicit `GROUP BY` | **Implicit** — based on what's in `RETURN` |
+| Concept  | SQL                            | Cypher                                     |
+|----------|--------------------------------|--------------------------------------------|
+| Read     | `SELECT ... FROM ... WHERE`    | `MATCH ... WHERE ... RETURN`               |
+| Write    | `INSERT` / `UPDATE` / `DELETE` | `CREATE` / `SET` / `DELETE`                |
+| Grouping | Explicit `GROUP BY`            | **Implicit** — based on what's in `RETURN` |
 
 LadybugDB follows **openCypher** with a structured property model: you must define schemas before inserting data.
 
@@ -67,22 +67,26 @@ MATCH (n:Person {name: $name}) RETURN n;
 
 ### Primitives (most common)
 
-| Type | Example | Notes |
-|------|---------|-------|
-| `INT64` | `42` | Default integer type |
-| `DOUBLE` | `3.14` | Floating point |
-| `BOOLEAN` | `true` / `false` | |
-| `STRING` | `'hello'` | Single quotes, UTF-8 |
-| `DATE` | `date('2022-06-06')` | |
-| `TIMESTAMP` | `timestamp('2025-01-01')` | Stored as UTC |
+| Type        | Example                   | Notes                |
+|-------------|---------------------------|----------------------|
+| `INT64`     | `42`                      | Default integer type |
+| `DOUBLE`    | `3.14`                    | Floating point       |
+| `BOOLEAN`   | `true` / `false`          |                      |
+| `STRING`    | `'hello'`                 | Single quotes, UTF-8 |
+| `DATE`      | `date('2022-06-06')`      |                      |
+| `TIMESTAMP` | `timestamp('2025-01-01')` | Stored as UTC        |
+
+| `NULL` | Special marker for unknown/missing data |
+
+`null = null` returns `NULL` (not `true`). This is a common gotcha for SQL users where `NULL = NULL` returns `NULL` there too, but Cypher makes it even more explicit: any comparison with `NULL` yields `NULL`. Use `IS NULL` / `IS NOT NULL` to test for nulls.
 
 ### Logical types
 
-| Type | Description |
-|------|-------------|
-| `SERIAL` | Auto-incrementing integer (like `AUTO_INCREMENT`) |
-| `UUID` | RFC 4122 UUID |
-| `JSON` | Native JSON (v0.15.0+; prefer over STRING for JSON data) |
+| Type     | Description                                              |
+|----------|----------------------------------------------------------|
+| `SERIAL` | Auto-incrementing integer (like `AUTO_INCREMENT`)        |
+| `UUID`   | RFC 4122 UUID                                            |
+| `JSON`   | Native JSON (v0.15.0+; prefer over STRING for JSON data) |
 
 ### Nested types
 
@@ -105,11 +109,11 @@ UNION(price FLOAT, note STRING)
 
 ### Graph types
 
-| Type | Contains |
-|------|----------|
-| `NODE` | `_ID`, `_LABEL`, plus all properties |
-| `REL` | `_SRC`, `_DST`, `_ID`, `_LABEL`, plus properties |
-| `RECURSIVE_REL` | `_NODES` (LIST[NODE]), `_RELS` (LIST[REL]) |
+| Type            | Contains                                         |
+|-----------------|--------------------------------------------------|
+| `NODE`          | `_ID`, `_LABEL`, plus all properties             |
+| `REL`           | `_SRC`, `_DST`, `_ID`, `_LABEL`, plus properties |
+| `RECURSIVE_REL` | `_NODES` (LIST[NODE]), `_RELS` (LIST[REL])       |
 
 ```cypher
 MATCH (a:Person)-[r:Follows]->(b:Person)
@@ -268,6 +272,17 @@ CREATE REL TABLE LivesIn (
 );
 ```
 
+### Naming Conventions
+
+Recommended conventions for table names:
+
+| Object              | Convention                    | Good                     | Bad                      |
+|---------------------|-------------------------------|--------------------------|--------------------------|
+| Node tables         | CamelCase                     | `CarOwner`, `Message`    | `car_owner`, `message`   |
+| Relationship tables | CamelCase or UPPER_SNAKE_CASE | `IsPartOf`, `IS_PART_OF` | `isPartOf`, `is_part_of` |
+
+Rules: names must start with an alphabetic/unicode character (not a number), and cannot contain whitespace or special characters other than underscores.
+
 ### Alter / Drop
 
 ```cypher
@@ -290,7 +305,7 @@ CREATE GRAPH mygraph ANY;
 
 ## 6. Data Manipulation (DML)
 
-Use `CREATE`/`SET`/`DELETE` for small changes. For bulk inserts, use `COPY FROM`.
+Use `CREATE`/`SET`/`DELETE` for small changes. **For bulk inserts, always use `COPY FROM`** — it is orders of magnitude faster than individual `CREATE` statements.
 
 ### CREATE — Insert nodes and relationships
 
@@ -353,13 +368,20 @@ DETACH DELETE n
 RETURN count(n) AS deleted;
 ```
 
-### LOAD FROM — Import from files
+### LOAD FROM / COPY FROM — Import from files
 
 ```cypher
+-- Scan a file directly
 LOAD FROM 'people.csv' RETURN *;
+
+-- Copy into an existing table (bulk insert)
+COPY Person FROM 'people.csv';
+
+-- Copy with options
+COPY Person FROM 'people.csv' (HEADER=true, DELIM=',');
 ```
 
-Replaces Neo4j's `LOAD CSV FROM`. Supports CSV and other formats.
+Replaces Neo4j's `LOAD CSV FROM`. Supports CSV and other formats. `COPY FROM` is the preferred method for bulk data loading — far faster than individual `CREATE` statements.
 
 ---
 
@@ -463,6 +485,11 @@ RETURN a.name, COUNT { MATCH (a)<-[:Follows]-(b:User) } AS followers;
 MATCH (a:User)
 WHERE COUNT { MATCH (a)<-[:Follows]-(b:User) } > 2
 RETURN a.name;
+
+-- With DISTINCT (count unique matches)
+MATCH (a:User)-[:Follows*1..2]-(b:User)
+WHERE a.name = 'Karissa'
+RETURN COUNT(DISTINCT b) AS num_unique;
 ```
 
 ---
@@ -517,6 +544,14 @@ COMMIT;
 
 **Constraint:** Only one write transaction at a time. Multiple read transactions can run concurrently.
 
+### Checkpoint — Flush WAL to data files
+
+```cypher
+CHECKPOINT;
+```
+
+Manually merges write-ahead-log (WAL) into database data files. By default, checkpoint happens automatically at the end of a write transaction when the WAL exceeds `CHECKPOINT_THRESHOLD` (default 16MB) and no active transactions exist. Only works when there are no active transactions in the system.
+
 ---
 
 ## 11. Macros
@@ -542,7 +577,7 @@ Parameters with defaults must come after required parameters.
 
 ## 12. Configuration
 
-Use standalone `CALL` (cannot be combined with other clauses):
+Use **standalone `CALL`** (cannot be combined with other clauses such as `RETURN`). This is distinct from the `CALL` clause used for system procedures (section 14), which _can_ be chained with `RETURN`.
 
 ```cypher
 CALL THREADS=5;
@@ -555,13 +590,13 @@ CALL spill_to_disk=true;
 
 Key options:
 
-| Option | Purpose | Default |
-|--------|---------|---------|
-| `THREADS` | CPU threads | system max |
-| `TIMEOUT` | Query timeout (ms) | none |
-| `VAR_LENGTH_EXTEND_MAX_DEPTH` | Max recursive depth | 30 |
-| `CHECKPOINT_THRESHOLD` | WAL size trigger (bytes) | 16MB |
-| `SPILL_TO_DISK` | Disk spill for COPY FROM | true |
+| Option                        | Purpose                  | Default    |
+|-------------------------------|--------------------------|------------|
+| `THREADS`                     | CPU threads              | system max |
+| `TIMEOUT`                     | Query timeout (ms)       | none       |
+| `VAR_LENGTH_EXTEND_MAX_DEPTH` | Max recursive depth      | 30         |
+| `CHECKPOINT_THRESHOLD`        | WAL size trigger (bytes) | 16MB       |
+| `SPILL_TO_DISK`               | Disk spill for COPY FROM | true       |
 
 ---
 
@@ -588,24 +623,24 @@ CALL show_functions() RETURN *;
 
 ## 15. Key Differences from Neo4j
 
-| Neo4j | LadybugDB |
-|-------|-----------|
-| Schema-optional | Schema required (structured property model) |
-| Trail semantics (no repeated edges) | Walk semantics (repeated edges allowed) |
-| `FOREACH` | `UNWIND` |
-| `REMOVE n.prop` | `SET n.prop = NULL` |
-| `SET n += {map}` | Not supported; set properties individually |
-| `n.property IS :: INTEGER` | `typeOf(n.property) = INT64` |
-| `elementId(n)` | `id(n)` |
-| `labels(n)` | `label(n)` (singular) |
-| `toInteger()`, `toFloat()`, etc. | `cast(value, 'INT64')`, `cast(value, 'DOUBLE')` |
-| `LOAD CSV FROM` | `LOAD FROM` |
-| `WHERE` inside pattern | Not supported; use `WHERE` after the pattern |
-| `SHOW FUNCTIONS` | `CALL show_functions() RETURN *` |
-| `datetime()` | `current_timestamp()` |
-| No upper bound on `*` | Default max 30 if no bound specified |
-| `FINISH` clause | `RETURN COUNT(*)` |
-| `USE graph` | Open a different database instead |
+| Neo4j                               | LadybugDB                                       |
+|-------------------------------------|-------------------------------------------------|
+| Schema-optional                     | Schema required (structured property model)     |
+| Trail semantics (no repeated edges) | Walk semantics (repeated edges allowed)         |
+| `FOREACH`                           | `UNWIND`                                        |
+| `REMOVE n.prop`                     | `SET n.prop = NULL`                             |
+| `SET n += {map}`                    | Not supported; set properties individually      |
+| `n.property IS :: INTEGER`          | `typeOf(n.property) = INT64`                    |
+| `elementId(n)`                      | `id(n)`                                         |
+| `labels(n)`                         | `label(n)` (singular)                           |
+| `toInteger()`, `toFloat()`, etc.    | `cast(value, 'INT64')`, `cast(value, 'DOUBLE')` |
+| `LOAD CSV FROM`                     | `LOAD FROM`                                     |
+| `WHERE` inside pattern              | Not supported; use `WHERE` after the pattern    |
+| `SHOW FUNCTIONS`                    | `CALL show_functions() RETURN *`                |
+| `datetime()`                        | `current_timestamp()`                           |
+| No upper bound on `*`               | Default max 30 if no bound specified            |
+| `FINISH` clause                     | `RETURN COUNT(*)`                               |
+| `USE graph`                         | Open a different database instead               |
 
 ---
 

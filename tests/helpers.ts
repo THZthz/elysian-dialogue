@@ -93,11 +93,3 @@ export async function exec(
   const result = await Database.getExisting().graph.query(query, params);
   return result.rows;
 }
-
-export function parseToolOutput(output: string): unknown {
-  try {
-    return JSON.parse(output);
-  } catch {
-    return output;
-  }
-}
