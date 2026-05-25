@@ -24,7 +24,7 @@ import type { Message, DialogueOption } from "@/types/dialogue";
 import { TurnEventEmitter } from "@/server/llm/events";
 import { buildSystemPrompt, MAX_GM_STEPS } from "@/server/llm/prompt";
 import { getModel } from "@/server/llm/model";
-import { getMemoryClient, MemoryClient } from "@/server/memory/client";
+import { Database } from "@/server/db";
 import { queryWorld } from "@/server/llm/tools/queryWorld";
 import { searchWorld } from "@/server/llm/tools/searchWorld";
 import { editNode } from "@/server/llm/tools/editNode";
@@ -35,7 +35,7 @@ import { getContext } from "@/server/llm/tools/getContext";
 import { manageSchema } from "@/server/llm/tools/manageSchema";
 import { saveCurrentOptions } from "@/server/gameState";
 import { saveCheckpoint } from "@/server/checkpointManager";
-import { loadGMMessages, saveGMMessages, getNextTurnNumber } from "@/server/llm/gmMessages";
+
 import { createGenerateDialogueStepTool } from "@/server/llm/tools/generateDialogueStep";
 import { createAdvanceTimeTool } from "@/server/llm/tools/advanceTime";
 import { performSkillCheck } from "@/server/llm/rollSkillCheck";
@@ -77,18 +77,17 @@ export async function generateTurn(
 
     events.startStep(`step_${Date.now()}`);
 
+    const db = Database.getExisting();
+
     // Persist player input so full conversation is available for resume
-    {
-      const client = getMemoryClient();
-      await client.shortTerm.addMessage(userInput);
-    }
+    await db.messages.addMessage(userInput);
 
     // Load previous GM conversation messages for multi-turn continuity
     let previousMessages: ModelMessage[] = [];
     let turnNumber = 1;
     try {
-      previousMessages = await loadGMMessages();
-      turnNumber = await getNextTurnNumber();
+      previousMessages = await db.messages.loadGMMessages();
+      turnNumber = await db.messages.getNextTurnNumber();
     } catch (err) {
       console.error("[generateTurn] Failed to load GM messages, starting fresh:", err);
     }
@@ -139,7 +138,7 @@ export async function generateTurn(
           `Result: ${rollResult.success ? "SUCCESS" : "FAILURE"}`,
         ].join(" | ");
 
-        await getMemoryClient().shortTerm.addMessage(rollText, {
+        await db.messages.addMessage(rollText, {
           speaker: check.skill,
           type: "ROLL",
           rollResult: {
@@ -201,8 +200,7 @@ export async function generateTurn(
       text: string;
       metadata?: Record<string, unknown>;
     }) => {
-      const client = getMemoryClient();
-      await client.shortTerm.addMessage(msg.text, {
+      await db.messages.addMessage(msg.text, {
         speaker: msg.speaker,
         type: msg.type,
         ...msg.metadata,
@@ -505,11 +503,9 @@ export async function generateTurn(
     // Persist this turn's messages for multi-turn continuity
     try {
       const response = await result.response;
-      await saveGMMessages(
+      await db.messages.saveGMMessages(
         response.messages as ModelMessage[],
         turnNumber,
-        promptText,
-        nudgeMessages,
       );
     } catch (err) {
       console.error("[generateTurn] Failed to save GM messages:", err);

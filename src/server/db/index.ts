@@ -1,3 +1,20 @@
+import { LadybugClient } from "@/server/db/ladybug";
+import { VectorStore } from "@/server/db/vectorstore";
+import { SchemaRegistry } from "@/server/db/schema";
+import { CheckpointManager } from "@/server/db/checkpoint";
+import { HybridSearcher } from "@/server/search/hybridSearch";
+import { getEmbedder } from "@/server/search/embedder";
+import { MessageModel } from "@/server/db/models/messages";
+import { EntityModel } from "@/server/db/models/entities";
+import { NoteModel } from "@/server/db/models/notes";
+import { PlotModel } from "@/server/db/models/plots";
+import { TimeModel } from "@/server/db/models/time";
+
+export class Database {
+  readonly graph: LadybugClient;
+  readonly vectors: VectorStore;
+  readonly schema: SchemaRegistry;
+  readonly search: HybridSearcher;
   readonly checkpoint: CheckpointManager;
 
   messages!: MessageModel;

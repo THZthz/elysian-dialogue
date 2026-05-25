@@ -1,3 +1,20 @@
+import { v4 as uuidv4 } from "uuid";
+import type { LadybugClient } from "@/server/db/ladybug";
+import type { VectorStore } from "@/server/db/vectorstore";
+import type { Embedder } from "@/server/search/embedder";
+import { getNodeManager } from "@/server/db/schema";
+
+export interface MemoryMessage {
+  id: string;
+  content: string;
+  metadata: Record<string, unknown>;
+}
+
+export class MessageModel {
+  private readonly graph: LadybugClient;
+  private readonly vectors: VectorStore;
+  private readonly embedder: Embedder;
+
   constructor(graph: LadybugClient, vectors: VectorStore, embedder: Embedder) {
     this.graph = graph;
     this.vectors = vectors;

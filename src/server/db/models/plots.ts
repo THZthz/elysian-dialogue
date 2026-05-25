@@ -1,3 +1,20 @@
+import type { LadybugClient } from "@/server/db/ladybug";
+import type { VectorStore } from "@/server/db/vectorstore";
+import type { Embedder } from "@/server/search/embedder";
+import { getNodeManager } from "@/server/db/schema";
+import { encodeSparse } from "@/server/search/sparseEncoder";
+
+export type PlotStatus = "PENDING" | "ACTIVE" | "COMPLETED" | "ABANDONED";
+export const PLOT_STATUSES = ["PENDING", "ACTIVE", "COMPLETED", "ABANDONED"] as const;
+
+export interface PlotFlag {
+  flagId: string;
+  description: string;
+}
+
+export interface MemoryPlot {
+  name: string;
+  description: string;
   brief: string;
   status: PlotStatus;
   trigger_condition: string;

@@ -1,3 +1,24 @@
+import { v4 as uuidv4 } from "uuid";
+import type { LadybugClient } from "@/server/db/ladybug";
+
+export interface TimePoint {
+  _id: string;
+  day: number;
+  hour: number;
+  label: string;
+  _created_at: string;
+}
+
+export class TimeModel {
+  constructor(private readonly graph: LadybugClient) {}
+
+  async getCurrentTimePoint(): Promise<TimePoint | null> {
+    const result = await this.graph.query(
+      `MATCH (a:TimeAnchor {_id: 'anchor'})-[:CURRENT_TIMEPOINT]->(tp:TimePoint)
+       RETURN tp`
+    );
+    if (result.rows.length === 0) return null;
+    const tp = (result.rows[0].tp || result.rows[0]) as Record<string, unknown>;
     return { _id: tp._id as string, day: tp.day as number, hour: tp.hour as number, label: tp.label as string };
   }
 

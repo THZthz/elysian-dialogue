@@ -1,3 +1,20 @@
+import { v4 as uuidv4 } from "uuid";
+import type { LadybugClient } from "@/server/db/ladybug";
+import type { VectorStore } from "@/server/db/vectorstore";
+import type { Embedder } from "@/server/search/embedder";
+import { getNodeManager } from "@/server/db/schema";
+import { encodeSparse } from "@/server/search/sparseEncoder";
+
+export interface MemoryEntity {
+  _id: string;
+  name: string;
+  label: string;
+  brief: string;
+  description: string;
+  metadata: Record<string, unknown>;
+  aliases: string[];
+  isNew: boolean;
+}
 
 type EntityLabel = "Character" | "Object" | "Location";
 

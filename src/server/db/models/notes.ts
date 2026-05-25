@@ -1,3 +1,20 @@
+import type { LadybugClient } from "@/server/db/ladybug";
+import type { VectorStore } from "@/server/db/vectorstore";
+import type { Embedder } from "@/server/search/embedder";
+import { getNodeManager } from "@/server/db/schema";
+import { encodeSparse } from "@/server/search/sparseEncoder";
+
+export interface MemoryNote {
+  name: string;
+  content: string;
+  linkedEntities: string[];
+  linkedMessages: string[];
+  linkedPlots: string[];
+}
+
+export class NoteModel {
+  constructor(
+    private readonly graph: LadybugClient,
     private readonly vectors: VectorStore,
     private readonly embedder: Embedder,
   ) {}
