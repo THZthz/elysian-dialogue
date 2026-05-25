@@ -59,22 +59,16 @@ export class PlotModel {
       `CREATE (p:Plot {name: $name, description: $ddesc, _created_at: $now, _updated_at: $now})`,
       { name, ddesc: description, now },
     );
-    await this.graph.query(
-      `MATCH (p:Plot {name: $name}) SET p.brief = $brief`,
-      { name, brief },
-    );
-    await this.graph.query(
-      `MATCH (p:Plot {name: $name}) SET p.status = $status`,
-      { name, status },
-    );
-    await this.graph.query(
-      `MATCH (p:Plot {name: $name}) SET p.trigger_condition = $trigger`,
-      { name, trigger: trigger_condition ?? "" },
-    );
-    await this.graph.query(
-      `MATCH (p:Plot {name: $name}) SET p.flags = $flags`,
-      { name, flags: "[]" },
-    );
+    await this.graph.query(`MATCH (p:Plot {name: $name}) SET p.brief = $brief`, { name, brief });
+    await this.graph.query(`MATCH (p:Plot {name: $name}) SET p.status = $status`, { name, status });
+    await this.graph.query(`MATCH (p:Plot {name: $name}) SET p.trigger_condition = $trigger`, {
+      name,
+      trigger: trigger_condition ?? "",
+    });
+    await this.graph.query(`MATCH (p:Plot {name: $name}) SET p.flags = $flags`, {
+      name,
+      flags: "[]",
+    });
 
     const contentText = getNodeManager().getEmbeddingContentText("Plot", {
       name,

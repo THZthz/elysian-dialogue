@@ -20,8 +20,12 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { setupTestDb, teardownTestDb, getTestDb } from "../helpers";
 
 describe("TimeModel", () => {
-  beforeAll(async () => { await setupTestDb(); });
-  afterAll(async () => { await teardownTestDb(); });
+  beforeAll(async () => {
+    await setupTestDb();
+  });
+  afterAll(async () => {
+    await teardownTestDb();
+  });
 
   it("sets initial time and retrieves it", async () => {
     const db = getTestDb();
@@ -56,9 +60,8 @@ describe("TimeModel", () => {
     // Query the NEXT_TIMEPOINT relationship to verify reason
     const r = await db.graph.query(
       "MATCH (:TimePoint {day: 1, hour: 12})-[rel:NEXT_TIMEPOINT]->(:TimePoint {day: $day, hour: $hour}) RETURN rel.reason AS reason",
-      { day: newTp.day, hour: newTp.hour }
+      { day: newTp.day, hour: newTp.hour },
     );
     expect(r.rows[0]?.reason).toBe("The party rested");
   });
-
 });

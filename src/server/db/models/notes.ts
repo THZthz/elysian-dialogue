@@ -153,18 +153,15 @@ export class NoteModel {
   }
 
   async clearLinks(noteName: string): Promise<void> {
-    await this.graph.query(
-      "MATCH (n:Note {name: $name})-[r:ABOUT_ENTITY]->() DELETE r",
-      { name: noteName },
-    );
-    await this.graph.query(
-      "MATCH (n:Note {name: $name})-[r:ABOUT_MESSAGE]->() DELETE r",
-      { name: noteName },
-    );
-    await this.graph.query(
-      "MATCH (n:Note {name: $name})-[r:ABOUT_PLOT]->() DELETE r",
-      { name: noteName },
-    );
+    await this.graph.query("MATCH (n:Note {name: $name})-[r:ABOUT_ENTITY]->() DELETE r", {
+      name: noteName,
+    });
+    await this.graph.query("MATCH (n:Note {name: $name})-[r:ABOUT_MESSAGE]->() DELETE r", {
+      name: noteName,
+    });
+    await this.graph.query("MATCH (n:Note {name: $name})-[r:ABOUT_PLOT]->() DELETE r", {
+      name: noteName,
+    });
   }
 
   async getLinkedEntities(noteName: string): Promise<string[]> {

@@ -271,11 +271,11 @@ Since \`metadata\` is tagged as "json" of node Character in SCHEMA_DUMP, you can
     if (args.action === "UPDATE" && (!args.match || Object.keys(args.match).length === 0)) {
       return "ERROR: Parameter `match` is required for UPDATE.";
     }
-    const matchErr = isMatchKeysInternal(args.match);
+    const matchErr = isMatchKeysInternal(args.match!);
     if (matchErr) return `ERROR: ${matchErr}`;
 
     const matchParams: Record<string, unknown> = {};
-    const where = buildWhere(args.match, matchParams);
+    const where = buildWhere(args.match!, matchParams);
 
     if (!args.properties || Object.keys(args.properties).length === 0) {
       return "ERROR: No properties to update. Nothing is edited inside the database";
@@ -287,7 +287,7 @@ Since \`metadata\` is tagged as "json" of node Character in SCHEMA_DUMP, you can
     if (useModel) {
       const entity = await db.entities.update(
         args.nodeLabel as EntityLabel,
-        args.match,
+        args.match!,
         args.properties,
       );
       if (!entity) {

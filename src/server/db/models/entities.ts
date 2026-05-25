@@ -23,7 +23,7 @@ import type { Embedder } from "@/server/search/embedder";
 import { getNodeManager } from "@/server/db/schema";
 import { encodeSparse } from "@/server/search/sparseEncoder";
 
-export interface MemoryEntity {
+export interface Entity {
   uid: string;
   name: string;
   label: string;
@@ -55,7 +55,7 @@ export class EntityModel {
       description?: string;
       metadata?: Record<string, unknown>;
     },
-  ): Promise<MemoryEntity> {
+  ): Promise<Entity> {
     const uid = uuidv4();
     const now = new Date().toISOString();
     const brief = props.brief ?? "";
@@ -111,7 +111,7 @@ export class EntityModel {
     label: EntityLabel,
     where: Record<string, unknown>,
     sets: Record<string, unknown>,
-  ): Promise<MemoryEntity | null> {
+  ): Promise<Entity | null> {
     const whereClauses = Object.entries(where).map(([k]) => `n.\`${k}\` = $w_${k}`);
     const r = await this.graph.query(
       `MATCH (n:\`${label}\`) WHERE ${whereClauses.join(" AND ")} RETURN n`,
@@ -183,13 +183,13 @@ export class EntityModel {
     return (r.rows[0]?.deleted as number) ?? 0;
   }
 
-  async getByName(label: EntityLabel, name: string): Promise<MemoryEntity | null> {
+  async getByName(label: EntityLabel, name: string): Promise<Entity | null> {
     const r = await this.graph.query(`MATCH (n:\`${label}\` {name: $name}) RETURN n`, { name });
     if (r.rows.length === 0) return null;
     return this.parseEntity(label, (r.rows[0].n || r.rows[0]) as Record<string, unknown>);
   }
 
-  async getById(id: string): Promise<MemoryEntity | null> {
+  async getById(id: string): Promise<Entity | null> {
     for (const label of ["Character", "Object", "Location"] as EntityLabel[]) {
       const r = await this.graph.query(`MATCH (n:\`${label}\` {uid: $id}) RETURN n`, { id });
       if (r.rows.length > 0) {
@@ -199,7 +199,7 @@ export class EntityModel {
     return null;
   }
 
-  parseEntity(label: string, row: Record<string, unknown>, isNew = false): MemoryEntity {
+  parseEntity(label: string, row: Record<string, unknown>, isNew = false): Entity {
     const meta =
       typeof row.metadata === "string"
         ? (JSON.parse(row.metadata) as Record<string, unknown>)

@@ -20,8 +20,12 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { setupTestDb, teardownTestDb, getTestDb } from "../helpers";
 
 describe("PlotModel", () => {
-  beforeAll(async () => { await setupTestDb(); });
-  afterAll(async () => { await teardownTestDb(); });
+  beforeAll(async () => {
+    await setupTestDb();
+  });
+  afterAll(async () => {
+    await teardownTestDb();
+  });
 
   it("creates and retrieves a plot", async () => {
     const db = getTestDb();
@@ -56,7 +60,7 @@ describe("PlotModel", () => {
     await db.plots.setFlags("FlagPlot", ["urgent", "main-quest"]);
     const plot = await db.plots.getByName("FlagPlot");
     expect(plot!.flags.length).toBe(2);
-    expect(plot!.flags.map(f => f.flagId)).toContain("urgent");
+    expect(plot!.flags.map((f) => f.flagId)).toContain("urgent");
   });
 
   it("branches and retrieves children", async () => {
