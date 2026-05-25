@@ -100,4 +100,46 @@ describe("Entity CRUD", () => {
     expect(found!.aliases).toEqual(["The Duke", "His Grace"]);
     expect(found!.metadata.stats).toEqual({ MIGHT: 5 });
   });
+
+  it("partial metadata update preserves unchanged fields", async () => {
+    const db = getTestDb();
+    await db.entities.create("Character", {
+      name: "PartialTest",
+      metadata: { stats: { MIGHT: 5, LOGIC: 3 }, aliases: ["original"], faction: "Knights" },
+    });
+
+    // Update only faction — other fields should survive
+    await db.entities.update("Character", { name: "PartialTest" }, { metadata: { faction: "Mages", stats: { MIGHT: 5, LOGIC: 3 }, aliases: ["original"] } });
+
+    const found = await db.entities.getByName("Character", "PartialTest");
+    expect(found!.metadata.faction).toBe("Mages");
+    expect(found!.metadata.aliases).toEqual(["original"]);
+    expect(found!.metadata.stats).toEqual({ MIGHT: 5, LOGIC: 3 });
+  });
+
+  it("partial metadata update via editNode tool merges json properties", async () => {
+    const db = getTestDb();
+    await db.entities.create("Character", {
+      name: "EditNodeTest",
+      metadata: { stats: { MIGHT: 5, LOGIC: 3 }, aliases: ["original"], faction: "Knights" },
+    });
+
+    // Simulate what editNode does: shallow-merge incoming onto existing
+    const node = await db.entities.getByName("Character", "EditNodeTest");
+    const existing = node!.metadata;
+    const incoming = { stats: { MIGHT: 8 }, aliases: ["updated"] } as Record<string, unknown>;
+
+    // editNode's merge: { ...existingJson, ...incoming }
+    const merged = { ...existing, ...incoming };
+    const properties = { metadata: merged };
+    await db.entities.update("Character", { name: "EditNodeTest" }, properties);
+
+    const updated = await db.entities.getByName("Character", "EditNodeTest");
+    // stats replaced entirely (shallow merge — json_merge_patch semantics)
+    expect(updated!.metadata.stats).toEqual({ MIGHT: 8 });
+    // faction preserved (not in incoming)
+    expect(updated!.metadata.faction).toBe("Knights");
+    // aliases replaced
+    expect(updated!.metadata.aliases).toEqual(["updated"]);
+  });
 });

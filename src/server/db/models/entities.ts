@@ -124,15 +124,23 @@ export class EntityModel {
     const name = (sets.name as string) ?? (existing.name as string);
     const brief = (sets.brief as string) ?? (existing.brief as string) ?? "";
     const description = (sets.description as string) ?? (existing.description as string) ?? "";
-    const metadata = JSON.stringify(sets.metadata ?? existing.metadata ?? {});
+    const metadata =
+      "metadata" in sets
+        ? JSON.stringify(sets.metadata)
+        : (typeof existing.metadata === "string" ? existing.metadata : JSON.stringify(existing.metadata ?? {}));
 
-    const setClauses = Object.entries(sets).map(([k]) => `n.\`${k}\` = $s_${k}`);
+    // JSON-tagged properties must be stringified for LadybugDB params
+    const setClauses: string[] = [];
+    const allParams: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(sets)) {
+      const def = getNodeManager().getNodeType(label);
+      const isJson = def?.properties.find((p) => p.name === k)?.tags.includes("json");
+      setClauses.push(`n.\`${k}\` = $s_${k}`);
+      allParams[`s_${k}`] = isJson ? JSON.stringify(v) : v;
+    }
     setClauses.push("n._updated_at = $now");
-    const allParams = {
-      ...Object.fromEntries(Object.entries(where).map(([k, v]) => [`w_${k}`, v])),
-      ...Object.fromEntries(Object.entries(sets).map(([k, v]) => [`s_${k}`, v])),
-      now: new Date().toISOString(),
-    };
+    Object.assign(allParams, Object.fromEntries(Object.entries(where).map(([k, v]) => [`w_${k}`, v])));
+    allParams["now"] = new Date().toISOString();
 
     await this.graph.query(
       `MATCH (n:\`${label}\`) WHERE ${whereClauses.join(" AND ")} SET ${setClauses.join(", ")}`,
