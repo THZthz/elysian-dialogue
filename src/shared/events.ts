@@ -51,10 +51,13 @@ export interface ErrorEvent {
 
 export interface DoneEvent {}
 
-export interface TimeUpdateEvent {
-  day: number;
-  hour: number;
-  hoursAdvanced: number;
+export interface SceneUpdateEvent {
+  scene_id: string;
+  start_time: number;
+  end_time: number | null;
+  location_name: string;
+  characters: string[];
+  reason: string | null;
 }
 
 export interface RollResultEvent {
@@ -80,7 +83,7 @@ export interface SseEventMap {
   parsed: ParsedEvent;
   error: ErrorEvent;
   done: DoneEvent;
-  time_update: TimeUpdateEvent;
+  scene_update: SceneUpdateEvent;
   roll_result: RollResultEvent;
 }
 

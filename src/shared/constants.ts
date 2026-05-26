@@ -35,7 +35,7 @@ export type SkillName = (typeof SKILL_NAMES)[number];
 export const TOOL_NAMES = {
   QUERY_WORLD: "queryWorld",
   GENERATE_DIALOGUE: "generateDialogueStep",
-  ADVANCE_TIME: "advanceTime",
+  MANAGE_SCENE: "manageScene",
   SEARCH_WORLD: "searchWorld",
   MANAGE_SCHEMA: "manageSchema",
   EDIT_NODE: "editNode",
@@ -45,17 +45,3 @@ export const TOOL_NAMES = {
   GET_CONTEXT: "getContext",
 } as const;
 
-export const SEGMENT_LABELS = [
-  "Midnight",
-  "Late Night",
-  "Early Morning",
-  "Morning",
-  "Late Morning",
-  "Noon",
-  "Afternoon",
-  "Late Afternoon",
-  "Evening",
-  "Night",
-  "Late Night",
-  "Midnight",
-];
