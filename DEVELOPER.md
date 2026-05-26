@@ -28,7 +28,8 @@ src/
 │   │       ├── plots.ts              # PlotModel: lifecycle, branching, flags
 │   │       ├── notes.ts              # NoteModel: GM notes with entity/plot linking
 │   │       ├── time.ts               # TimeModel: game time setup + advancement
-│   │       └── messages.ts           # MessageModel: conversation, GM turn continuity, options
+│   │       ├── messages.ts           # MessageModel: conversation, GM turn continuity, options
+│   │       └── scene.ts              # SceneModel: scene lifecycle, log append, history, chaining
 │   │
 │   ├── search/                       # In-process hybrid vector search
 │   │   ├── hybridSearch.ts           # 3-way RRF fusion (name dense + content dense + sparse)
