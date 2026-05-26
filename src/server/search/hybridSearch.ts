@@ -16,10 +16,10 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { VectorStore } from "@/server/db/vectorstore";
+import { VectorStore, type StoredVector } from "@/server/db/vectorstore";
 import type { Embedder } from "@/server/search/embedder";
-import { encodeSparse, type SparseVector } from "@/server/search/sparseEncoder";
 import { getReranker, applyRerank } from "@/server/search/reranker";
+import { BM25Scorer, tokenize } from "@/server/search/bm25";
 
 function cosineSim(a: Float32Array, b: Float32Array): number {
   let dot = 0,
@@ -34,36 +34,22 @@ function cosineSim(a: Float32Array, b: Float32Array): number {
   return denom === 0 ? 0 : dot / denom;
 }
 
-function sparseDot(sparse: SparseVector, dense: Float32Array): number {
-  let score = 0;
-  for (let i = 0; i < sparse.indices.length; i++) {
-    const idx = sparse.indices[i];
-    if (idx < dense.length) {
-      score += sparse.values[i] * dense[idx];
-    }
-  }
-  return score;
-}
-
-function rrfFuse(rankedLists: number[][], k = 60): number[] {
-  const scores = new Map<number, number>();
-  for (const lane of rankedLists) {
-    for (let rank = 0; rank < lane.length; rank++) {
-      const id = lane[rank];
-      scores.set(id, (scores.get(id) ?? 0) + 1 / (k + rank + 1));
-    }
-  }
-  return [...scores.entries()].sort((a, b) => b[1] - a[1]).map((e) => e[0]);
-}
+const INTERNAL_KEYS = new Set(["_uid", "node_type", "kind", "object_id"]);
 
 function stripHidden(obj: Record<string, unknown>): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(obj)) {
-    if (!k.startsWith("_")) {
-      out[k] = v;
-    }
+    if (!k.startsWith("_") && !INTERNAL_KEYS.has(k)) out[k] = v;
   }
   return out;
+}
+
+/** Concatenate name + text from a candidate payload for BM25 indexing. */
+function candidateText(c: StoredVector): string {
+  const p = c.payload;
+  return [p.name, p.text, p.content]
+    .filter((v): v is string => typeof v === "string" && v.length > 0)
+    .join(" ");
 }
 
 export interface SearchResult {
@@ -71,6 +57,9 @@ export interface SearchResult {
   relevance?: number;
   [key: string]: unknown;
 }
+
+/** Saturating normalization: maps unbounded BM25→[0,1). 3.0 = ~50%. */
+const BM25_SAT = 3.0;
 
 export class HybridSearcher {
   private readonly vectorStore: VectorStore;
@@ -92,45 +81,81 @@ export class HybridSearcher {
     const rerankerAvailable = useRerank && getReranker() !== null;
     const fetchLimit = rerankerAvailable ? Math.max(limit * 4, 40) : limit;
 
-    const nameText = `[${domain}] ${query}`;
-    const [nameVec, contentVec, sparseVec] = await Promise.all([
-      this.embedder.embed(nameText),
-      this.embedder.embed(query),
-      Promise.resolve(encodeSparse(query)),
-    ]);
-
-    const nameVecFA = new Float32Array(nameVec);
+    // 1. Embed query (single dense vector)
+    const contentVec = await this.embedder.embed(query);
     const contentVecFA = new Float32Array(contentVec);
+    const queryTokens = tokenize(query);
+
+    // 2. Load candidates
     const candidates = this.vectorStore.getAllByFilter(domain, kind);
-
-    const nameScores: Array<{ idx: number; score: number }> = [];
-    const contentScores: Array<{ idx: number; score: number }> = [];
-    const sparseScores: Array<{ idx: number; score: number }> = [];
-
-    for (let i = 0; i < candidates.length; i++) {
-      nameScores.push({ idx: i, score: cosineSim(nameVecFA, candidates[i].nameVec) });
-      contentScores.push({ idx: i, score: cosineSim(contentVecFA, candidates[i].contentVec) });
-      sparseScores.push({ idx: i, score: sparseDot(sparseVec, candidates[i].contentVec) });
+    if (!candidates || candidates.length === 0) {
+      return [];
     }
 
-    const rankIndices = (scored: Array<{ idx: number; score: number }>) =>
-      scored.sort((a, b) => b.score - a.score).map((s) => s.idx);
+    // 3. Build BM25 scorer over candidate texts
+    const bm25 = new BM25Scorer();
+    bm25.indexDocuments(candidates.map((c) => ({ text: candidateText(c) })));
 
-    const fusedOrder = rrfFuse([
-      rankIndices(nameScores),
-      rankIndices(contentScores),
-      rankIndices(sparseScores),
-    ]);
+    // 4. Score each candidate: dense cosine + BM25
+    const denseScores: Array<{ idx: number; score: number }> = [];
+    const bm25Scores: Array<{ idx: number; score: number }> = [];
 
+    for (let i = 0; i < candidates.length; i++) {
+      const cVec = candidates[i].contentVec;
+      denseScores.push({ idx: i, score: cVec ? cosineSim(contentVecFA, cVec) : 0 });
+      bm25Scores.push({ idx: i, score: bm25.scoreDocument(queryTokens, i) });
+    }
+
+    // 5. Compute RRF scores and fuse (matching VectFox's proportional RRF decay)
+    const rrfScores = new Map<number, number>();
+    const denseRanks = [...denseScores].sort((a, b) => b.score - a.score);
+    const bm25Ranks = [...bm25Scores].sort((a, b) => b.score - a.score);
+
+    for (const lane of [denseRanks, bm25Ranks]) {
+      for (let rank = 0; rank < lane.length; rank++) {
+        const id = lane[rank].idx;
+        rrfScores.set(id, (rrfScores.get(id) ?? 0) + 1 / (60 + rank + 1));
+      }
+    }
+
+    const fusedOrder = [...rrfScores.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .map(([idx]) => idx);
+
+    const maxRawRrf = fusedOrder.length > 0 ? (rrfScores.get(fusedOrder[0]) ?? 0) : 0;
+
+    // 6. Build results with post-RRF display scores (from VectFox hybrid-search.js)
     const topCandidates = fusedOrder.slice(0, fetchLimit).map((idx) => {
       const c = candidates[idx];
-      const clean = {
+      const vectorScore = denseScores[idx].score;
+      const rawBm25 = bm25Scores[idx].score;
+      const normBm25 = rawBm25 / (rawBm25 + BM25_SAT);
+      const rawRrf = rrfScores.get(idx) ?? 0;
+      const rrfRankFactor = maxRawRrf > 0 ? rawRrf / maxRawRrf : 0;
+
+      const hasVector = vectorScore > 0.01;
+      const hasText = normBm25 > 0.01;
+      let similarity: number;
+
+      if (hasVector && hasText) {
+        const combined = vectorScore * 0.55 + normBm25 * 0.45;
+        const dualBonus = 1.0 + Math.min(vectorScore, normBm25) * 0.08;
+        similarity = Math.min(1.0, combined * dualBonus * (0.95 + 0.05 * rrfRankFactor));
+      } else if (hasVector) {
+        similarity = vectorScore * 0.55 * (0.9 + 0.1 * rrfRankFactor);
+      } else if (hasText) {
+        similarity = normBm25 * 0.6 * (0.9 + 0.1 * rrfRankFactor);
+      } else {
+        similarity = rrfRankFactor * 0.25;
+      }
+
+      return {
         ...stripHidden(c.payload),
-        similarity: Math.max(nameScores[idx].score, contentScores[idx].score),
-      } as Record<string, unknown>;
-      return clean;
+        similarity,
+      } as unknown as Record<string, unknown>;
     });
 
+    // 7. Optional cross-encoder reranker
     if (rerankerAvailable && topCandidates.length > 0) {
       const withText = topCandidates.map((item) => ({
         ...item,

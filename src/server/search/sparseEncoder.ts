@@ -17,10 +17,12 @@
  */
 
 /**
- * Tokenizes text into a sparse TF vector for Qdrant hybrid search.
+ * Tokenizes text into a sparse TF vector for storage (future Qdrant migration).
  * Uses FNV-1a 32-bit hashing for token to integer index mapping.
- * Qdrant's "modifier": "idf" handles IDF weighting server-side.
+ * Tokens are stemmed, stop-word-filtered, and deduplicated for compact storage.
  */
+
+import { tokenize } from "@/server/search/bm25";
 
 function fnv1a32(str: string): number {
   let hash = 2166136261;
@@ -38,10 +40,7 @@ export interface SparseVector {
 }
 
 export function encodeSparse(text: string): SparseVector {
-  const tokens = text
-    .toLowerCase()
-    .split(/[\s\p{P}]+/u)
-    .filter(Boolean);
+  const tokens = tokenize(text, { dedupe: false });
   const tf: Record<number, number> = {};
   for (const token of tokens) {
     const idx = fnv1a32(token);
