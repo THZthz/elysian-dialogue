@@ -54,7 +54,7 @@ src/
 │   │       ├── manageSchema.ts       # Register/unregister node/rel types
 │   │       ├── getContext.ts         # Scene context, schema dump, relationship dump
 │   │       ├── generateDialogueStep.ts  # Structured narrative output
-│   │       ├── advanceTime.ts        # In-game clock advancement
+│   │       ├── manageScene.ts        # Scene lifecycle management
 │   │       └── shared.ts             # wrapSafe, extractInternalAndUnknownKeys
 │   │
 │   └── stories/                      # World seeding (TOML)
@@ -101,7 +101,7 @@ flowchart TD
 
     subgraph Tools
         SENSE[queryWorld<br/>searchWorld<br/>getContext]
-        ACT[editNode<br/>editRelationship<br/>manageSchema<br/>advanceTime]
+        ACT[editNode<br/>editRelationship<br/>manageSchema<br/>manageScene]
         TRACK[editNote<br/>editPlot]
         SPEAK[generateDialogueStep]
     end
@@ -124,8 +124,8 @@ flowchart TD
 | **ACT**   | `editNode`             | Node CRUD with auto-embedding                                                 |
 |           | `editRelationship`     | Relationship CRUD with auto-embedding                                         |
 |           | `manageSchema`         | Register/unregister types; generates DDL                                      |
-|           | `advanceTime`          | Advance in-game clock by hours/days                                           |
-| **TRACK** | `editNote`             | GM scratchpad notes linked to entities, messages, plots                       |
+|           | `manageScene`          | Scene lifecycle: create, transition, close scenes                             |
+| **TRACK** | `editNote`             | GM scratchpad notes linked to entities, scenes, plots                         |
 |           | `editPlot`             | Plot lifecycle with status transitions, flags, branching                      |
 | **SPEAK** | `generateDialogueStep` | Narrative output + player options                                             |
 
@@ -138,7 +138,7 @@ flowchart TD
 | `step_start`         | `{ stepId }`                                               | Turn begins                            |
 | `streaming_messages` | `{ messages }`                                             | Progressive during dialogue generation |
 | `streaming_reset`    | `{}`                                                       | LLM retried — discard previous         |
-| `time_update`        | `{ day, segment, segmentsAdvanced }`                       | `advanceTime` executes                 |
+| `time_update`        | `{ day, segment, segmentsAdvanced }`                       | `manageScene` executes                 |
 | `options`            | `{ options }`                                              | Options available mid-stream           |
 | `parsed`             | `{ messages, options }`                                    | Final structured output                |
 | `error`              | `{ message }`                                              | Error during generation                |
