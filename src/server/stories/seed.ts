@@ -138,15 +138,17 @@ export async function seedDatabase(): Promise<void> {
 
   // Set temporal properties on seeded relationships for historical query support.
   // mergeRelationship only sets _created_at (internal timestamp). Temporal
-  // relationships need created_at set for historical queries and valid_at
-  // explicitly set to NULL for current-state queries.
+  // relationships need created_at set for historical queries, valid_at
+  // explicitly set to NULL for current-state queries, and _updated_at set
+  // for consistency with runtime-created relationships.
   const initialTime = story.initialScene.start_time;
+  const now = new Date().toISOString();
   const temporalRelTypes = ["LOCATED_AT", "LOCATED_IN", "CARRIES", "HAS_DISPOSITION"];
   for (const relType of temporalRelTypes) {
     try {
       await db.graph.query(
-        `MATCH ()-[r:\`${relType}\`]->() SET r.created_at = $t, r.valid_at = NULL`,
-        { t: initialTime },
+        `MATCH ()-[r:\`${relType}\`]->() SET r.created_at = $t, r.valid_at = NULL, r._updated_at = $now`,
+        { t: initialTime, now },
       );
     } catch {
       // table may not exist if no relationships of this type were seeded
