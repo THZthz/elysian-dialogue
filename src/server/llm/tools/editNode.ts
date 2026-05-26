@@ -125,7 +125,12 @@ Since \`metadata\` is tagged as "json" of node Character in SCHEMA_DUMP, you can
 
     // Validate node label ever registered
     const nodeDef = registry.getNodeType(args.nodeLabel);
-    const available = new Set(registry.getAllNodeTypes().filter((n) => n.category !== "INTERNAL").map((n) => n.name));
+    const available = new Set(
+      registry
+        .getAllNodeTypes()
+        .filter((n) => n.category !== "INTERNAL")
+        .map((n) => n.name),
+    );
     if (!nodeDef) {
       return `ERROR: Node label "${args.nodeLabel}" is not registered. Available labels: ${[...available].join(", ")}.`;
     }

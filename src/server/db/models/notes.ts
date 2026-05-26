@@ -22,7 +22,7 @@ import type { Embedder } from "@/server/search/embedder";
 import { getSchemaRegistry } from "@/server/db/schema";
 import { encodeSparse } from "@/server/search/sparseEncoder";
 
-export interface MemoryNote {
+export interface Note {
   name: string;
   content: string;
   linkedEntities: string[];
@@ -107,7 +107,7 @@ export class NoteModel {
     await this.graph.query("MATCH (n:Note {name: $name}) DETACH DELETE n", { name });
   }
 
-  async getByName(name: string): Promise<MemoryNote | null> {
+  async getByName(name: string): Promise<Note | null> {
     const r = await this.graph.query("MATCH (n:Note {name: $name}) RETURN n", { name });
     if (r.rows.length === 0) return null;
     const row = (r.rows[0].n || r.rows[0]) as Record<string, unknown>;
@@ -192,7 +192,7 @@ export class NoteModel {
     return r.rows.map((row) => row.name as string);
   }
 
-  private async parseNote(name: string, content: string): Promise<MemoryNote> {
+  private async parseNote(name: string, content: string): Promise<Note> {
     const [entities, messages, plots] = await Promise.all([
       this.getLinkedEntities(name),
       this.getLinkedMessages(name),

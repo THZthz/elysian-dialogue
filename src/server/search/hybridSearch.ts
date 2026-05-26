@@ -118,9 +118,7 @@ export class HybridSearcher {
       }
     }
 
-    const fusedOrder = [...rrfScores.entries()]
-      .sort((a, b) => b[1] - a[1])
-      .map(([idx]) => idx);
+    const fusedOrder = [...rrfScores.entries()].sort((a, b) => b[1] - a[1]).map(([idx]) => idx);
 
     const maxRawRrf = fusedOrder.length > 0 ? (rrfScores.get(fusedOrder[0]) ?? 0) : 0;
 

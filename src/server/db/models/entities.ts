@@ -57,7 +57,7 @@ export class EntityModel {
     },
   ): Promise<Entity> {
     const registry = getSchemaRegistry();
-    
+
     const _uid = uuidv4();
     const now = new Date().toISOString();
     const brief = props.brief ?? "";
@@ -131,7 +131,9 @@ export class EntityModel {
     const metadata =
       "metadata" in sets
         ? JSON.stringify(sets.metadata)
-        : (typeof existing.metadata === "string" ? existing.metadata : JSON.stringify(existing.metadata ?? {}));
+        : typeof existing.metadata === "string"
+          ? existing.metadata
+          : JSON.stringify(existing.metadata ?? {});
 
     // JSON-tagged properties must be stringified for LadybugDB params
     const setClauses: string[] = [];
@@ -143,7 +145,10 @@ export class EntityModel {
       allParams[`s_${k}`] = isJson ? JSON.stringify(v) : v;
     }
     setClauses.push("n._updated_at = $now");
-    Object.assign(allParams, Object.fromEntries(Object.entries(where).map(([k, v]) => [`w_${k}`, v])));
+    Object.assign(
+      allParams,
+      Object.fromEntries(Object.entries(where).map(([k, v]) => [`w_${k}`, v])),
+    );
     allParams["now"] = new Date().toISOString();
 
     await this.graph.query(

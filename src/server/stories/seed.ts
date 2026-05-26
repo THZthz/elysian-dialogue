@@ -16,7 +16,6 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-
 import { v4 as uuidv4 } from "uuid";
 import { getActiveSeedStory } from "@/server/stories";
 import { Database } from "@/server/db";

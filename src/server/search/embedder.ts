@@ -71,7 +71,11 @@ export async function checkEmbedderHealth(url: string, timeoutMs = 2000): Promis
     clearTimeout(timeout);
     if (!res.ok) return false;
     const json = (await res.json()) as Record<string, unknown>;
-    return json.data !== undefined && Array.isArray(json.data) && (json.data as Array<unknown>).length > 0;
+    return (
+      json.data !== undefined &&
+      Array.isArray(json.data) &&
+      (json.data as Array<unknown>).length > 0
+    );
   } catch {
     return false;
   }

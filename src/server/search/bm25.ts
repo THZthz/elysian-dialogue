@@ -1,35 +1,279 @@
 /**
+ * Chorus — cinematic dialogue engine
+ * Copyright (C) 2026 Amias
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
+/**
  * BM25+ keyword scorer ported from VectFox's client-side A1/A2 path.
  * English-only — no CJK tokenizer WASM dependencies.
  */
 
 const ENGLISH_STOP_WORDS = [
-  "a", "about", "above", "across", "after", "again", "against", "all", "almost", "alone",
-  "along", "already", "also", "although", "always", "am", "among", "an", "and", "another",
-  "any", "anybody", "anyone", "anything", "anywhere", "are", "area", "areas", "around", "as",
-  "at", "away", "back", "be", "became", "because", "become", "becomes", "been", "before",
-  "behind", "being", "below", "beside", "besides", "best", "better", "between", "beyond", "both",
-  "but", "by", "came", "can", "cannot", "case", "could", "day", "did", "do",
-  "does", "doing", "done", "down", "each", "either", "else", "even", "ever", "every",
-  "everybody", "everyone", "everything", "fact", "few", "find", "first", "for", "found", "from",
-  "get", "give", "go", "going", "gone", "good", "got", "great", "had", "has",
-  "have", "having", "he", "her", "here", "herself", "high", "him", "himself", "his",
-  "how", "however", "i", "if", "in", "into", "is", "it", "its", "itself",
-  "just", "keep", "kind", "knew", "know", "known", "large", "last", "less", "like",
-  "little", "long", "look", "low", "made", "make", "many", "may", "me", "might",
-  "mine", "more", "most", "much", "must", "my", "myself", "never", "new", "next",
-  "no", "nobody", "not", "nothing", "now", "of", "off", "often", "old", "on",
-  "once", "one", "only", "onto", "or", "other", "others", "our", "ours", "ourselves",
-  "out", "over", "own", "part", "place", "point", "quite", "rather", "really", "same",
-  "saw", "say", "see", "seen", "shall", "she", "should", "since", "small", "so",
-  "some", "somebody", "someone", "something", "sometimes", "still", "such", "take", "than", "that",
-  "the", "their", "theirs", "them", "themselves", "then", "there", "therefore", "these", "they",
-  "thing", "things", "think", "this", "those", "though", "thought", "through", "thus", "time",
-  "to", "today", "together", "too", "took", "two", "under", "until", "up", "upon",
-  "us", "use", "used", "very", "want", "was", "way", "we", "well", "went",
-  "were", "what", "when", "where", "whether", "which", "while", "who", "whom", "whose",
-  "why", "will", "with", "within", "without", "would", "year", "yet", "you", "your",
-  "yours", "yourself",
+  "a",
+  "about",
+  "above",
+  "across",
+  "after",
+  "again",
+  "against",
+  "all",
+  "almost",
+  "alone",
+  "along",
+  "already",
+  "also",
+  "although",
+  "always",
+  "am",
+  "among",
+  "an",
+  "and",
+  "another",
+  "any",
+  "anybody",
+  "anyone",
+  "anything",
+  "anywhere",
+  "are",
+  "area",
+  "areas",
+  "around",
+  "as",
+  "at",
+  "away",
+  "back",
+  "be",
+  "became",
+  "because",
+  "become",
+  "becomes",
+  "been",
+  "before",
+  "behind",
+  "being",
+  "below",
+  "beside",
+  "besides",
+  "best",
+  "better",
+  "between",
+  "beyond",
+  "both",
+  "but",
+  "by",
+  "came",
+  "can",
+  "cannot",
+  "case",
+  "could",
+  "day",
+  "did",
+  "do",
+  "does",
+  "doing",
+  "done",
+  "down",
+  "each",
+  "either",
+  "else",
+  "even",
+  "ever",
+  "every",
+  "everybody",
+  "everyone",
+  "everything",
+  "fact",
+  "few",
+  "find",
+  "first",
+  "for",
+  "found",
+  "from",
+  "get",
+  "give",
+  "go",
+  "going",
+  "gone",
+  "good",
+  "got",
+  "great",
+  "had",
+  "has",
+  "have",
+  "having",
+  "he",
+  "her",
+  "here",
+  "herself",
+  "high",
+  "him",
+  "himself",
+  "his",
+  "how",
+  "however",
+  "i",
+  "if",
+  "in",
+  "into",
+  "is",
+  "it",
+  "its",
+  "itself",
+  "just",
+  "keep",
+  "kind",
+  "knew",
+  "know",
+  "known",
+  "large",
+  "last",
+  "less",
+  "like",
+  "little",
+  "long",
+  "look",
+  "low",
+  "made",
+  "make",
+  "many",
+  "may",
+  "me",
+  "might",
+  "mine",
+  "more",
+  "most",
+  "much",
+  "must",
+  "my",
+  "myself",
+  "never",
+  "new",
+  "next",
+  "no",
+  "nobody",
+  "not",
+  "nothing",
+  "now",
+  "of",
+  "off",
+  "often",
+  "old",
+  "on",
+  "once",
+  "one",
+  "only",
+  "onto",
+  "or",
+  "other",
+  "others",
+  "our",
+  "ours",
+  "ourselves",
+  "out",
+  "over",
+  "own",
+  "part",
+  "place",
+  "point",
+  "quite",
+  "rather",
+  "really",
+  "same",
+  "saw",
+  "say",
+  "see",
+  "seen",
+  "shall",
+  "she",
+  "should",
+  "since",
+  "small",
+  "so",
+  "some",
+  "somebody",
+  "someone",
+  "something",
+  "sometimes",
+  "still",
+  "such",
+  "take",
+  "than",
+  "that",
+  "the",
+  "their",
+  "theirs",
+  "them",
+  "themselves",
+  "then",
+  "there",
+  "therefore",
+  "these",
+  "they",
+  "thing",
+  "things",
+  "think",
+  "this",
+  "those",
+  "though",
+  "thought",
+  "through",
+  "thus",
+  "time",
+  "to",
+  "today",
+  "together",
+  "too",
+  "took",
+  "two",
+  "under",
+  "until",
+  "up",
+  "upon",
+  "us",
+  "use",
+  "used",
+  "very",
+  "want",
+  "was",
+  "way",
+  "we",
+  "well",
+  "went",
+  "were",
+  "what",
+  "when",
+  "where",
+  "whether",
+  "which",
+  "while",
+  "who",
+  "whom",
+  "whose",
+  "why",
+  "will",
+  "with",
+  "within",
+  "without",
+  "would",
+  "year",
+  "yet",
+  "you",
+  "your",
+  "yours",
+  "yourself",
 ];
 
 export const STOP_WORDS: Set<string> = new Set(ENGLISH_STOP_WORDS);
@@ -61,30 +305,52 @@ export function porterStemmer(word: string): string {
   // Step 1b
   if (stem.endsWith("eed")) {
     const base = stem.slice(0, -3);
-    if (base.length > 0) { stem = base + "ee"; preserveE = true; }
+    if (base.length > 0) {
+      stem = base + "ee";
+      preserveE = true;
+    }
   } else if (stem.endsWith("ed")) {
     const base = stem.slice(0, -2);
     if (hasVowel(base)) {
       stem = base;
-      if (stem.endsWith("at") || stem.endsWith("bl") || stem.endsWith("iz")) { stem += "e"; preserveE = true; }
-      else if (/([^aeiouslz])\1$/.test(stem)) stem = stem.slice(0, -1);
+      if (stem.endsWith("at") || stem.endsWith("bl") || stem.endsWith("iz")) {
+        stem += "e";
+        preserveE = true;
+      } else if (/([^aeiouslz])\1$/.test(stem)) stem = stem.slice(0, -1);
     }
   } else if (stem.endsWith("ing")) {
     const base = stem.slice(0, -3);
     if (hasVowel(base)) {
       stem = base;
-      if (stem.endsWith("at") || stem.endsWith("bl") || stem.endsWith("iz")) { stem += "e"; preserveE = true; }
-      else if (/([^aeiouslz])\1$/.test(stem)) stem = stem.slice(0, -1);
+      if (stem.endsWith("at") || stem.endsWith("bl") || stem.endsWith("iz")) {
+        stem += "e";
+        preserveE = true;
+      } else if (/([^aeiouslz])\1$/.test(stem)) stem = stem.slice(0, -1);
     }
   }
 
   // Step 2
   const step2: Array<[string, string]> = [
-    ["ational", "ate"], ["tional", "tion"], ["enci", "ence"], ["anci", "ance"],
-    ["izer", "ize"], ["abli", "able"], ["alli", "al"], ["entli", "ent"],
-    ["eli", "e"], ["ousli", "ous"], ["ization", "ize"], ["ation", "ate"],
-    ["ator", "ate"], ["alism", "al"], ["iveness", "ive"], ["fulness", "ful"],
-    ["ousness", "ous"], ["aliti", "al"], ["iviti", "ive"], ["biliti", "ble"],
+    ["ational", "ate"],
+    ["tional", "tion"],
+    ["enci", "ence"],
+    ["anci", "ance"],
+    ["izer", "ize"],
+    ["abli", "able"],
+    ["alli", "al"],
+    ["entli", "ent"],
+    ["eli", "e"],
+    ["ousli", "ous"],
+    ["ization", "ize"],
+    ["ation", "ate"],
+    ["ator", "ate"],
+    ["alism", "al"],
+    ["iveness", "ive"],
+    ["fulness", "ful"],
+    ["ousness", "ous"],
+    ["aliti", "al"],
+    ["iviti", "ive"],
+    ["biliti", "ble"],
   ];
   for (const [suffix, repl] of step2) {
     if (stem.endsWith(suffix) && stem.length > suffix.length + 2) {
@@ -96,8 +362,13 @@ export function porterStemmer(word: string): string {
 
   // Step 3
   const step3: Array<[string, string]> = [
-    ["icate", "ic"], ["ative", ""], ["alize", "al"],
-    ["iciti", "ic"], ["ical", "ic"], ["ful", ""], ["ness", ""],
+    ["icate", "ic"],
+    ["ative", ""],
+    ["alize", "al"],
+    ["iciti", "ic"],
+    ["ical", "ic"],
+    ["ful", ""],
+    ["ness", ""],
   ];
   for (const [suffix, repl] of step3) {
     if (stem.endsWith(suffix) && stem.length > suffix.length + 2) {
@@ -136,12 +407,7 @@ export interface TokenizeOptions {
 export function tokenize(text: string, options: TokenizeOptions = {}): string[] {
   if (!text || typeof text !== "string") return [];
 
-  const {
-    stem = true,
-    removeStopWords = true,
-    minLength = 2,
-    dedupe = true,
-  } = options;
+  const { stem = true, removeStopWords = true, minLength = 2, dedupe = true } = options;
 
   let tokens = text
     .toLowerCase()
@@ -254,7 +520,7 @@ export class BM25Scorer {
       const tf = this.sublinearTf ? Math.log(1 + rawTf) : rawTf;
       const idf = this.idf.get(token) || 0;
       const lenNorm = 1 - this.b + this.b * (docLen / this.avgDocLen);
-      score += idf * (tf * (this.k1 + 1)) / (tf + this.k1 * lenNorm);
+      score += (idf * (tf * (this.k1 + 1))) / (tf + this.k1 * lenNorm);
     }
 
     if (this.coverageBonus && queryTokens.length > 0) {

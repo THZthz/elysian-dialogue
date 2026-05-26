@@ -55,7 +55,9 @@ const inputSchema = z.object({
     .array(z.string())
     .nullable()
     .optional()
-    .describe("Entity names to link this note to. Replaces existing ABOUT_ENTITY links — pass [] to clear all."),
+    .describe(
+      "Entity names to link this note to. Replaces existing ABOUT_ENTITY links — pass [] to clear all.",
+    ),
   aboutMessages: z
     .array(z.string())
     .nullable()
@@ -67,7 +69,9 @@ const inputSchema = z.object({
     .array(z.string())
     .nullable()
     .optional()
-    .describe("Plot names to link this note to. Replaces existing ABOUT_PLOT links — pass [] to clear all."),
+    .describe(
+      "Plot names to link this note to. Replaces existing ABOUT_PLOT links — pass [] to clear all.",
+    ),
 });
 
 export const editNote = tool({

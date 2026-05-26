@@ -150,12 +150,13 @@ Only GM_DEFINED types can be unregistered. PREDEFINED and INTERNAL types are per
           .map((p) => ({
             name: p.name,
             description: p.description,
-            tags: p.tags.filter((t) =>
-              (REL_PROPERTY_TAGS as readonly string[]).includes(t),
-            ),
+            tags: p.tags.filter((t) => (REL_PROPERTY_TAGS as readonly string[]).includes(t)),
           }));
         // Preserve existing properties if none provided on update
-        const relProps: RelPropertyDef[] = existing && inputProps.length === 0 ? existing.properties : (inputProps as RelPropertyDef[]);
+        const relProps: RelPropertyDef[] =
+          existing && inputProps.length === 0
+            ? existing.properties
+            : (inputProps as RelPropertyDef[]);
 
         db.schema.registerRel({
           name: args.name,

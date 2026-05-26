@@ -40,10 +40,7 @@ export class LadybugClient {
     if (!this.conn) throw new Error("LadybugClient not initialized");
     // conn.query() does not accept params — use prepare + execute for parameterized queries.
     const stmt = await this.conn.prepare(cypher);
-    const raw = await this.conn.execute(
-      stmt,
-      params as Record<string, LbugValue> | undefined,
-    );
+    const raw = await this.conn.execute(stmt, params as Record<string, LbugValue> | undefined);
     const result = Array.isArray(raw) ? raw[0] : raw;
     const rows: Record<string, unknown>[] = [];
     const all = await result.getAll();

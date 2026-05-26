@@ -30,7 +30,7 @@ export interface PlotFlag {
   description: string;
 }
 
-export interface MemoryPlot {
+export interface Plot {
   name: string;
   description: string;
   brief: string;
@@ -103,7 +103,7 @@ export class PlotModel {
     );
   }
 
-  async getByName(name: string): Promise<MemoryPlot | null> {
+  async getByName(name: string): Promise<Plot | null> {
     const r = await this.graph.query("MATCH (p:Plot {name: $name}) RETURN p", { name });
     if (r.rows.length === 0) return null;
     const p = (r.rows[0].p || r.rows[0]) as Record<string, unknown>;

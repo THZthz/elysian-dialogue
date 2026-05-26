@@ -109,7 +109,11 @@ describe("Entity CRUD", () => {
     });
 
     // Update only faction — other fields should survive
-    await db.entities.update("Character", { name: "PartialTest" }, { metadata: { faction: "Mages", stats: { MIGHT: 5, LOGIC: 3 }, aliases: ["original"] } });
+    await db.entities.update(
+      "Character",
+      { name: "PartialTest" },
+      { metadata: { faction: "Mages", stats: { MIGHT: 5, LOGIC: 3 }, aliases: ["original"] } },
+    );
 
     const found = await db.entities.getByName("Character", "PartialTest");
     expect(found!.metadata.faction).toBe("Mages");
