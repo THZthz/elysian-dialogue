@@ -27,7 +27,7 @@ import { MessageModel } from "@/server/db/models/messages";
 import { EntityModel } from "@/server/db/models/entities";
 import { NoteModel } from "@/server/db/models/notes";
 import { PlotModel } from "@/server/db/models/plots";
-import { TimeModel } from "@/server/db/models/time";
+import { SceneModel } from "@/server/db/models/scene";
 
 export class Database {
   readonly graph: LadybugClient;
@@ -40,7 +40,7 @@ export class Database {
   entities!: EntityModel;
   notes!: NoteModel;
   plots!: PlotModel;
-  time!: TimeModel;
+  scene!: SceneModel;
 
   private readonly graphPath: string;
   private readonly vectorPath: string;
@@ -111,11 +111,11 @@ export class Database {
 
     // Wire domain models
     const embedder = getEmbedder();
-    this.messages = new MessageModel(this.graph, this.vectors, embedder);
+    this.messages = new MessageModel(this.graph);
     this.entities = new EntityModel(this.graph, this.vectors, embedder);
     this.notes = new NoteModel(this.graph, this.vectors, embedder);
     this.plots = new PlotModel(this.graph, this.vectors, embedder);
-    this.time = new TimeModel(this.graph);
+    this.scene = new SceneModel(this.graph);
   }
 
   async close(): Promise<void> {
