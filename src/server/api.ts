@@ -76,21 +76,36 @@ apiRouter.post("/chat/stream", async (req, res) => {
 apiRouter.get("/history", async (_req, res) => {
   try {
     const db = Database.getExisting();
-    const messages = await db.messages.getConversation();
-    const history: Message[] = messages.map((m, i) => {
-      const meta = m.metadata || {};
-      const msg: Message = {
-        id: `msg_${i}`,
-        speaker: (meta.speaker as string) || "SYSTEM",
-        type: (meta.type as Message["type"]) || "SYSTEM",
-        text: m.content || "",
-        metadata: meta as Message["metadata"],
-      };
-      if (meta.rollResult) {
-        msg.rollResult = meta.rollResult as Message["rollResult"];
+    const logEntries = await db.scene.getHistory();
+    const history: Message[] = [];
+    for (const entry of logEntries) {
+      if (entry.type === "gm") {
+        for (const c of entry.content) {
+          history.push({
+            id: `hist_${history.length}`,
+            speaker: c.speaker,
+            type: (c.type as Message["type"]) || "SYSTEM",
+            text: c.text,
+            metadata: c.metadata as Message["metadata"],
+          });
+        }
+      } else if (entry.type === "player") {
+        history.push({
+          id: `hist_${history.length}`,
+          speaker: "YOU",
+          type: "YOU",
+          text: entry.content,
+        });
+      } else if (entry.type === "roll") {
+        history.push({
+          id: `hist_${history.length}`,
+          speaker: (entry.metadata?.speaker as string) || "SYSTEM",
+          type: "ROLL",
+          text: entry.content,
+          rollResult: entry.metadata?.rollResult as Message["rollResult"],
+        });
       }
-      return msg;
-    });
+    }
     res.json(history);
   } catch (error: unknown) {
     console.error("History fetch error:", error);
@@ -103,8 +118,12 @@ apiRouter.get("/history", async (_req, res) => {
 apiRouter.get("/game/current", async (_req, res) => {
   try {
     const db = Database.getExisting();
-    const state = await db.messages.getCurrentOptions();
-    res.json(state);
+    const active = await db.scene.getActive();
+    if (active && active.options) {
+      res.json({ id: active._uid, options: active.options });
+    } else {
+      res.json(null);
+    }
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
     console.error("Session state fetch error:", message);
