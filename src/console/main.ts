@@ -215,6 +215,10 @@ function createSseCallbacks(): SseCallbacks {
     onDone: () => {
       // parsed already transitioned state
     },
+    onSceneUpdate: (_data) => {
+      // Scene transitions are already conveyed through narrative output
+      // The data is available for display if needed in the future
+    },
     onRollResult: (data) => {
       const rollMsg: Message = {
         id: `console-${messageIdCounter++}`,
