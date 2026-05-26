@@ -186,7 +186,10 @@ export class PlotModel {
 
   async markPlotTimeRel(name: string, relType: string): Promise<void> {
     await this.graph.query(
-      `MATCH (a:TimeAnchor {id: 'anchor'})-[:CURRENT_TIMEPOINT]->(tp:TimePoint) MATCH (p:Plot {name: $name}) MERGE (p)-[r:\`${relType}\`]->(tp) ON CREATE SET r._created_at = current_timestamp()`,
+      `MATCH (s:Scene) WHERE s.end_time IS NULL
+       MATCH (p:Plot {name: $name})
+       MERGE (p)-[r:\`${relType}\`]->(s)
+       ON CREATE SET r._created_at = current_timestamp()`,
       { name },
     );
   }
