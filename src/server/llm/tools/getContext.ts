@@ -100,7 +100,7 @@ async function buildSchemaDump(): Promise<string> {
     const node = nodeTypes[idx];
     const count = counts[node.name];
     const qty = count !== undefined ? ` (×${count})` : "(×0)";
-    const category = node.category === "GM_DEFINED" ? " [GM_DEFINED]" : "";
+    const category = node.category as string;
     lines.push(`${idx + 1}. **${node.name}**${qty}${category}: ${node.description}`);
     if (node.properties.length > 0) {
       const visible = node.properties.filter((p) => !p.name.startsWith("_"));
@@ -121,7 +121,7 @@ async function buildSchemaDump(): Promise<string> {
     const qty = count !== undefined ? ` (×${count})` : "";
     const src = rel.sourceLabel || "?";
     const tgt = rel.targetLabel || "?";
-    const category = rel.category === "GM_DEFINED" ? " [GM_DEFINED]" : "";
+    const category = rel.category as string;
     lines.push(`${idx + 1}. **${rel.name}**${qty} (${src}→${tgt})${category}: ${rel.description}`);
     if (rel.properties.length > 0) {
       const visible = rel.properties.filter((p) => !p.name.startsWith("_"));
@@ -158,7 +158,7 @@ Pull pre-built context from the world. Nothing is auto-loaded — you choose wha
       .describe("Which context sections to return. Default: SCENE_CONTEXT only."),
   }),
   execute: wrapSafe(async (args: { types: ContextType[] }) => {
-    const sections = args.types.length > 0 ? args.types : ["SCENE_CONTEXT"];
+    const sections: ContextType[] = args.types.length > 0 ? args.types : ["SCENE_CONTEXT"];
 
     const builders: Record<ContextType, () => Promise<string>> = {
       SCENE_CONTEXT: buildSceneContext,

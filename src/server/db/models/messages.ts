@@ -20,7 +20,7 @@ import { v4 as uuidv4 } from "uuid";
 import type { LadybugClient } from "@/server/db/ladybug";
 import type { VectorStore } from "@/server/db/vectorstore";
 import type { Embedder } from "@/server/search/embedder";
-import { getNodeManager } from "@/server/db/schema";
+import { getSchemaRegistry } from "@/server/db/schema";
 import { nextId } from "@/server/db/idGenerator";
 
 export interface MemoryMessage {
@@ -51,7 +51,7 @@ export class MessageModel {
     let contentVec: Float32Array | undefined;
     let embedText: string | undefined;
     if (generateEmbedding) {
-      embedText = getNodeManager().getEmbeddingContentText("Message", { content });
+      embedText = getSchemaRegistry().getEmbeddingContentText("Message", { content });
       if (embedText) {
         const vec = await this.embedder.embed(embedText);
         contentVec = new Float32Array(vec);

@@ -43,34 +43,31 @@ import { TOOL_NAMES } from "@/shared/constants";
 const NOTE_ACTIONS = ["CREATE", "UPDATE", "DELETE"] as const;
 
 const inputSchema = z.object({
-  noteName: z.string().describe("The name of the note (used as lookup key)."),
+  noteName: z.string().describe("The unique name of the note (used as lookup key)."),
   action: z.enum(NOTE_ACTIONS).default("CREATE").describe("Action taken for the note."),
   // .nullable() is needed because LLMs often output null for omitted optional fields
   content: z
     .string()
     .nullable()
     .optional()
-    .describe(
-      `
-Note text. CREATE: required. UPDATE: optional (set to overwrite). DELETE: omit.`.trim(),
-    ),
+    .describe(`Note text. CREATE: required. UPDATE: optional (set to overwrite). DELETE: omit.`),
   aboutEntities: z
     .array(z.string())
     .nullable()
     .optional()
-    .describe("Entity names to link this note to. Replaces existing links — pass [] to clear all."),
+    .describe("Entity names to link this note to. Replaces existing ABOUT_ENTITY links — pass [] to clear all."),
   aboutMessages: z
     .array(z.string())
     .nullable()
     .optional()
     .describe(
-      "Message IDs to link this note to. Replaces existing links — pass [] to clear all. Link to messages to anchor notes to TimePoints via :Message AT_TIME → :TimePoint.",
+      "Message names to link this note to. Replaces existing ABOUT_MESSAGE links — pass [] to clear all.",
     ),
   aboutPlots: z
     .array(z.string())
     .nullable()
     .optional()
-    .describe("Plot names to link this note to. Replaces existing links — pass [] to clear all."),
+    .describe("Plot names to link this note to. Replaces existing ABOUT_PLOT links — pass [] to clear all."),
 });
 
 export const editNote = tool({
@@ -99,11 +96,11 @@ or ABOUT_MESSAGE first if you have a clear target.
       const existing = await db.notes.getByName(args.noteName);
       if (!existing) return `ERROR: Note "${args.noteName}" is not found.`;
       await db.notes.delete(args.noteName);
-      return `Note "${args.noteName}" is successfully deleted`;
+      return `Note "${args.noteName}" is successfully deleted.`;
     }
 
     if (args.action == "CREATE") {
-      if (!args.content) return `ERROR: Parameter "content" is required for CREATE.`;
+      if (!args.content) return `ERROR: Parameter \`content\` is required for CREATE.`;
       await db.notes.create(args.noteName, args.content);
       if (args.aboutEntities) {
         for (const name of args.aboutEntities) await db.notes.linkToEntity(args.noteName, name);

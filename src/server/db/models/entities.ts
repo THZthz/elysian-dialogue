@@ -20,7 +20,7 @@ import { v4 as uuidv4 } from "uuid";
 import type { LadybugClient } from "@/server/db/ladybug";
 import type { VectorStore } from "@/server/db/vectorstore";
 import type { Embedder } from "@/server/search/embedder";
-import { getNodeManager } from "@/server/db/schema";
+import { getSchemaRegistry } from "@/server/db/schema";
 import { encodeSparse } from "@/server/search/sparseEncoder";
 
 export interface Entity {
@@ -56,6 +56,8 @@ export class EntityModel {
       metadata?: Record<string, unknown>;
     },
   ): Promise<Entity> {
+    const registry = getSchemaRegistry();
+    
     const _uid = uuidv4();
     const now = new Date().toISOString();
     const brief = props.brief ?? "";
@@ -68,8 +70,8 @@ export class EntityModel {
     );
 
     const entityProps = { name: props.name, brief, description };
-    const nameText = getNodeManager().getEmbeddingNameText(label, entityProps);
-    const contentText = getNodeManager().getEmbeddingContentText(label, entityProps);
+    const nameText = registry.getEmbeddingNameText(label, entityProps);
+    const contentText = registry.getEmbeddingContentText(label, entityProps);
     const [nameVec, contentVec] = await Promise.all([
       this.embedder.embed(nameText || props.name),
       this.embedder.embed(contentText || `${props.name} ${brief} ${description}`),
@@ -112,6 +114,8 @@ export class EntityModel {
     where: Record<string, unknown>,
     sets: Record<string, unknown>,
   ): Promise<Entity | null> {
+    const registry = getSchemaRegistry();
+
     const whereClauses = Object.entries(where).map(([k]) => `n.\`${k}\` = $w_${k}`);
     const r = await this.graph.query(
       `MATCH (n:\`${label}\`) WHERE ${whereClauses.join(" AND ")} RETURN n`,
@@ -133,7 +137,7 @@ export class EntityModel {
     const setClauses: string[] = [];
     const allParams: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(sets)) {
-      const def = getNodeManager().getNodeType(label);
+      const def = registry.getNodeType(label);
       const isJson = def?.properties.find((p) => p.name === k)?.tags.includes("json");
       setClauses.push(`n.\`${k}\` = $s_${k}`);
       allParams[`s_${k}`] = isJson ? JSON.stringify(v) : v;
@@ -148,8 +152,8 @@ export class EntityModel {
     );
 
     const entityProps = { name, brief, description };
-    const nameText = getNodeManager().getEmbeddingNameText(label, entityProps);
-    const contentText = getNodeManager().getEmbeddingContentText(label, entityProps);
+    const nameText = registry.getEmbeddingNameText(label, entityProps);
+    const contentText = registry.getEmbeddingContentText(label, entityProps);
     const [nameVec, contentVec] = await Promise.all([
       this.embedder.embed(nameText || name),
       this.embedder.embed(contentText || `${name} ${brief} ${description}`),

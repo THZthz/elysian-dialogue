@@ -64,10 +64,12 @@ export function createAdvanceTimeTool(events: EventEmitter) {
     title: TOOL_NAMES.ADVANCE_TIME,
     description: `
 ## Brief
-Advance the in-game clock. Do not just narrate that time have passed without calling
-\`${TOOL_NAMES.ADVANCE_TIME}\`. Use hours for sub-day advances, or days (0+) for multi-day travel.
+Advance the in-game clock. Use half-hours for sub-day advances, or days (0+) for multi-day travel.
 Total advancement = days * 24 + hours. Always include a brief \`reason\` so your future self knows
 why time moved.
+
+## Forbidden
+Do not just narrate that time have passed without calling \`${TOOL_NAMES.ADVANCE_TIME}\`.
 
 ## Inner details
 When ${TOOL_NAMES.ADVANCE_TIME} is called, a new TimePoint will be created first, then TimeAnchor

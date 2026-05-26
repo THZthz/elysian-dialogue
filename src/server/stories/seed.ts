@@ -47,7 +47,7 @@ export async function seedDatabase(): Promise<void> {
 
   // Skip if database already has data (prevents duplicate injection on restart)
   const existing = await db.graph.query(
-    "MATCH (e) WHERE label(e) IN ('Character', 'Object', 'Location') RETURN count(e) AS count",
+    "MATCH (e) WHERE label(e) = 'Character' OR label(e) = 'Object' OR label(e) = 'Location' RETURN count(e) AS count",
   );
   if ((existing.rows[0]?.count as number) > 0) {
     console.log(`[seedDatabase] database already has ${existing.rows[0].count} entities, skipping`);
@@ -156,7 +156,7 @@ export async function seedDatabase(): Promise<void> {
       continue;
     }
 
-    // Merge Disposition node (composite key: source_name, target_name)
+    // Merge Disposition node
     await db.graph.query(
       `MERGE (d:Disposition {source_name: $src, target_name: $tgt})
        ON CREATE SET d._uid = $_uid, d.sentiment = $sentiment, d.summary = $summary, d._created_at = $now, d._updated_at = $now

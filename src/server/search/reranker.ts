@@ -16,6 +16,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+import { getSchemaRegistry } from "@/server/db/schema";
+
 export interface Reranker {
   rerank(
     query: string,
@@ -96,13 +98,12 @@ export function getReranker(): Reranker | null {
 
 // ── Shared post-processing helper ──
 
-import { getNodeManager } from "@/server/db/schema";
-
 export function extractSearchTexts<T>(items: T[], kind: string): Array<T & { text: string }> {
-  const nodeManager = getNodeManager();
+  const registry = getSchemaRegistry();
+
   return items.map((item) => {
     const obj = item as Record<string, unknown>;
-    const text = nodeManager.getEmbeddingText(kind, obj);
+    const text = registry.getEmbeddingText(kind, obj);
     if (!text) {
       const fallback =
         (obj.content as string) || (obj.description as string) || (obj.name as string) || "";

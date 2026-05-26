@@ -120,6 +120,7 @@ apiRouter.post("/debug/tools/:toolName", async (req, res) => {
     res.status(404).json({ error: `Unknown tool: ${req.params.toolName}` });
     return;
   }
+  console.log(`[/debug/tools/${req.params.toolName}] accept request.`);
   try {
     const result = await tool.execute(req.body ?? {});
     res.set("Content-Type", "text/plain; charset=utf-8").send(result);

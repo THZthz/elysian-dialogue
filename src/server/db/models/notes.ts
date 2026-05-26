@@ -19,7 +19,7 @@
 import type { LadybugClient } from "@/server/db/ladybug";
 import type { VectorStore } from "@/server/db/vectorstore";
 import type { Embedder } from "@/server/search/embedder";
-import { getNodeManager } from "@/server/db/schema";
+import { getSchemaRegistry } from "@/server/db/schema";
 import { encodeSparse } from "@/server/search/sparseEncoder";
 
 export interface MemoryNote {
@@ -38,14 +38,16 @@ export class NoteModel {
   ) {}
 
   async create(name: string, content: string): Promise<void> {
+    const registry = getSchemaRegistry();
+
     const now = new Date().toISOString();
     await this.graph.query(
       "CREATE (n:Note {name: $name, content: $content, _created_at: $now, _updated_at: $now})",
       { name, content, now },
     );
 
-    const nameText = getNodeManager().getEmbeddingNameText("Note", { name });
-    const contentText = getNodeManager().getEmbeddingContentText("Note", { content });
+    const nameText = registry.getEmbeddingNameText("Note", { name });
+    const contentText = registry.getEmbeddingContentText("Note", { content });
     const [nameVec, contentVec] = await Promise.all([
       this.embedder.embed(nameText || name),
       this.embedder.embed(contentText || content),
@@ -69,13 +71,15 @@ export class NoteModel {
   }
 
   async update(name: string, content: string): Promise<void> {
+    const registry = getSchemaRegistry();
+
     const now = new Date().toISOString();
     await this.graph.query(
       "MATCH (n:Note {name: $name}) SET n.content = $content, n._updated_at = $now",
       { name, content, now },
     );
 
-    const contentText = getNodeManager().getEmbeddingContentText("Note", { content });
+    const contentText = registry.getEmbeddingContentText("Note", { content });
     const [nameVec, contentVec] = await Promise.all([
       this.embedder.embed(name),
       this.embedder.embed(contentText || content),
@@ -115,7 +119,7 @@ export class NoteModel {
       "MATCH (n) WHERE (label(n) = 'Character' OR label(n) = 'Object' OR label(n) = 'Location') AND n.name = $name RETURN label(n) AS label LIMIT 1",
       { name: entityName },
     );
-    if (r.rows.length === 0) throw new Error(`Entity "${entityName}" not found`);
+    if (r.rows.length === 0) throw new Error(`Entity "${entityName}" not found.`);
     const label = r.rows[0].label as string;
     await this.graph.mergeRelationship(
       "Note",

@@ -19,39 +19,9 @@
 import { tool } from "ai";
 import { z } from "zod";
 import { Database } from "@/server/db";
-import type { RelPropertyDef } from "@/server/db/schema";
+import { RelPropertyDef, NODE_PROPERTY_TAGS, REL_PROPERTY_TAGS } from "@/server/db/schema";
 import { wrapSafe } from "@/server/llm/tools/shared";
 import { TOOL_NAMES } from "@/shared/constants";
-
-const NODE_PROPERTY_TAGS = [
-  "string",
-  "number",
-  "number[]",
-  "json",
-  "embedded_name",
-  "embedded_content",
-  "unique",
-  "index",
-  "composite_unique_1",
-  "composite_unique_2",
-  "composite_unique_3",
-  "composite_index_1",
-  "composite_index_2",
-  "composite_index_3",
-] as const;
-
-const RELATIONSHIP_PROPERTY_TAGS = [
-  "string",
-  "number",
-  "number[]",
-  "json",
-  "embedded_name",
-  "embedded_content",
-  "index",
-  "composite_index_1",
-  "composite_index_2",
-  "composite_index_3",
-] as const;
 
 export const manageSchema = tool({
   title: TOOL_NAMES.MANAGE_SCHEMA,
@@ -67,7 +37,7 @@ Node types — provide name (PascalCase) + optional property schema with tags.
 
 Relationship types — provide name (UPPER_SNAKE) + required sourceLabel/targetLabel to
 constrain which node types can sit at each endpoint. Tags: same as node tags except
-'unique' and 'composite_unique_X' (not supported for relationship properties).
+'unique' (not supported for relationship properties).
 
 Only GM_DEFINED types can be unregistered. PREDEFINED and INTERNAL types are permanent.
 
@@ -79,9 +49,6 @@ Only GM_DEFINED types can be unregistered. PREDEFINED and INTERNAL types are per
 - \`embedded_name\`: used for identity/exact-match vector (name_vec) when the property is created or updated
 - \`embedded_content\`: used for semantic/meaning vector (content_vec) when the property is created or updated
 - \`unique\`: will create a unique constraint on this property, not available for relationship
-- \`composite_unique_X\`: will create a composite unique constraint for all specified properties, not available for relationship
-- \`index\`: will create a regular index on this property
-- \`composite_index_X\`: will create composite index on all specified properties
 `.trim(),
   inputSchema: z.object({
     target: z
@@ -112,9 +79,7 @@ Only GM_DEFINED types can be unregistered. PREDEFINED and INTERNAL types are per
           tags: z
             .array(z.enum(NODE_PROPERTY_TAGS))
             .describe(
-              "Comma-separated tags describing the property. " +
-                "For nodes: 'string', 'number', 'number[]', 'json', 'embedded_name', 'embedded_content', 'unique', 'index', 'composite_unique_1', 'composite_unique_2', 'composite_unique_3', 'composite_index_1', 'composite_index_2', 'composite_index_3'. " +
-                "For relationships: same tags except 'unique' and 'composite_unique_X' (not supported for relationship properties).",
+              `Comma-separated tags describing the property. For nodes: 'string', 'number', 'number[]', 'json', 'embedded_name', 'embedded_content', 'unique'. For relationships: same tags except 'unique' (not supported for relationship properties).`,
             ),
         }),
       )
@@ -186,7 +151,7 @@ Only GM_DEFINED types can be unregistered. PREDEFINED and INTERNAL types are per
             name: p.name,
             description: p.description,
             tags: p.tags.filter((t) =>
-              (RELATIONSHIP_PROPERTY_TAGS as readonly string[]).includes(t),
+              (REL_PROPERTY_TAGS as readonly string[]).includes(t),
             ),
           }));
         // Preserve existing properties if none provided on update

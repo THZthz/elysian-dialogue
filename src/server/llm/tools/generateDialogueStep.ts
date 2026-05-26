@@ -345,7 +345,7 @@ async function executeAndPersist(
           speaker: msg.speaker,
           type: msg.type,
           text: msg.text,
-          metadata: msg.metadata,
+          metadata: msg.metadata!,
         });
         persisted++;
       } catch (err) {

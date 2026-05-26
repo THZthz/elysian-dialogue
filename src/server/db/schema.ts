@@ -28,13 +28,6 @@ export const NODE_PROPERTY_TAGS = [
   "embedded_name",
   "embedded_content",
   "unique",
-  "composite_unique_1",
-  "composite_unique_2",
-  "composite_unique_3",
-  "index",
-  "composite_index_1",
-  "composite_index_2",
-  "composite_index_3",
 ] as const;
 export type NodePropertyTag = (typeof NODE_PROPERTY_TAGS)[number];
 
@@ -93,9 +86,6 @@ function buildPKColumns(props: NodePropertyDef[]): string[] {
   const pkProps: string[] = [];
   for (const p of props) {
     if (p.tags.includes("unique")) pkProps.push(p.name);
-    if (p.tags.includes("composite_unique_1")) pkProps[0] = p.name;
-    if (p.tags.includes("composite_unique_2")) pkProps[1] = p.name;
-    if (p.tags.includes("composite_unique_3")) pkProps[2] = p.name;
   }
   return pkProps.filter(Boolean);
 }
@@ -722,6 +712,6 @@ export class SchemaRegistry {
   }
 }
 
-export function getNodeManager(): SchemaRegistry {
+export function getSchemaRegistry(): SchemaRegistry {
   return SchemaRegistry.getInstance();
 }

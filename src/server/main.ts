@@ -37,7 +37,7 @@ async function start() {
     await seedDatabase();
 
     app.listen(PORT, "0.0.0.0", () => {
-      console.log(`Server running on http://localhost:${PORT}`);
+      console.log(`[start] server running on http://localhost:${PORT}`);
     });
 
     const shutdown = async () => {

@@ -19,21 +19,13 @@
 import { tool } from "ai";
 import { z } from "zod";
 import { Database } from "@/server/db";
-import { getNodeManager } from "@/server/db/schema";
+import { getSchemaRegistry } from "@/server/db/schema";
 import { extractInternalAndUnknownKeys, wrapSafe } from "@/server/llm/tools/shared";
 import { TOOL_NAMES } from "@/shared/constants";
 
 const NODE_ACTIONS = ["CREATE", "UPDATE", "DELETE"] as const;
 const ENTITY_LABELS = ["Character", "Object", "Location"] as const;
 type EntityLabel = (typeof ENTITY_LABELS)[number];
-const INTERNAL_LABELS = new Set([
-  "Conversation",
-  "GMTurnMessage",
-  "IdCounter",
-  "NodeType",
-  "RelationshipType",
-  "TimeAnchor",
-]);
 
 function isEntityLabel(label: string): label is EntityLabel {
   return (ENTITY_LABELS as readonly string[]).includes(label);
@@ -129,19 +121,16 @@ Since \`metadata\` is tagged as "json" of node Character in SCHEMA_DUMP, you can
   inputSchema,
   execute: wrapSafe(async (args: z.infer<typeof inputSchema>) => {
     const db = Database.getExisting();
-    const nodeManager = getNodeManager();
+    const registry = getSchemaRegistry();
 
     // Validate node label ever registered
-    const nodeDef = nodeManager.getNodeType(args.nodeLabel);
+    const nodeDef = registry.getNodeType(args.nodeLabel);
+    const available = new Set(registry.getAllNodeTypes().filter((n) => n.category !== "INTERNAL").map((n) => n.name));
     if (!nodeDef) {
-      const available = nodeManager
-        .getAllNodeTypes()
-        .filter((n) => !INTERNAL_LABELS.has(n.name))
-        .map((n) => n.name)
-        .join(", ");
-      return `ERROR: Node label "${args.nodeLabel}" is not registered. Available labels: ${available}.`;
+      return `ERROR: Node label "${args.nodeLabel}" is not registered. Available labels: ${[...available].join(", ")}.`;
     }
-    if (INTERNAL_LABELS.has(args.nodeLabel)) {
+
+    if (available.has(args.nodeLabel)) {
       return `ERROR: Node label "${args.nodeLabel}" is internal and cannot be written to.`;
     }
 

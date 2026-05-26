@@ -19,7 +19,7 @@
 import type { LadybugClient } from "@/server/db/ladybug";
 import type { VectorStore } from "@/server/db/vectorstore";
 import type { Embedder } from "@/server/search/embedder";
-import { getNodeManager } from "@/server/db/schema";
+import { getSchemaRegistry } from "@/server/db/schema";
 import { encodeSparse } from "@/server/search/sparseEncoder";
 
 export type PlotStatus = "PENDING" | "ACTIVE" | "COMPLETED" | "ABANDONED";
@@ -54,6 +54,8 @@ export class PlotModel {
     status: PlotStatus,
     trigger_condition?: string,
   ): Promise<void> {
+    const registry = getSchemaRegistry();
+
     const now = new Date().toISOString();
     await this.graph.query(
       `CREATE (p:Plot {name: $name, description: $ddesc, _created_at: $now, _updated_at: $now})`,
@@ -70,7 +72,7 @@ export class PlotModel {
       flags: "[]",
     });
 
-    const contentText = getNodeManager().getEmbeddingContentText("Plot", {
+    const contentText = registry.getEmbeddingContentText("Plot", {
       name,
       description,
       brief,
