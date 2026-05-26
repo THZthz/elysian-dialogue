@@ -137,7 +137,7 @@ export async function buildSceneContext(): Promise<string> {
 
     // Query 2: Inventory
     const invResult = await db.graph.query(
-      `MATCH (player:Character {name: "Player"})-[:CARRIES]->(inv:Object) RETURN inv`,
+      `MATCH (player:Character {name: "Player"})-[c:CARRIES]->(inv:Object) WHERE c.valid_at IS NULL RETURN inv`,
     );
     const inventory = invResult.rows.map((r) => (r.inv || r) as Record<string, unknown>);
 
@@ -145,7 +145,7 @@ export async function buildSceneContext(): Promise<string> {
     let npcs: Record<string, unknown>[] = [];
     if (locName) {
       const npcResult = await db.graph.query(
-        `MATCH (npc:Character)-[:LOCATED_AT]->(loc:Location {name: $locName}) WHERE npc.name <> "Player" RETURN npc`,
+        `MATCH (npc:Character)-[r:LOCATED_AT]->(loc:Location {name: $locName}) WHERE npc.name <> "Player" AND r.valid_at IS NULL RETURN npc`,
         { locName },
       );
       npcs = npcResult.rows.map((r) => (r.npc || r) as Record<string, unknown>);
@@ -155,7 +155,7 @@ export async function buildSceneContext(): Promise<string> {
     let objects: Record<string, unknown>[] = [];
     if (locName) {
       const objResult = await db.graph.query(
-        `MATCH (obj:Object)-[:LOCATED_AT]->(loc:Location {name: $locName}) RETURN obj`,
+        `MATCH (obj:Object)-[r:LOCATED_AT]->(loc:Location {name: $locName}) WHERE r.valid_at IS NULL RETURN obj`,
         { locName },
       );
       objects = objResult.rows.map((r) => (r.obj || r) as Record<string, unknown>);
@@ -402,11 +402,6 @@ export async function buildRelationshipDump(): Promise<string> {
   const internalNames = new Set(schema.getInternalTypeNames());
   for (const name of [
     "HAS_DISPOSITION",
-    "CURRENT_TIMEPOINT",
-    "NEXT_TIMEPOINT",
-    "STARTED_AT",
-    "ACTIVE_AT",
-    "COMPLETED_AT",
     "BRANCHES_TO",
     "ABOUT_ENTITY",
     "ABOUT_MESSAGE",
@@ -421,6 +416,7 @@ export async function buildRelationshipDump(): Promise<string> {
     try {
       const r = await db.graph.query(
         `MATCH (a)-[r:\`${relDef.name}\`]->(b)
+         WHERE r.valid_at IS NULL
          RETURN label(a) AS sourceLabel, COALESCE(a.name, a._uid) AS sourceName,
                 type(r) AS type, properties(r) AS props,
                 label(b) AS targetLabel, COALESCE(b.name, b._uid) AS targetName
