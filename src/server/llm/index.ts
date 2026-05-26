@@ -205,21 +205,7 @@ export async function generateTurn(
     let finalMessages: Record<string, unknown>[] = [];
     let finalOptions: DialogueOption[] = [];
 
-    // Auto-persist each generated message to the database after validation passes.
-    const persistMessage = async (msg: {
-      speaker: string;
-      type: string;
-      text: string;
-      metadata?: Record<string, unknown>;
-    }) => {
-      await db.messages.addMessage(msg.text, {
-        speaker: msg.speaker,
-        type: msg.type,
-        ...msg.metadata,
-      });
-    };
-
-    const dialogueStepTool = createGenerateDialogueStepTool(persistMessage);
+    const dialogueStepTool = createGenerateDialogueStepTool();
     const manageSceneTool = createManageSceneTool(events);
 
     const allTools = {
