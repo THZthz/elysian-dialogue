@@ -26,9 +26,7 @@ export class MessageModel {
     messages: Array<{ role: string; content: unknown; providerOptions?: unknown }>,
     turnNumber: number,
   ): Promise<void> {
-    const convRows = await this.graph.query("MATCH (c:Conversation) RETURN c._uid AS id");
-    if (convRows.rows.length === 0) return;
-    const convId = convRows.rows[0].id as string;
+    const convId = await this.ensureConversation();
 
     for (let i = 0; i < messages.length; i++) {
       const msg = messages[i];

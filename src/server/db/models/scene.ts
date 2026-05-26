@@ -37,6 +37,19 @@ export interface ModifySceneInput {
   reason?: string;
 }
 
+function parseJsonField<T>(value: unknown, fallback: T): T {
+  if (value === null || value === undefined) return fallback;
+  if (Array.isArray(value) || (typeof value === "object" && value !== null)) return value as unknown as T;
+  if (typeof value === "string") {
+    try {
+      return JSON.parse(value) as T;
+    } catch {
+      return fallback;
+    }
+  }
+  return fallback;
+}
+
 export class SceneModel {
   constructor(private readonly graph: LadybugClient) {}
 
@@ -191,9 +204,7 @@ export class SceneModel {
       "MATCH (s:Scene {_uid: $_uid}) RETURN s.log AS log",
       { _uid: sceneUid },
     );
-    const currentLog: SceneLogEntry[] = result.rows[0]?.log
-      ? (JSON.parse(result.rows[0].log as string) as SceneLogEntry[])
-      : [];
+    const currentLog: SceneLogEntry[] = parseJsonField<SceneLogEntry[]>(result.rows[0]?.log, []);
     currentLog.push(entry);
     await this.graph.query(
       "MATCH (s:Scene {_uid: $_uid}) SET s.log = $log, s._updated_at = $now",
@@ -211,9 +222,7 @@ export class SceneModel {
       "MATCH (s:Scene {_uid: $_uid}) RETURN s.log AS log",
       { _uid: sceneUid },
     );
-    const currentLog: SceneLogEntry[] = result.rows[0]?.log
-      ? (JSON.parse(result.rows[0].log as string) as SceneLogEntry[])
-      : [];
+    const currentLog: SceneLogEntry[] = parseJsonField<SceneLogEntry[]>(result.rows[0]?.log, []);
     currentLog.push(entry);
     const now = new Date().toISOString();
     await this.graph.query(
@@ -227,9 +236,7 @@ export class SceneModel {
     const result = await this.graph.query(
       "MATCH (s:Scene {_uid: $_uid}) RETURN s.log AS log", { _uid: sceneUid },
     );
-    const currentLog: SceneLogEntry[] = result.rows[0]?.log
-      ? (JSON.parse(result.rows[0].log as string) as SceneLogEntry[])
-      : [];
+    const currentLog: SceneLogEntry[] = parseJsonField<SceneLogEntry[]>(result.rows[0]?.log, []);
     currentLog.push(entry);
     await this.graph.query(
       "MATCH (s:Scene {_uid: $_uid}) SET s.log = $log, s._updated_at = $now",
@@ -250,13 +257,8 @@ export class SceneModel {
     );
     const allEntries: SceneLogEntry[] = [];
     for (const row of result.rows) {
-      const log = row.log as string;
-      if (log) {
-        try {
-          const entries = JSON.parse(log) as SceneLogEntry[];
-          allEntries.push(...entries);
-        } catch { /* skip unparseable */ }
-      }
+      const entries = parseJsonField<SceneLogEntry[]>(row.log, []);
+      allEntries.push(...entries);
     }
     return allEntries;
   }
@@ -282,9 +284,9 @@ export class SceneModel {
       start_time: s.start_time as number,
       end_time: (s.end_time as number) ?? null,
       location_name: (s.location_name as string) ?? null,
-      characters: (s.characters ? JSON.parse(s.characters as string) : []) as string[],
-      log: (s.log ? JSON.parse(s.log as string) : []) as SceneLogEntry[],
-      options: (s.options ? JSON.parse(s.options as string) : null) as Record<string, unknown> | null,
+      characters: parseJsonField<string[]>(s.characters, []),
+      log: parseJsonField<SceneLogEntry[]>(s.log, []),
+      options: parseJsonField<Record<string, unknown> | null>(s.options, null),
       _updated_at: (s._updated_at as string) ?? "",
     };
   }
@@ -303,9 +305,9 @@ export class SceneModel {
       start_time: s.start_time as number,
       end_time: (s.end_time as number) ?? null,
       location_name: (s.location_name as string) ?? null,
-      characters: (s.characters ? JSON.parse(s.characters as string) : []) as string[],
-      log: (s.log ? JSON.parse(s.log as string) : []) as SceneLogEntry[],
-      options: (s.options ? JSON.parse(s.options as string) : null) as Record<string, unknown> | null,
+      characters: parseJsonField<string[]>(s.characters, []),
+      log: parseJsonField<SceneLogEntry[]>(s.log, []),
+      options: parseJsonField<Record<string, unknown> | null>(s.options, null),
       _updated_at: (s._updated_at as string) ?? "",
     };
   }

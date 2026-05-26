@@ -26,9 +26,8 @@ src/
 │   │   └── models/                   # Domain models
 │   │       ├── entities.ts           # EntityModel: Character/Object/Location CRUD + embedding
 │   │       ├── plots.ts              # PlotModel: lifecycle, branching, flags
-│   │       ├── notes.ts              # NoteModel: GM notes with entity/plot linking
-│   │       ├── time.ts               # TimeModel: game time setup + advancement
-│   │       ├── messages.ts           # MessageModel: conversation, GM turn continuity, options
+│   │       ├── notes.ts              # NoteModel: GM notes with entity/scene/plot linking
+│   │       ├── messages.ts           # MessageModel: GM turn message persistence
 │   │       └── scene.ts              # SceneModel: scene lifecycle, log append, history, chaining
 │   │
 │   ├── search/                       # In-process hybrid vector search
@@ -172,9 +171,9 @@ flowchart TD
 
 ---
 
-## Game Time
+## Game Time / Scenes
 
-Minimum unit: 0.5 hours. Day is integer, hour is 0–23.5. Only advances via `advanceTime`. Stored as `TimeAnchor → CURRENT_TIMEPOINT → TimePoint` chain with `NEXT_TIMEPOINT` reason.
+Time is tracked via Scene nodes with `start_time`/`end_time` as `day * 48 + half-hour`. Active scene has `end_time IS NULL`. Scene chain uses `NEXT_SCENE` relationships. Scene log contains player/GM/roll entries stored as JSON on the Scene node.
 
 ---
 
@@ -196,12 +195,12 @@ tests/
 │   ├── vectorstore.test.ts           # VectorStore (5 tests)
 │   └── hybridSearch.test.ts          # HybridSearcher (3 tests)
 └── integration/
-    ├── entity-crud.test.ts           # EntityModel CRUD + vectors (6 tests)
-    ├── message-model.test.ts         # MessageModel + game state (4 tests)
-    ├── note-model.test.ts            # NoteModel CRUD + linking (5 tests)
+    ├── entity-crud.test.ts           # EntityModel CRUD + vectors (8 tests)
+    ├── message-model.test.ts         # MessageModel GMTurnMessage persistence (2 tests)
+    ├── note-model.test.ts            # NoteModel CRUD + linking (6 tests)
     ├── plot-model.test.ts           # PlotModel lifecycle + branching (7 tests)
-    ├── time-model.test.ts           # TimeModel advancement (4 tests)
+    ├── scene-model.test.ts           # SceneModel lifecycle + log history (4 tests)
     └── checkpoint.test.ts           # CheckpointManager list + restore (2 tests)
 ```
 
-Run: `npm test` (Vitest, 51 tests, LadybugDB + SQLite run in-process).
+Run: `npm test` (Vitest, 51 tests, LadybugDB + SQLite run in-process). LadybugDB JSON columns return parsed values — use `parseJsonField` helper for safe access.

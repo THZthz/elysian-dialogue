@@ -31,7 +31,7 @@ describe("SchemaRegistry", () => {
     expect(schema.getNodeType("Location")).toBeDefined();
     expect(schema.getNodeType("Plot")).toBeDefined();
     expect(schema.getNodeType("Note")).toBeDefined();
-    expect(schema.getNodeType("Message")).toBeDefined();
+    expect(schema.getNodeType("Scene")).toBeDefined();
     expect(schema.getNodeType("Disposition")).toBeDefined();
   });
 
@@ -133,8 +133,8 @@ describe("SchemaRegistry", () => {
     const schema = SchemaRegistry.getInstance();
     const searchable = schema.getVectorSearchableNodeTypes();
     expect(searchable.length).toBeGreaterThan(0);
-    // TimeAnchor has no embedded properties — should not appear
-    expect(searchable.some((t) => t.name === "TimeAnchor")).toBe(false);
+    // Disposition has no embedded properties — should not appear
+    expect(searchable.some((t) => t.name === "Disposition")).toBe(false);
     // Character has embedded_name + embedded_content — should appear
     expect(searchable.some((t) => t.name === "Character")).toBe(true);
   });
@@ -144,8 +144,8 @@ describe("SchemaRegistry", () => {
     const searchable = schema.getVectorSearchableRelTypes();
     // LOCATED_AT has embedded_content brief — should appear
     expect(searchable.some((t) => t.name === "LOCATED_AT")).toBe(true);
-    // HAS_MESSAGE has no embedded props — should not appear
-    expect(searchable.some((t) => t.name === "HAS_MESSAGE")).toBe(false);
+    // ABOUT_PLOT has no embedded props — should not appear
+    expect(searchable.some((t) => t.name === "ABOUT_PLOT")).toBe(false);
   });
 
   it("getInternalTypeNames excludes hidden types from schema dump", () => {

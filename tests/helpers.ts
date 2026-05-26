@@ -77,7 +77,7 @@ export function getTestDb(): Database {
   return db;
 }
 
-export async function teardownTestDb(): Promise<void> {
+export async function teardownTestDb(_db?: Database): Promise<void> {
   await Database.closeInstance();
   if (testDir) fs.rmSync(testDir, { recursive: true, force: true });
 }

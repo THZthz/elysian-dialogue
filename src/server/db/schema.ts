@@ -466,6 +466,7 @@ const PREDEFINED_RELS: RelTypeDef[] = [
     description: "Chronological scene chain. Replaces NEXT_TIMEPOINT.",
     properties: [
       { name: "reason", description: "Why scene changed.", tags: ["string"] },
+      CREATED_AT_PROP,
       UPDATED_AT_PROP,
     ],
   },
