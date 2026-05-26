@@ -74,8 +74,8 @@ Manage narrative arcs — CREATE, UPDATE (partial overwrite), or DELETE a plot.
 
 ## Status flow
 > PENDING → ACTIVE → COMPLETED / ABANDONED
-Status transitions auto-wire time relationships (STARTED_AT, ACTIVE_AT, COMPLETED_AT) to the current
-TimePoint — just set the \`status\` parameter.
+Status transitions auto-wire time relationships (STARTED_AT, ACTIVE_AT, COMPLETED_AT) to the active
+Scene — just set the \`status\` parameter.
 
 ## Flags and branches
 Use \`setFlag\` or \`removeFlags\` to track story milestones within a plot.
