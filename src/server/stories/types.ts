@@ -59,6 +59,12 @@ export interface SeedNote {
   aboutPlots?: string[]; // A list of plots' name
 }
 
+export interface SeedScene {
+  start_time: number;
+  location_name: string;
+  characters: string[];
+}
+
 export interface SeedStory {
   id: string;
   settingDescription: string;
@@ -67,9 +73,7 @@ export interface SeedStory {
   relationships: SeedRelationship[];
   plots?: SeedPlot[];
   notes?: SeedNote[];
-  initialDay: number;
-  initialSegment: number;
-  initialLocationId: string;
+  initialScene: SeedScene;
   dispositions?: SeedDisposition[];
   relationshipTypes?: {
     name: string;

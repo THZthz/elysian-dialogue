@@ -2,9 +2,10 @@ id = "glass-cage"
 
 toneDescription = "Tense, claustrophobic, elegant menace."
 
-initialDay = 4
-initialSegment = 6
-initialLocationId = "player_compartment"
+[initialScene]
+start_time = 204
+location_name = "Observation Car"
+characters = ["Player"]
 
 # ═══════════════════════════════════════════════════════════════════
 # ENTITIES — Cold observable facts only. No backstory, no emotion.

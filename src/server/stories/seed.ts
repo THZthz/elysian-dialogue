@@ -19,7 +19,6 @@
 import { v4 as uuidv4 } from "uuid";
 import { getActiveSeedStory } from "@/server/stories";
 import { Database } from "@/server/db";
-import { SEGMENT_LABELS } from "@/shared/constants";
 
 function parseType(typeStr: string): { type: string; subtype: string | null } {
   if (typeStr.includes(":")) {
@@ -30,11 +29,6 @@ function parseType(typeStr: string): { type: string; subtype: string | null } {
 }
 
 type EntityLabel = "Character" | "Object" | "Location";
-
-function hourToLabel(hour: number): string {
-  const idx = Math.floor(hour / 2);
-  return SEGMENT_LABELS[Math.min(idx, SEGMENT_LABELS.length - 1)];
-}
 
 function pascalCase(str: string): string {
   return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
@@ -53,9 +47,14 @@ export async function seedDatabase(): Promise<void> {
     return;
   }
 
-  // Set initial time
-  const initialLabel = hourToLabel(story.initialSegment);
-  await db.time.setInitialTime(story.initialDay, story.initialSegment, initialLabel);
+  // Create initial Scene
+  await db.scene.create({
+    start_time: story.initialScene.start_time,
+    location_name: story.initialScene.location_name,
+    characters: story.initialScene.characters,
+    reason: "Opening scene",
+  });
+  console.log(`[seedDatabase] initial scene created at time ${story.initialScene.start_time} in "${story.initialScene.location_name}"`);
 
   console.log(`[seedDatabase] seeding ${story.entities.length} entities from "${story.id}"`);
 
