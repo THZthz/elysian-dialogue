@@ -75,6 +75,7 @@ MATCH (n:Person {name: $name}) RETURN n;
 | `STRING`    | `'hello'`                 | Single quotes, UTF-8 |
 | `DATE`      | `date('2022-06-06')`      |                      |
 | `TIMESTAMP` | `timestamp('2025-01-01')` | Stored as UTC        |
+| `INTERVAL`   | `interval('1 year 2 days')`| Date/time difference  |
 
 | `NULL` | Special marker for unknown/missing data |
 
@@ -105,6 +106,20 @@ UNION(price FLOAT, note STRING)
 
 -- LIST: variable-length, uniform element type
 -- ARRAY: fixed-length
+```
+
+### List & ARRAY
+
+```cypher
+-- LIST: variable-length, uniform element type
+[1, 2, 3]                       -- list literal
+list[1]                         -- 1-based index access
+list[1:3]                       -- slice (indices 1 to 2)
+1 IN [1, 2, 3]                  -- membership check
+[1, 2] + [3, 4]                 -- concatenation
+
+-- ARRAY: fixed-length (e.g., for embeddings)
+CAST([1.0, 2.0], 'DOUBLE[256]')
 ```
 
 ### Graph types
@@ -146,6 +161,17 @@ MATCH (a:Person)-[:Follows]->(b:Person)-[:LivesIn]->(c:City) RETURN a, b, c;
 
 -- Match by property
 MATCH (n:Person {name: 'Alice'}) RETURN n;
+
+-- Undirected (ignore direction)
+MATCH (a:Person)-[r:Follows]-(b:Person) RETURN a, b;
+
+-- Multiple patterns (comma = AND): find triangles
+MATCH (a:Person)-[:Follows]->(b:Person)-[:Follows]->(c:Person), (a)-[:Follows]->(c)
+RETURN a.name, b.name, c.name;
+
+-- Named paths (bind entire path to a variable)
+MATCH p = (a:Person)-[:Follows*1..3]->(b:Person)
+RETURN nodes(p), rels(p), length(p);
 ```
 
 ### OPTIONAL MATCH — Left outer join
@@ -259,6 +285,33 @@ CREATE NODE TABLE Person (
 );
 ```
 
+### Default Values
+
+```cypher
+CREATE NODE TABLE Person (
+    uid STRING PRIMARY KEY,
+    age INT64 DEFAULT 0,                              -- defaults to 0 instead of NULL
+    created_at TIMESTAMP DEFAULT current_timestamp()   -- function default
+);
+```
+
+### IF NOT EXISTS
+
+```cypher
+CREATE NODE TABLE IF NOT EXISTS Person (uid STRING PRIMARY KEY, name STRING);
+-- Does nothing if the table already exists (avoids errors in scripts)
+```
+
+### CREATE TABLE AS
+
+```cypher
+-- Define schema and populate from file in one shot
+CREATE NODE TABLE Person AS LOAD FROM 'people.csv' RETURN *;
+
+CREATE REL TABLE Knows(FROM Person TO Person) AS
+    LOAD FROM 'knows.csv' RETURN *;
+```
+
 ### Relationship Tables
 
 ```cypher
@@ -270,6 +323,19 @@ CREATE REL TABLE Follows (
 CREATE REL TABLE LivesIn (
     FROM Person TO City
 );
+```
+
+### Relationship Multiplicities
+
+```cypher
+-- MANY_ONE: each source has at most one edge of this type
+CREATE REL TABLE LivesIn(FROM Person TO City, MANY_ONE);
+
+-- ONE_MANY: each destination has at most one edge of this type
+CREATE REL TABLE Owns(FROM Person TO Pet, ONE_MANY);
+
+-- ONE_ONE: at most one edge per source AND per destination
+CREATE REL TABLE MarriedTo(FROM Person TO Person, ONE_ONE);
 ```
 
 ### Naming Conventions
@@ -368,6 +434,19 @@ DETACH DELETE n
 RETURN count(n) AS deleted;
 ```
 
+### Returning After Updates
+
+```cypher
+-- CREATE: return the newly inserted data
+CREATE (n:Person {uid: 'alice', name: 'Alice'}) RETURN n.*;
+
+-- SET: return the updated values
+MATCH (n:Person {name: 'Alice'}) SET n.age = 31 RETURN n.*;
+
+-- DELETE: return what was deleted
+MATCH (n:Person {name: 'Alice'}) DETACH DELETE n RETURN n.name;
+```
+
 ### LOAD FROM / COPY FROM — Import from files
 
 ```cypher
@@ -382,6 +461,13 @@ COPY Person FROM 'people.csv' (HEADER=true, DELIM=',');
 ```
 
 Replaces Neo4j's `LOAD CSV FROM`. Supports CSV and other formats. `COPY FROM` is the preferred method for bulk data loading — far faster than individual `CREATE` statements.
+
+To enforce explicit column names and types during loading:
+
+```cypher
+LOAD WITH HEADERS (name STRING, age INT64) FROM 'people.csv' (HEADER=true)
+RETURN name, age;
+```
 
 ---
 
@@ -401,6 +487,24 @@ MATCH (n:Person)
 RETURN count(n) AS total, avg(n.age) AS avg_age, collect(n.name) AS names;
 ```
 
+### Casting
+
+```cypher
+CAST(2.3, 'INT64')               -- returns 2
+CAST(2.3 AS INT64)               -- alternative syntax
+CAST('12' AS INT)                 -- string to integer
+CAST('[1,2,3]' AS INT[])          -- string to array
+```
+
+### Text Matching
+
+```cypher
+WHERE n.name STARTS WITH 'Al'      -- prefix match
+WHERE n.name ENDS WITH 'ice'       -- suffix match
+WHERE n.name CONTAINS 'lic'        -- substring match
+WHERE n.name =~ 'A.*'              -- regex match (POSIX)
+```
+
 ### Graph Functions
 
 ```cypher
@@ -410,6 +514,8 @@ properties(r)    -- map of all properties on a relationship
 id(n)            -- internal ID (LadybugDB equivalent of elementId())
 nodes(p)         -- list of nodes from a path
 rels(p)          -- list of relationships from a path
+length(p)        -- number of hops in a path
+cost(p)          -- total weight of a weighted-shortest path
 ```
 
 ### Temporal Functions
@@ -509,7 +615,31 @@ Use the Kleene star `*` with optional bounds:
 (a)-[:Follows*]->(b)
 
 -- Shortest path
-(a)-[r* SHORTEST 1..10]->(b)
+MATCH (a)-[r* SHORTEST 1..10]->(b) RETURN length(r);
+
+-- All shortest paths
+MATCH p = (a)-[* ALL SHORTEST 1..10]->(b) RETURN p;
+
+-- Weighted shortest path (uses a property as edge weight)
+MATCH p = (a)-[:Follows* WSHORTEST(score) 1..10]->(b)
+RETURN nodes(p), cost(p);
+```
+
+### Walk vs Trail vs Acyclic
+
+```cypher
+-- Default: walk semantics (edges can repeat)
+(a)-[:Follows*1..5]->(b)
+
+-- Trail: edges must be distinct (no repeated edges)
+(a)-[:Follows* TRAIL 1..5]->(b)
+
+-- Acyclic: nodes must be distinct (no repeated nodes)
+(a)-[:Follows* ACYCLIC 1..5]->(b)
+
+-- Check path properties after the fact
+WHERE is_trail(p)       -- true if no repeated edges
+WHERE is_acyclic(p)     -- true if no repeated nodes
 ```
 
 **Important:** LadybugDB uses **walk semantics** (repeated edges allowed), unlike Neo4j's **trail semantics** (no repeated edges). Use `is_trail()` or `is_acyclic()` to check path properties if needed.
@@ -615,9 +745,24 @@ For non-Ladybug databases, install the corresponding extension first.
 ## 14. System Procedures
 
 ```cypher
-CALL show_tables() RETURN *;
-CALL show_functions() RETURN *;
+CALL show_tables() RETURN *;                                    -- list all tables
+CALL show_functions() RETURN *;                                 -- list all functions
+CALL table_info('Person') RETURN *;                             -- column metadata
+CALL show_connection('Follows') RETURN *;                       -- source/dest nodes for a rel
+CALL current_setting('threads') RETURN *;                       -- read a config value
+CALL db_version() RETURN *;                                     -- database version
+CALL show_warnings() RETURN *;                                  -- inspection warnings
+CALL clear_warnings();                                          -- clear warning table
 ```
+
+### YIELD — Rename CALL output columns
+
+```cypher
+CALL table_info('Person')
+YIELD name AS col_name, type AS col_type
+RETURN col_name, col_type;
+```
+All output columns must appear in `YIELD`; `YIELD *` is not supported.
 
 ---
 
