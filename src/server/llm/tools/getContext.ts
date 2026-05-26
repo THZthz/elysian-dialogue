@@ -148,7 +148,7 @@ Pull pre-built context from the world. Nothing is auto-loaded — you choose wha
 - LOCATIONS_BRIEF — All locations with brief descriptions.
 - OBJECTS_BRIEF — All objects with carrier or location.
 - PLOTS_BRIEF — All plots with status, brief, and flags.
-- SCENE_CONTEXT — Time, location, nearby NPCs/objects, inventory and NPC dispositions that is related to player.
+- SCENE_CONTEXT — Current scene time, location, characters present, nearby NPCs/objects, inventory and NPC dispositions related to player.
 - RELATIONSHIP_DUMP — All active relationships grouped by type. LOCATED_AT/LOCATED_IN are grouped by location showing occupants and access details.
 `.trim(),
   inputSchema: z.object({
