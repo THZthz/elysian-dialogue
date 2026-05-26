@@ -327,6 +327,7 @@ const PREDEFINED_RELS: RelTypeDef[] = [
       { name: "created_at", description: "Birth time: day * 48 + half-hour.", tags: ["number"] },
       { name: "valid_at", description: "Death time. NULL = still valid.", tags: ["number"] },
       CREATED_AT_PROP,
+      UPDATED_AT_PROP,
     ],
   },
   {
@@ -344,6 +345,7 @@ const PREDEFINED_RELS: RelTypeDef[] = [
       { name: "created_at", description: "Birth time: day * 48 + half-hour.", tags: ["number"] },
       { name: "valid_at", description: "Death time. NULL = still valid.", tags: ["number"] },
       CREATED_AT_PROP,
+      UPDATED_AT_PROP,
     ],
   },
   {
@@ -361,6 +363,7 @@ const PREDEFINED_RELS: RelTypeDef[] = [
       { name: "created_at", description: "Birth time: day * 48 + half-hour.", tags: ["number"] },
       { name: "valid_at", description: "Death time. NULL = still valid.", tags: ["number"] },
       CREATED_AT_PROP,
+      UPDATED_AT_PROP,
     ],
   },
   {
@@ -380,6 +383,7 @@ const PREDEFINED_RELS: RelTypeDef[] = [
       { name: "created_at", description: "Birth time: day * 48 + half-hour.", tags: ["number"] },
       { name: "valid_at", description: "Death time. NULL = still valid.", tags: ["number"] },
       CREATED_AT_PROP,
+      UPDATED_AT_PROP,
     ],
   },
   {
@@ -392,6 +396,7 @@ const PREDEFINED_RELS: RelTypeDef[] = [
       { name: "created_at", description: "Birth time: day * 48 + half-hour.", tags: ["number"] },
       { name: "valid_at", description: "Death time. NULL = still valid.", tags: ["number"] },
       CREATED_AT_PROP,
+      UPDATED_AT_PROP,
     ],
   },
   {
@@ -489,6 +494,7 @@ const PREDEFINED_RELS: RelTypeDef[] = [
       { name: "created_at", description: "Birth time: day * 48 + half-hour.", tags: ["number"] },
       { name: "valid_at", description: "Death time. NULL = still valid.", tags: ["number"] },
       UPDATED_AT_PROP,
+      CREATED_AT_PROP,
     ],
   },
 ];
@@ -523,6 +529,11 @@ export class SchemaRegistry {
       if (def.name === name) results.push(def);
     }
     return results;
+  }
+
+  isTemporalRelType(def: RelTypeDef): boolean {
+    const names = new Set(def.properties.map((p) => p.name));
+    return names.has("created_at") && names.has("valid_at");
   }
 
   getAllNodeTypes(): NodeTypeDef[] {

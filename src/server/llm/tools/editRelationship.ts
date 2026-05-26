@@ -50,6 +50,10 @@ function findRelType(
   );
 }
 
+function isTemporalRel(def: RelTypeDef): boolean {
+  return SchemaRegistry.getInstance().isTemporalRelType(def);
+}
+
 function getRelEmbeddingContentText(def: RelTypeDef, props: Record<string, unknown>): string {
   return def.properties
     .filter((p) => p.tags.includes("embedded_content"))
@@ -99,8 +103,8 @@ export const editRelationship = tool({
   title: TOOL_NAMES.EDIT_RELATIONSHIP,
   description: `
 ## Brief
-CREATE, UPDATE, or DELETE a relationship between two nodes in the world archive. It is not recommended
-to use this tool to directly edit ABOUT_ENTITY, ABOUT_MESSAGE, ABOUT_PLOT, STARTED_AT, ACTIVE_AT,
+CREATE or UPDATE a relationship between two nodes in the world archive. It is not recommended
+to use this tool to directly edit ABOUT_ENTITY, ABOUT_SCENE, ABOUT_PLOT, STARTED_AT, ACTIVE_AT,
 COMPLETED_AT or BRANCHES_TO.
 
 ## CREATE
@@ -113,8 +117,8 @@ to change. Properties tagged "json" receive partial merge (like editNode UPDATE)
 
 ## Others
 All state-changing relationships (LOCATED_AT, LOCATED_IN, CARRIES, HAS_DISPOSITION) are
-temporal — created_at and valid_at are managed automatically. Use UPDATE to set valid_at
-to end a relationship instead of deleting.
+temporal — created_at is auto-set to the active scene time and valid_at starts NULL on
+CREATE. Use UPDATE to set valid_at to end a relationship instead of deleting.
 
 ## Others
 Relationship properties for spatial/tactical context:
@@ -206,10 +210,23 @@ sub-locations nested within a larger location (e.g., a basement inside a tavern)
       if (args.properties) {
         const propErr = validateProps(args.properties);
         if (propErr) return `ERROR: ${propErr}`;
+        const tempManaged = isTemporalRel(relDef)
+          ? new Set(["created_at", "valid_at"])
+          : new Set<string>();
         for (const [key, value] of Object.entries(args.properties)) {
+          if (tempManaged.has(key)) continue;
           createProps[key] = serializeValue(value);
         }
       }
+
+      // Auto-set temporal properties for state-changing relationships
+      if (isTemporalRel(relDef)) {
+        const activeScene = await db.scene.getActive();
+        createProps["created_at"] = activeScene?.start_time ?? 0;
+        createProps["valid_at"] = null;
+      }
+      // Always auto-set _updated_at
+      createProps["_updated_at"] = new Date().toISOString();
 
       // TODO: auto-expire old relationship of same type+source when a new one is created
       // (e.g., moving character to new location should expire old LOCATED_AT)
@@ -347,6 +364,13 @@ sub-locations nested within a larger location (e.g., a basement inside a tavern)
         }
         propertiesToSet[key] = { ...parsed, ...incoming };
       }
+
+      // Strip managed created_at — birth time is immutable
+      if (isTemporalRel(relDef)) {
+        delete propertiesToSet["created_at"];
+      }
+      // Always auto-set _updated_at
+      propertiesToSet["_updated_at"] = new Date().toISOString();
 
       const setParams: Record<string, unknown> = { srcVal: srcVal, tgtVal: tgtVal };
       const setters: string[] = [];
