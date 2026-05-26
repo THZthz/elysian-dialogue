@@ -77,8 +77,15 @@ export class TurnEventEmitter {
     this.send("error", { message });
   }
 
-  emitTimeUpdate(day: number, hour: number, hoursAdvanced: number) {
-    this.send("time_update", { day, hour, hoursAdvanced });
+  emitSceneUpdate(data: {
+    scene_id: string;
+    start_time: number;
+    end_time: number | null;
+    location_name: string;
+    characters: string[];
+    reason: string | null;
+  }) {
+    this.send("scene_update", data);
   }
 
   emitRollResult(data: {
