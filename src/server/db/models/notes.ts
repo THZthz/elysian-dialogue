@@ -26,7 +26,7 @@ export interface Note {
   name: string;
   content: string;
   linkedEntities: string[];
-  linkedMessages: string[];
+  linkedScenes: string[];
   linkedPlots: string[];
 }
 
@@ -132,15 +132,15 @@ export class NoteModel {
     );
   }
 
-  async linkToMessage(noteName: string, messageId: string): Promise<void> {
+  async linkToScene(noteName: string, sceneUid: string): Promise<void> {
     await this.graph.mergeRelationship(
       "Note",
       "name",
       noteName,
-      "Message",
-      "id",
-      messageId,
-      "ABOUT_MESSAGE",
+      "Scene",
+      "_uid",
+      sceneUid,
+      "ABOUT_SCENE",
     );
   }
 
@@ -160,7 +160,7 @@ export class NoteModel {
     await this.graph.query("MATCH (n:Note {name: $name})-[r:ABOUT_ENTITY]->() DELETE r", {
       name: noteName,
     });
-    await this.graph.query("MATCH (n:Note {name: $name})-[r:ABOUT_MESSAGE]->() DELETE r", {
+    await this.graph.query("MATCH (n:Note {name: $name})-[r:ABOUT_SCENE]->() DELETE r", {
       name: noteName,
     });
     await this.graph.query("MATCH (n:Note {name: $name})-[r:ABOUT_PLOT]->() DELETE r", {
@@ -176,12 +176,12 @@ export class NoteModel {
     return r.rows.map((row) => row.name as string);
   }
 
-  async getLinkedMessages(noteName: string): Promise<string[]> {
+  async getLinkedScenes(noteName: string): Promise<string[]> {
     const r = await this.graph.query(
-      "MATCH (n:Note {name: $name})-[:ABOUT_MESSAGE]->(m:Message) RETURN m.name AS id",
+      "MATCH (n:Note {name: $name})-[:ABOUT_SCENE]->(s:Scene) RETURN s._uid AS uid",
       { name: noteName },
     );
-    return r.rows.map((row) => row.id as string);
+    return r.rows.map((row) => row.uid as string);
   }
 
   async getLinkedPlots(noteName: string): Promise<string[]> {
@@ -193,17 +193,11 @@ export class NoteModel {
   }
 
   private async parseNote(name: string, content: string): Promise<Note> {
-    const [entities, messages, plots] = await Promise.all([
+    const [entities, scenes, plots] = await Promise.all([
       this.getLinkedEntities(name),
-      this.getLinkedMessages(name),
+      this.getLinkedScenes(name),
       this.getLinkedPlots(name),
     ]);
-    return {
-      name,
-      content,
-      linkedEntities: entities,
-      linkedMessages: messages,
-      linkedPlots: plots,
-    };
+    return { name, content, linkedEntities: entities, linkedScenes: scenes, linkedPlots: plots };
   }
 }
