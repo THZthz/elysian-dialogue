@@ -35,7 +35,7 @@ import { getContext } from "@/server/llm/tools/getContext";
 import { manageSchema } from "@/server/llm/tools/manageSchema";
 
 import { createGenerateDialogueStepTool } from "@/server/llm/tools/generateDialogueStep";
-import { createAdvanceTimeTool } from "@/server/llm/tools/advanceTime";
+import { createManageSceneTool } from "@/server/llm/tools/manageScene";
 import { performSkillCheck } from "@/server/llm/rollSkillCheck";
 import { type SkillName, TOOL_NAMES } from "@/shared/constants";
 import { DeepSeekLanguageModelOptions } from "@ai-sdk/deepseek";
@@ -77,8 +77,15 @@ export async function generateTurn(
 
     const db = Database.getExisting();
 
-    // Persist player input so full conversation is available for resume
-    await db.messages.addMessage(userInput);
+    // Persist player input to the active scene's log
+    try {
+      const activeScene = await db.scene.getActive();
+      if (activeScene) {
+        await db.scene.appendPlayerLog(activeScene._uid, userInput);
+      }
+    } catch (err) {
+      console.error("[generateTurn] failed to log player input to scene:", err);
+    }
 
     // Load previous GM conversation messages for multi-turn continuity
     let previousMessages: ModelMessage[] = [];
@@ -136,17 +143,24 @@ export async function generateTurn(
           `Result: ${rollResult.success ? "SUCCESS" : "FAILURE"}`,
         ].join(" | ");
 
-        await db.messages.addMessage(rollText, {
-          speaker: check.skill,
-          type: "ROLL",
-          rollResult: {
-            skill: rollResult.skill as SkillName,
-            difficulty: rollResult.difficulty,
-            dice: rollResult.dice,
-            total: rollResult.total,
-            success: rollResult.success,
-          },
-        });
+        // Persist roll result to scene log instead of Message node
+        try {
+          const activeScene = await db.scene.getActive();
+          if (activeScene) {
+            await db.scene.appendRollLog(activeScene._uid, rollText, {
+              speaker: check.skill,
+              rollResult: {
+                skill: rollResult.skill as SkillName,
+                difficulty: rollResult.difficulty,
+                dice: rollResult.dice,
+                total: rollResult.total,
+                success: rollResult.success,
+              },
+            });
+          }
+        } catch (err) {
+          console.error("[generateTurn] failed to log roll to scene:", err);
+        }
 
         // Inject the result into the prompt — GM narrates, no tool call needed
         skillCheckParts.push(
@@ -206,7 +220,7 @@ export async function generateTurn(
     };
 
     const dialogueStepTool = createGenerateDialogueStepTool(persistMessage);
-    const advanceTimeTool = createAdvanceTimeTool(events);
+    const manageSceneTool = createManageSceneTool(events);
 
     const allTools = {
       queryWorld,
@@ -218,7 +232,7 @@ export async function generateTurn(
       editPlot,
       getContext,
       generateDialogueStep: dialogueStepTool.tool,
-      advanceTime: advanceTimeTool,
+      manageScene: manageSceneTool,
     };
 
     let streamError: string | null = null;
@@ -277,7 +291,7 @@ export async function generateTurn(
             if (nudgeState.postDialogueCount === 2) {
               const msg =
                 `You've spoken to the player via ${TOOL_NAMES.GENERATE_DIALOGUE}. ` +
-                "Now persist any world state changes (movement, items, dispositions, plot flags, time). " +
+                "Now persist any world state changes (movement — UPDATE relationships with valid_at, items, dispositions, plot flags). " +
                 "When done, reply with a brief text (no tool call) to end your turn.";
               nudgeMessages.push(msg);
               return { messages: [...messages, { role: "user" as const, content: msg }] };
@@ -514,6 +528,22 @@ export async function generateTurn(
       finalOptions = [];
     }
 
+    // Persist GM dialogue output to the active scene's log
+    if (dialogueWasValid && finalMessages.length > 0) {
+      try {
+        const activeScene = await db.scene.getActive();
+        if (activeScene) {
+          await db.scene.appendGMLog(
+            activeScene._uid,
+            finalMessages as Array<{ speaker: string; type: string; text: string; metadata?: Record<string, unknown> }>,
+            finalOptions.length > 0 ? (finalOptions as unknown as Record<string, unknown>) : undefined,
+          );
+        }
+      } catch (err) {
+        console.error("[generateTurn] failed to log GM output to scene:", err);
+      }
+    }
+
     if (finalMessages.length === 0) {
       const msg = streamError
         ? `Generation failed: ${streamError}`
@@ -545,9 +575,14 @@ export async function generateTurn(
 
     // Persist current options so the player can resume from this point
     if (finalOptions.length > 0) {
-      db.messages
-        .saveCurrentOptions(finalOptions)
-        .catch((err) => console.error("[generateTurn] failed to persist options:", err));
+      try {
+        const activeScene = await db.scene.getActive();
+        if (activeScene) {
+          await db.scene.saveOptions(activeScene._uid, finalOptions);
+        }
+      } catch (err) {
+        console.error("[generateTurn] failed to persist options:", err);
+      }
     }
 
     // Save checkpoint at end of successful turn (blocking so next turn doesn't start mid-save)
