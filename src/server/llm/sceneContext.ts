@@ -102,9 +102,9 @@ function buildPlotTreeFromNodes(plots: PlotNode[]): string {
 export async function buildSceneContext(): Promise<string> {
   const db = Database.getExisting();
 
-  const gameTime = await db.time.getCurrentTimePoint().catch((err) => {
+  const activeScene = await db.scene.getActive().catch((err) => {
     console.error(
-      "[sceneContext] getCurrentTimePoint failed:",
+      "[sceneContext] getActive failed:",
       err instanceof Error ? err.message : String(err),
     );
     return null;
@@ -114,8 +114,8 @@ export async function buildSceneContext(): Promise<string> {
   parts.push("## SCENE CONTEXT (pre-loaded)");
 
   // Game time
-  if (gameTime) {
-    parts.push(`\n### Time\n${describeTime(gameTime)}`);
+  if (activeScene) {
+    parts.push(`\n### Time\n${describeTime({ day: Math.floor(activeScene.start_time / 48), hour: (activeScene.start_time % 48) / 2 })}`);
   }
 
   try {

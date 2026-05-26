@@ -25,7 +25,7 @@ import { getEmbedder } from "@/server/search/embedder";
 import { encodeSparse } from "@/server/search/sparseEncoder";
 import { TOOL_NAMES } from "@/shared/constants";
 
-const REL_ACTIONS = ["CREATE", "UPDATE", "DELETE"] as const;
+const REL_ACTIONS = ["CREATE", "UPDATE"] as const;
 
 // Schema stores pipe-delimited source/target labels (e.g. "Character|Object").
 // The LLM passes individual labels, so we need fuzzy matching.
@@ -111,8 +111,10 @@ Uses MERGE semantics — safe to call twice. Both endpoint nodes must already ex
 Partially change properties on an existing relationship. Only include properties you want
 to change. Properties tagged "json" receive partial merge (like editNode UPDATE).
 
-## DELETE
-Remove a relationship. Use when entities move, items transfer, or relationships change.
+## Others
+All state-changing relationships (LOCATED_AT, LOCATED_IN, CARRIES, HAS_DISPOSITION) are
+temporal — created_at and valid_at are managed automatically. Use UPDATE to set valid_at
+to end a relationship instead of deleting.
 
 ## Others
 Relationship properties for spatial/tactical context:
@@ -208,6 +210,9 @@ sub-locations nested within a larger location (e.g., a basement inside a tavern)
           createProps[key] = serializeValue(value);
         }
       }
+
+      // TODO: auto-expire old relationship of same type+source when a new one is created
+      // (e.g., moving character to new location should expire old LOCATED_AT)
 
       // Compute embeddings if the relationship type supports it.
       let nameVec: number[] | null = null;
@@ -437,33 +442,5 @@ sub-locations nested within a larger location (e.g., a basement inside a tavern)
 
       return `Relationship (:\`${args.sourceLabel}\`)-[:${args.relationshipType}]->(:\`${args.targetLabel}\`) updated properties: ${Object.keys(args.properties).join(", ")}.`;
     }
-
-    // ── DELETE ──
-    // Delete vector point first, then the relationship.
-    if (wantsEmbedding) {
-      const pointId = `:rel:${args.relationshipType}:${srcVal}:${tgtVal}`;
-      try {
-        db.vectors.delete(pointId);
-      } catch (err) {
-        console.warn(
-          `[editRelationship] Vector delete failed for "${args.relationshipType}":`,
-          err instanceof Error ? err.message : String(err),
-        );
-      }
-    }
-
-    const deleted = await db.graph.deleteRelationship(
-      args.sourceLabel,
-      srcKey,
-      srcVal,
-      args.targetLabel,
-      tgtKey,
-      tgtVal,
-      safeType,
-    );
-
-    return deleted > 0
-      ? `Relationship (:\`${args.sourceLabel}\`)-[:${args.relationshipType}]->(:\`${args.targetLabel}\`) deleted.`
-      : `ERROR: Relationship not found — (:\`${args.sourceLabel}\` ${JSON.stringify(args.sourceMatch)})-[:${args.relationshipType}]->(:\`${args.targetLabel}\` ${JSON.stringify(args.targetMatch)}).`;
   }, TOOL_NAMES.EDIT_RELATIONSHIP),
 });

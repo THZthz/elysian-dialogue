@@ -58,12 +58,12 @@ const inputSchema = z.object({
     .describe(
       "Entity names to link this note to. Replaces existing ABOUT_ENTITY links — pass [] to clear all.",
     ),
-  aboutMessages: z
+  aboutScenes: z
     .array(z.string())
     .nullable()
     .optional()
     .describe(
-      "Message names to link this note to. Replaces existing ABOUT_MESSAGE links — pass [] to clear all.",
+      "Scene _uid values to link this note to. Replaces existing ABOUT_SCENE links — pass [] to clear all.",
     ),
   aboutPlots: z
     .array(z.string())
@@ -79,8 +79,8 @@ export const editNote = tool({
   description: `
 ## Brief
 Your scratchpad — CREATE, UPDATE (partial overwrite), or DELETE a note. Notes can be
-linked to entities via \`aboutEntities\` (ABOUT_ENTITY), messages via \`aboutMessages\`
-(ABOUT_MESSAGE), and plots via \`aboutPlots\` (ABOUT_PLOT) for cross-referencing to the world,
+linked to entities via \`aboutEntities\` (ABOUT_ENTITY), scenes via \`aboutScenes\`
+(ABOUT_SCENE), and plots via \`aboutPlots\` (ABOUT_PLOT) for cross-referencing to the world,
 timeline, and story arcs.
 
 ## Write a note
@@ -90,7 +90,7 @@ A good note reads like a concise reminder to yourself, and positively contribute
 
 ## Search a note
 Do not readily use \`${TOOL_NAMES.SEARCH_WORLD}\`, consider relationships ABOUT_ENTITY, ABOUT_PLOT
-or ABOUT_MESSAGE first if you have a clear target.
+or ABOUT_SCENE first if you have a clear target.
 `.trim(),
   inputSchema,
   execute: wrapSafe(async (args: z.infer<typeof inputSchema>) => {
@@ -109,13 +109,13 @@ or ABOUT_MESSAGE first if you have a clear target.
       if (args.aboutEntities) {
         for (const name of args.aboutEntities) await db.notes.linkToEntity(args.noteName, name);
       }
-      if (args.aboutMessages) {
-        for (const id of args.aboutMessages) await db.notes.linkToMessage(args.noteName, id);
+      if (args.aboutScenes) {
+        for (const uid of args.aboutScenes) await db.notes.linkToScene(args.noteName, uid);
       }
       if (args.aboutPlots) {
         for (const name of args.aboutPlots) await db.notes.linkToPlot(args.noteName, name);
       }
-      return `Note "${args.noteName}" is successfully created (${args.content.length} chars, ${args.aboutEntities?.length ?? 0} entities linked, ${args.aboutMessages?.length ?? 0} messages linked, ${args.aboutPlots?.length ?? 0} plots linked).`;
+      return `Note "${args.noteName}" is successfully created (${args.content.length} chars, ${args.aboutEntities?.length ?? 0} entities linked, ${args.aboutScenes?.length ?? 0} scenes linked, ${args.aboutPlots?.length ?? 0} plots linked).`;
     }
 
     const existing = await db.notes.getByName(args.noteName);
@@ -130,25 +130,25 @@ or ABOUT_MESSAGE first if you have a clear target.
 
     // Handle link changes: clearLinks removes all link types, so batch together.
     const anyLinksChanged =
-      args.aboutEntities != null || args.aboutMessages != null || args.aboutPlots != null;
+      args.aboutEntities != null || args.aboutScenes != null || args.aboutPlots != null;
     if (anyLinksChanged) {
       await db.notes.clearLinks(args.noteName);
       // Rebuild from provided arrays, preserving existing links for arrays not provided.
       const entities = args.aboutEntities ?? existing.linkedEntities;
-      const messages = args.aboutMessages ?? existing.linkedMessages;
+      const scenes = args.aboutScenes ?? existing.linkedScenes;
       const plots = args.aboutPlots ?? existing.linkedPlots;
       if (args.aboutEntities != null) flags |= 0x2;
-      if (args.aboutMessages != null) flags |= 0x4;
+      if (args.aboutScenes != null) flags |= 0x4;
       if (args.aboutPlots != null) flags |= 0x8;
       for (const name of entities) await db.notes.linkToEntity(args.noteName, name);
-      for (const id of messages) await db.notes.linkToMessage(args.noteName, id);
+      for (const uid of scenes) await db.notes.linkToScene(args.noteName, uid);
       for (const name of plots) await db.notes.linkToPlot(args.noteName, name);
     }
 
     const updatedFields = [];
     if (flags & 0x1) updatedFields.push("content");
     if (flags & 0x2) updatedFields.push("all entities links");
-    if (flags & 0x4) updatedFields.push("all messages links");
+    if (flags & 0x4) updatedFields.push("all scenes links");
     if (flags & 0x8) updatedFields.push("all plots links");
     return `Note "${args.noteName}" is successfully updated (${updatedFields.join(", ")} is overwritten).`;
   }, TOOL_NAMES.EDIT_NOTE),
