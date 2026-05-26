@@ -418,9 +418,10 @@ export async function buildRelationshipDump(): Promise<string> {
   for (const relDef of schema.getAllRelTypes()) {
     if (internalNames.has(relDef.name)) continue;
     try {
+      const isTemporal = schema.isTemporalRelType(relDef);
+      const whereClause = isTemporal ? " WHERE r.valid_at IS NULL" : "";
       const r = await db.graph.query(
-        `MATCH (a)-[r:\`${relDef.name}\`]->(b)
-         WHERE r.valid_at IS NULL
+        `MATCH (a)-[r:\`${relDef.name}\`]->(b)${whereClause}
          RETURN label(a) AS sourceLabel, COALESCE(a.name, a._uid) AS sourceName,
                 type(r) AS type, properties(r) AS props,
                 label(b) AS targetLabel, COALESCE(b.name, b._uid) AS targetName

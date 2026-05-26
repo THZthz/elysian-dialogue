@@ -96,31 +96,6 @@ All game states live in Neo4j: characters, locations, objects, factions, plots, 
 
 (outdated, under rework).
 
-## MCP Server
-
-All GM tools are exposed as an MCP server over stdio.
-
-Use JSON config:
-
-```json
-{
-    "mcpServers": {
-      "chorus-gm": {
-        "type": "stdio",
-        "command": "npx",
-        "args": ["tsx", "src/server/mcp.ts"],
-        "cwd": "path/to/project/chorus"
-      }
-    }
-  }
-```
-
-Or run it directly:
-
-```bash
-npm run mcp
-```
-
 ## Developer Documentation
 
 See [DEVELOPER.md](DEVELOPER.md) for configuration and architecture details.
