@@ -121,7 +121,7 @@ export async function buildSceneContext(): Promise<string> {
   try {
     // Query 1: Player + location
     const playerResult = await db.graph.query(
-      `MATCH (player:Character {name: "Player"}) OPTIONAL MATCH (player)-[:LOCATED_AT]->(loc:Location) RETURN player, loc`,
+      `MATCH (player:Character {name: "Player"}) OPTIONAL MATCH (player)-[loc_rel:LOCATED_AT]->(loc:Location) WHERE loc_rel.valid_at IS NULL RETURN player, loc`,
     );
 
     const playerRow = playerResult.rows[0];
@@ -247,7 +247,8 @@ export async function buildCharactersBrief(): Promise<string> {
   const db = Database.getExisting();
   const result = await db.graph.query(
     `MATCH (c:Character)
-OPTIONAL MATCH (c)-[:LOCATED_AT]->(loc:Location)
+OPTIONAL MATCH (c)-[loc_rel:LOCATED_AT]->(loc:Location)
+WHERE loc_rel.valid_at IS NULL
 OPTIONAL MATCH (c)-[:HAS_DISPOSITION]->(d:Disposition {target_name: "Player"})
 RETURN c.name AS name, c.brief AS brief, c.description AS description,
        loc.name AS location, d.sentiment AS disposition
@@ -308,8 +309,11 @@ export async function buildObjectsBrief(): Promise<string> {
   const db = Database.getExisting();
   const result = await db.graph.query(
     `MATCH (o:Object)
-OPTIONAL MATCH (carrier:Character)-[:CARRIES]->(o)
-OPTIONAL MATCH (o)-[:LOCATED_AT]->(loc:Location)
+OPTIONAL MATCH (carrier:Character)-[carry_rel:CARRIES]->(o)
+WHERE carry_rel.valid_at IS NULL
+OPTIONAL MATCH (o)-[loc_rel:LOCATED_AT]->(loc:Location)
+WHERE loc_rel.valid_at IS NULL
+WITH o, carrier, loc
 WHERE carrier IS NULL
 RETURN o.name AS name, o.brief AS brief, o.description AS description,
        carrier.name AS carrier, loc.name AS location
@@ -404,7 +408,7 @@ export async function buildRelationshipDump(): Promise<string> {
     "HAS_DISPOSITION",
     "BRANCHES_TO",
     "ABOUT_ENTITY",
-    "ABOUT_MESSAGE",
+    "ABOUT_SCENE",
     "ABOUT_PLOT",
   ]) {
     internalNames.add(name);

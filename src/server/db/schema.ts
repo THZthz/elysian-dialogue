@@ -152,7 +152,7 @@ const PREDEFINED_NODES: NodeTypeDef[] = [
   {
     name: "Note",
     category: "PREDEFINED",
-    description: `GM scratchpad note. Can link to Entities, Messages, or Plots via ABOUT_ENTITY / ABOUT_MESSAGE / ABOUT_PLOT. Managed by \`${TOOL_NAMES.EDIT_NOTE}\`.`,
+    description: `GM scratchpad note. Can link to Entities, Scenes, or Plots via ABOUT_ENTITY / ABOUT_SCENE / ABOUT_PLOT. Managed by \`${TOOL_NAMES.EDIT_NOTE}\`.`,
     properties: [
       {
         name: "name",
