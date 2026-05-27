@@ -54,7 +54,9 @@ export async function seedDatabase(): Promise<void> {
     characters: story.initialScene.characters,
     reason: "Opening scene",
   });
-  console.log(`[seedDatabase] initial scene created at time ${story.initialScene.start_time} in "${story.initialScene.location_name}"`);
+  console.log(
+    `[seedDatabase] initial scene created at time ${story.initialScene.start_time} in "${story.initialScene.location_name}"`,
+  );
 
   console.log(`[seedDatabase] seeding ${story.entities.length} entities from "${story.id}"`);
 

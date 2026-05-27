@@ -1,3 +1,21 @@
+/**
+ * Chorus — cinematic dialogue engine
+ * Copyright (C) 2026 Amias
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
 import { tool } from "ai";
 import { z } from "zod";
 import { Database } from "@/server/db";
@@ -19,12 +37,28 @@ function describeTime(time: number): string {
 
 const inputSchema = z.object({
   action: z.enum(SCENE_ACTIONS).describe("CREATE a new scene or MODIFY the active one."),
-  start_time: z.number().nullable().optional().describe("Day * 48 + half-hour. Required for CREATE."),
+  start_time: z
+    .number()
+    .nullable()
+    .optional()
+    .describe("Day * 48 + half-hour. Required for CREATE."),
   location_name: z.string().nullable().optional().describe("Location.name. Required for CREATE."),
-  characters: z.array(z.string()).nullable().optional().describe("Character names. Required for CREATE. Must include player."),
+  characters: z
+    .array(z.string())
+    .nullable()
+    .optional()
+    .describe("Character names. Required for CREATE. Must include player."),
   reason: z.string().nullable().optional().describe("Why scene changed. Stored on NEXT_SCENE."),
-  add_characters: z.array(z.string()).nullable().optional().describe("MODIFY: merge into characters array."),
-  end_time: z.number().nullable().optional().describe("MODIFY: close the active scene at this time."),
+  add_characters: z
+    .array(z.string())
+    .nullable()
+    .optional()
+    .describe("MODIFY: merge into characters array."),
+  end_time: z
+    .number()
+    .nullable()
+    .optional()
+    .describe("MODIFY: close the active scene at this time."),
 });
 
 export function createManageSceneTool(events: EventEmitter) {
@@ -89,7 +123,10 @@ end_time is set and a NEXT_SCENE relationship links them.
         await db.scene.modify({ add_characters: args.add_characters });
       }
       if (args.end_time != null) {
-        const placeholder = await db.scene.modify({ end_time: args.end_time, reason: args.reason ?? undefined });
+        const placeholder = await db.scene.modify({
+          end_time: args.end_time,
+          reason: args.reason ?? undefined,
+        });
         events.emitSceneUpdate({
           scene_id: active._uid,
           start_time: active.start_time,

@@ -521,8 +521,15 @@ export async function generateTurn(
         if (activeScene) {
           await db.scene.appendGMLog(
             activeScene._uid,
-            finalMessages as Array<{ speaker: string; type: string; text: string; metadata?: Record<string, unknown> }>,
-            finalOptions.length > 0 ? (finalOptions as unknown as Record<string, unknown>) : undefined,
+            finalMessages as Array<{
+              speaker: string;
+              type: string;
+              text: string;
+              metadata?: Record<string, unknown>;
+            }>,
+            finalOptions.length > 0
+              ? (finalOptions as unknown as Record<string, unknown>)
+              : undefined,
           );
         }
       } catch (err) {

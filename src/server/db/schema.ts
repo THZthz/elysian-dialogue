@@ -213,15 +213,36 @@ const PREDEFINED_NODES: NodeTypeDef[] = [
   {
     name: "Scene",
     category: "PREDEFINED",
-    description: "A narrative scene tracking time, location, characters, log, and dialogue options. Active scene has end_time IS NULL.",
+    description:
+      "A narrative scene tracking time, location, characters, log, and dialogue options. Active scene has end_time IS NULL.",
     properties: [
       { name: "_uid", description: "UUID.", tags: ["string", "unique"] },
-      { name: "start_time", description: "Scene start time: day * 48 + half-hour.", tags: ["number"] },
+      {
+        name: "start_time",
+        description: "Scene start time: day * 48 + half-hour.",
+        tags: ["number"],
+      },
       { name: "end_time", description: "Scene end time. NULL = still active.", tags: ["number"] },
-      { name: "location_name", description: "Location.name for this scene. NULL for placeholder scenes.", tags: ["string"] },
-      { name: "characters", description: "JSON array of character names present in this scene.", tags: ["json"] },
-      { name: "log", description: "JSON array of log entries (gm, player, roll types).", tags: ["json"] },
-      { name: "options", description: "JSON: current dialogue options for the active scene.", tags: ["json"] },
+      {
+        name: "location_name",
+        description: "Location.name for this scene. NULL for placeholder scenes.",
+        tags: ["string"],
+      },
+      {
+        name: "characters",
+        description: "JSON array of character names present in this scene.",
+        tags: ["json"],
+      },
+      {
+        name: "log",
+        description: "JSON array of log entries (gm, player, roll types).",
+        tags: ["json"],
+      },
+      {
+        name: "options",
+        description: "JSON: current dialogue options for the active scene.",
+        tags: ["json"],
+      },
       UPDATED_AT_PROP,
     ],
   },
@@ -490,7 +511,11 @@ const PREDEFINED_RELS: RelTypeDef[] = [
     category: "PREDEFINED",
     description: "Character carries object.",
     properties: [
-      { name: "brief", description: "How the item is carried.", tags: ["string", "embedded_content"] },
+      {
+        name: "brief",
+        description: "How the item is carried.",
+        tags: ["string", "embedded_content"],
+      },
       { name: "created_at", description: "Birth time: day * 48 + half-hour.", tags: ["number"] },
       { name: "valid_at", description: "Death time. NULL = still valid.", tags: ["number"] },
       UPDATED_AT_PROP,
@@ -719,13 +744,7 @@ export class SchemaRegistry {
   }
 
   getInternalTypeNames(): string[] {
-    return [
-      "Conversation",
-      "GMTurnMessage",
-      "IdCounter",
-      "NodeType",
-      "RelationshipType",
-    ];
+    return ["Conversation", "GMTurnMessage", "IdCounter", "NodeType", "RelationshipType"];
   }
 
   private static instance: SchemaRegistry | null = null;

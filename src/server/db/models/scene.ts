@@ -1,3 +1,21 @@
+/**
+ * Chorus — cinematic dialogue engine
+ * Copyright (C) 2026 Amias
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
 import { v4 as uuidv4 } from "uuid";
 import type { LadybugClient } from "@/server/db/ladybug";
 
@@ -39,7 +57,8 @@ export interface ModifySceneInput {
 
 function parseJsonField<T>(value: unknown, fallback: T): T {
   if (value === null || value === undefined) return fallback;
-  if (Array.isArray(value) || (typeof value === "object" && value !== null)) return value as unknown as T;
+  if (Array.isArray(value) || (typeof value === "object" && value !== null))
+    return value as unknown as T;
   if (typeof value === "string") {
     try {
       return JSON.parse(value) as T;
@@ -54,9 +73,7 @@ export class SceneModel {
   constructor(private readonly graph: LadybugClient) {}
 
   async getActive(): Promise<SceneData | null> {
-    const result = await this.graph.query(
-      "MATCH (s:Scene) WHERE s.end_time IS NULL RETURN s",
-    );
+    const result = await this.graph.query("MATCH (s:Scene) WHERE s.end_time IS NULL RETURN s");
     if (result.rows.length === 0) return null;
     const s = (result.rows[0].s || result.rows[0]) as Record<string, unknown>;
     if (!s.location_name) return null; // placeholder — treat as no active scene
@@ -138,8 +155,12 @@ export class SceneModel {
 
     if (oldScene) {
       await this.graph.mergeRelationship(
-        "Scene", "_uid", oldScene._uid,
-        "Scene", "_uid", _uid,
+        "Scene",
+        "_uid",
+        oldScene._uid,
+        "Scene",
+        "_uid",
+        _uid,
         "NEXT_SCENE",
         { reason: input.reason },
       );
@@ -186,8 +207,12 @@ export class SceneModel {
       );
 
       await this.graph.mergeRelationship(
-        "Scene", "_uid", active._uid,
-        "Scene", "_uid", phUid,
+        "Scene",
+        "_uid",
+        active._uid,
+        "Scene",
+        "_uid",
+        phUid,
         "NEXT_SCENE",
         { reason: input.reason ?? "" },
       );
@@ -200,16 +225,16 @@ export class SceneModel {
 
   async appendPlayerLog(sceneUid: string, userInput: string): Promise<void> {
     const entry: SceneLogEntry = { type: "player", content: userInput };
-    const result = await this.graph.query(
-      "MATCH (s:Scene {_uid: $_uid}) RETURN s.log AS log",
-      { _uid: sceneUid },
-    );
+    const result = await this.graph.query("MATCH (s:Scene {_uid: $_uid}) RETURN s.log AS log", {
+      _uid: sceneUid,
+    });
     const currentLog: SceneLogEntry[] = parseJsonField<SceneLogEntry[]>(result.rows[0]?.log, []);
     currentLog.push(entry);
-    await this.graph.query(
-      "MATCH (s:Scene {_uid: $_uid}) SET s.log = $log, s._updated_at = $now",
-      { _uid: sceneUid, log: JSON.stringify(currentLog), now: new Date().toISOString() },
-    );
+    await this.graph.query("MATCH (s:Scene {_uid: $_uid}) SET s.log = $log, s._updated_at = $now", {
+      _uid: sceneUid,
+      log: JSON.stringify(currentLog),
+      now: new Date().toISOString(),
+    });
   }
 
   async appendGMLog(
@@ -218,30 +243,39 @@ export class SceneModel {
     options?: Record<string, unknown>,
   ): Promise<void> {
     const entry: SceneLogEntry = { type: "gm", content: messages, options };
-    const result = await this.graph.query(
-      "MATCH (s:Scene {_uid: $_uid}) RETURN s.log AS log",
-      { _uid: sceneUid },
-    );
+    const result = await this.graph.query("MATCH (s:Scene {_uid: $_uid}) RETURN s.log AS log", {
+      _uid: sceneUid,
+    });
     const currentLog: SceneLogEntry[] = parseJsonField<SceneLogEntry[]>(result.rows[0]?.log, []);
     currentLog.push(entry);
     const now = new Date().toISOString();
     await this.graph.query(
       "MATCH (s:Scene {_uid: $_uid}) SET s.log = $log, s.options = $opts, s._updated_at = $now",
-      { _uid: sceneUid, log: JSON.stringify(currentLog), opts: options ? JSON.stringify(options) : null, now },
+      {
+        _uid: sceneUid,
+        log: JSON.stringify(currentLog),
+        opts: options ? JSON.stringify(options) : null,
+        now,
+      },
     );
   }
 
-  async appendRollLog(sceneUid: string, content: string, metadata?: Record<string, unknown>): Promise<void> {
+  async appendRollLog(
+    sceneUid: string,
+    content: string,
+    metadata?: Record<string, unknown>,
+  ): Promise<void> {
     const entry: SceneLogEntry = { type: "roll", content, metadata };
-    const result = await this.graph.query(
-      "MATCH (s:Scene {_uid: $_uid}) RETURN s.log AS log", { _uid: sceneUid },
-    );
+    const result = await this.graph.query("MATCH (s:Scene {_uid: $_uid}) RETURN s.log AS log", {
+      _uid: sceneUid,
+    });
     const currentLog: SceneLogEntry[] = parseJsonField<SceneLogEntry[]>(result.rows[0]?.log, []);
     currentLog.push(entry);
-    await this.graph.query(
-      "MATCH (s:Scene {_uid: $_uid}) SET s.log = $log, s._updated_at = $now",
-      { _uid: sceneUid, log: JSON.stringify(currentLog), now: new Date().toISOString() },
-    );
+    await this.graph.query("MATCH (s:Scene {_uid: $_uid}) SET s.log = $log, s._updated_at = $now", {
+      _uid: sceneUid,
+      log: JSON.stringify(currentLog),
+      now: new Date().toISOString(),
+    });
   }
 
   async saveOptions(sceneUid: string, options: unknown): Promise<void> {
@@ -264,9 +298,7 @@ export class SceneModel {
   }
 
   async getChain(): Promise<SceneData[]> {
-    const result = await this.graph.query(
-      "MATCH (s:Scene) RETURN s ORDER BY s.start_time",
-    );
+    const result = await this.graph.query("MATCH (s:Scene) RETURN s ORDER BY s.start_time");
     return result.rows.map((row) => {
       const s = (row.s || row) as Record<string, unknown>;
       return this.parseScene(s);
@@ -274,9 +306,7 @@ export class SceneModel {
   }
 
   private async getActiveRaw(): Promise<SceneData | null> {
-    const result = await this.graph.query(
-      "MATCH (s:Scene) WHERE s.end_time IS NULL RETURN s",
-    );
+    const result = await this.graph.query("MATCH (s:Scene) WHERE s.end_time IS NULL RETURN s");
     if (result.rows.length === 0) return null;
     const s = (result.rows[0].s || result.rows[0]) as Record<string, unknown>;
     return {
@@ -292,9 +322,7 @@ export class SceneModel {
   }
 
   private async getByUid(_uid: string): Promise<SceneData> {
-    const result = await this.graph.query(
-      "MATCH (s:Scene {_uid: $_uid}) RETURN s", { _uid },
-    );
+    const result = await this.graph.query("MATCH (s:Scene {_uid: $_uid}) RETURN s", { _uid });
     const s = (result.rows[0].s || result.rows[0]) as Record<string, unknown>;
     return this.parseScene(s);
   }

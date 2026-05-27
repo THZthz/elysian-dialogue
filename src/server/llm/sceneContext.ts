@@ -115,7 +115,9 @@ export async function buildSceneContext(): Promise<string> {
 
   // Game time
   if (activeScene) {
-    parts.push(`\n### Time\n${describeTime({ day: Math.floor(activeScene.start_time / 48), hour: (activeScene.start_time % 48) / 2 })}`);
+    parts.push(
+      `\n### Time\n${describeTime({ day: Math.floor(activeScene.start_time / 48), hour: (activeScene.start_time % 48) / 2 })}`,
+    );
   }
 
   try {

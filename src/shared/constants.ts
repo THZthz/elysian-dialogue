@@ -44,4 +44,3 @@ export const TOOL_NAMES = {
   EDIT_PLOT: "editPlot",
   GET_CONTEXT: "getContext",
 } as const;
-
