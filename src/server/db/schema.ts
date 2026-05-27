@@ -25,8 +25,7 @@ export const NODE_PROPERTY_TAGS = [
   "number",
   "number[]",
   "json",
-  "embedded_name",
-  "embedded_content",
+  "embedded",
   "unique",
 ] as const;
 export type NodePropertyTag = (typeof NODE_PROPERTY_TAGS)[number];
@@ -49,8 +48,7 @@ export const REL_PROPERTY_TAGS = [
   "number",
   "number[]",
   "json",
-  "embedded_name",
-  "embedded_content",
+  "embedded",
 ] as const;
 export type RelPropertyTag = (typeof REL_PROPERTY_TAGS)[number];
 
@@ -119,9 +117,9 @@ const UPDATED_AT_PROP: any = {
 
 const ENTITY_PROPS: NodePropertyDef[] = [
   { name: "_uid", description: "UUID.", tags: ["string"] },
-  { name: "name", description: "Unique name.", tags: ["string", "embedded_name", "unique"] },
-  { name: "brief", description: "One-line summary.", tags: ["string", "embedded_content"] },
-  { name: "description", description: "Full description.", tags: ["string", "embedded_content"] },
+  { name: "name", description: "Unique name.", tags: ["string", "embedded", "unique"] },
+  { name: "brief", description: "One-line summary.", tags: ["string", "embedded"] },
+  { name: "description", description: "Full description.", tags: ["string", "embedded"] },
   {
     name: "metadata",
     description:
@@ -159,9 +157,9 @@ const PREDEFINED_NODES: NodeTypeDef[] = [
       {
         name: "name",
         description: "Unique note name.",
-        tags: ["string", "unique", "embedded_name"],
+        tags: ["string", "unique", "embedded"],
       },
-      { name: "content", description: "Note text..", tags: ["string", "embedded_content"] },
+      { name: "content", description: "Note text..", tags: ["string", "embedded"] },
       CREATED_AT_PROP,
       UPDATED_AT_PROP,
     ],
@@ -174,14 +172,14 @@ const PREDEFINED_NODES: NodeTypeDef[] = [
       {
         name: "name",
         description: "Unique plot name.",
-        tags: ["string", "unique", "embedded_name"],
+        tags: ["string", "unique", "embedded"],
       },
       {
         name: "description",
         description: "Full plot descriptions.",
-        tags: ["string", "embedded_content"],
+        tags: ["string", "embedded"],
       },
-      { name: "brief", description: "One-line summary.", tags: ["string", "embedded_content"] },
+      { name: "brief", description: "One-line summary.", tags: ["string", "embedded"] },
       {
         name: "status",
         description: "Plot lifecycle: PENDING → ACTIVE → COMPLETED/ABANDONED.",
@@ -345,7 +343,7 @@ const PREDEFINED_RELS: RelTypeDef[] = [
         name: "brief",
         description:
           "Spatial position detail — how/where exactly the character is located (e.g., 'hiding behind crates', 'slumped at the bar').",
-        tags: ["string", "embedded_content"],
+        tags: ["string", "embedded"],
       },
       { name: "created_at", description: "Birth time: day * 48 + half-hour.", tags: ["number"] },
       { name: "valid_at", description: "Death time. NULL = still valid.", tags: ["number"] },
@@ -363,7 +361,7 @@ const PREDEFINED_RELS: RelTypeDef[] = [
       {
         name: "brief",
         description: "Spatial position detail — where exactly the object is located.",
-        tags: ["string", "embedded_content"],
+        tags: ["string", "embedded"],
       },
       { name: "created_at", description: "Birth time: day * 48 + half-hour.", tags: ["number"] },
       { name: "valid_at", description: "Death time. NULL = still valid.", tags: ["number"] },
@@ -381,7 +379,7 @@ const PREDEFINED_RELS: RelTypeDef[] = [
       {
         name: "brief",
         description: "How the item is carried (e.g., 'concealed in a boot', 'worn openly on hip').",
-        tags: ["string", "embedded_content"],
+        tags: ["string", "embedded"],
       },
       { name: "created_at", description: "Birth time: day * 48 + half-hour.", tags: ["number"] },
       { name: "valid_at", description: "Death time. NULL = still valid.", tags: ["number"] },
@@ -401,7 +399,7 @@ const PREDEFINED_RELS: RelTypeDef[] = [
         name: "brief",
         description:
           "Access or containment detail (e.g., 'accessed through a trapdoor behind the bar').",
-        tags: ["string", "embedded_content"],
+        tags: ["string", "embedded"],
       },
       { name: "created_at", description: "Birth time: day * 48 + half-hour.", tags: ["number"] },
       { name: "valid_at", description: "Death time. NULL = still valid.", tags: ["number"] },
@@ -516,7 +514,7 @@ const PREDEFINED_RELS: RelTypeDef[] = [
       {
         name: "brief",
         description: "How the item is carried.",
-        tags: ["string", "embedded_content"],
+        tags: ["string", "embedded"],
       },
       { name: "created_at", description: "Birth time: day * 48 + half-hour.", tags: ["number"] },
       { name: "valid_at", description: "Death time. NULL = still valid.", tags: ["number"] },
@@ -703,45 +701,25 @@ export class SchemaRegistry {
     }
   }
 
-  getEmbeddingContentText(label: string, props: Record<string, unknown>): string {
-    const def = this.nodes.get(label);
-    if (!def) return "";
-    return def.properties
-      .filter((p) => p.tags.includes("embedded_content"))
-      .map((p) => String(props[p.name] ?? ""))
-      .filter(Boolean)
-      .join(" ");
-  }
-
-  getEmbeddingNameText(label: string, props: Record<string, unknown>): string {
-    const def = this.nodes.get(label);
-    if (!def) return "";
-    return def.properties
-      .filter((p) => p.tags.includes("embedded_name"))
-      .map((p) => String(props[p.name] ?? ""))
-      .filter(Boolean)
-      .join(" ");
-  }
-
   getEmbeddingText(label: string, props: Record<string, unknown>): string {
-    return [this.getEmbeddingNameText(label, props), this.getEmbeddingContentText(label, props)]
+    const def = this.nodes.get(label);
+    if (!def) return "";
+    return def.properties
+      .filter((p) => p.tags.includes("embedded"))
+      .map((p) => String(props[p.name] ?? ""))
       .filter(Boolean)
       .join(" ");
   }
 
   getVectorSearchableNodeTypes(): NodeTypeDef[] {
     return this.getAllNodeTypes().filter((def) =>
-      def.properties.some(
-        (p) => p.tags.includes("embedded_name") || p.tags.includes("embedded_content"),
-      ),
+      def.properties.some((p) => p.tags.includes("embedded")),
     );
   }
 
   getVectorSearchableRelTypes(): RelTypeDef[] {
     return this.getAllRelTypes().filter((def) =>
-      def.properties.some(
-        (p) => p.tags.includes("embedded_name") || p.tags.includes("embedded_content"),
-      ),
+      def.properties.some((p) => p.tags.includes("embedded")),
     );
   }
 

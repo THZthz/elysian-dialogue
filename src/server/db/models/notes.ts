@@ -46,7 +46,7 @@ export class NoteModel {
       { name, content, now },
     );
 
-    const contentText = registry.getEmbeddingContentText("Note", { content });
+    const contentText = registry.getEmbeddingText("Note", { content });
     const contentVec = await this.embedder.embed(contentText || content);
     this.vectors.upsert(
       `Note:${name}`,
@@ -74,7 +74,7 @@ export class NoteModel {
       { name, content, now },
     );
 
-    const contentText = registry.getEmbeddingContentText("Note", { content });
+    const contentText = registry.getEmbeddingText("Note", { content });
     const contentVec = await this.embedder.embed(contentText || content);
     this.vectors.upsert(
       `Note:${name}`,

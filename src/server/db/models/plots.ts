@@ -72,7 +72,7 @@ export class PlotModel {
       flags: "[]",
     });
 
-    const contentText = registry.getEmbeddingContentText("Plot", {
+    const contentText = registry.getEmbeddingText("Plot", {
       name,
       description,
       brief,

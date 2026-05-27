@@ -112,21 +112,16 @@ describe("SchemaRegistry", () => {
     expect(results.every((r) => r.name === "LOCATED_AT")).toBe(true);
   });
 
-  it("generates correct embedding content text", () => {
+  it("generates correct embedding text", () => {
     const schema = SchemaRegistry.getInstance();
-    const text = schema.getEmbeddingContentText("Character", {
+    const text = schema.getEmbeddingText("Character", {
       name: "Alice",
       brief: "A brave knight",
       description: "Alice wields a glowing sword",
     });
+    expect(text).toContain("Alice");
     expect(text).toContain("A brave knight");
     expect(text).toContain("Alice wields a glowing sword");
-  });
-
-  it("generates correct embedding name text", () => {
-    const schema = SchemaRegistry.getInstance();
-    const text = schema.getEmbeddingNameText("Character", { name: "Alice" });
-    expect(text).toContain("Alice");
   });
 
   it("getVectorSearchableNodeTypes returns only embeddable types", () => {
@@ -135,14 +130,14 @@ describe("SchemaRegistry", () => {
     expect(searchable.length).toBeGreaterThan(0);
     // Disposition has no embedded properties — should not appear
     expect(searchable.some((t) => t.name === "Disposition")).toBe(false);
-    // Character has embedded_name + embedded_content — should appear
+    // Character has embedded properties — should appear
     expect(searchable.some((t) => t.name === "Character")).toBe(true);
   });
 
   it("getVectorSearchableRelTypes returns embeddable relationships", () => {
     const schema = SchemaRegistry.getInstance();
     const searchable = schema.getVectorSearchableRelTypes();
-    // LOCATED_AT has embedded_content brief — should appear
+    // LOCATED_AT has embedded brief — should appear
     expect(searchable.some((t) => t.name === "LOCATED_AT")).toBe(true);
     // ABOUT_PLOT has no embedded props — should not appear
     expect(searchable.some((t) => t.name === "ABOUT_PLOT")).toBe(false);

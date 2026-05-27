@@ -46,8 +46,7 @@ Only GM_DEFINED types can be unregistered. PREDEFINED and INTERNAL types are per
 - \`number\`: normal number
 - \`number[]\`: list of numbers
 - \`json\`: Saved as a JSON string. But when used in tools supporting partial update, will automatically unfold the JSON string property to avoid the whole string being overwritten
-- \`embedded_name\`: used to build embedding text for vector search (combined with embedded_content) when the property is created or updated
-- \`embedded_content\`: used for semantic/meaning vector (content_vec) when the property is created or updated
+- \`embedded\`: property text will be embedded into the dense vector for semantic search and used in the reranker
 - \`unique\`: will create a unique constraint on this property, not available for relationship
 `.trim(),
   inputSchema: z.object({
@@ -79,7 +78,7 @@ Only GM_DEFINED types can be unregistered. PREDEFINED and INTERNAL types are per
           tags: z
             .array(z.enum(NODE_PROPERTY_TAGS))
             .describe(
-              `Comma-separated tags describing the property. For nodes: 'string', 'number', 'number[]', 'json', 'embedded_name', 'embedded_content', 'unique'. For relationships: same tags except 'unique' (not supported for relationship properties).`,
+              `Comma-separated tags describing the property. For nodes: 'string', 'number', 'number[]', 'json', 'embedded', 'unique'. For relationships: same tags except 'unique' (not supported for relationship properties).`,
             ),
         }),
       )

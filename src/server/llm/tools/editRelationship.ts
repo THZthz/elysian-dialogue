@@ -56,7 +56,7 @@ function isTemporalRel(def: RelTypeDef): boolean {
 
 function getRelEmbeddingContentText(def: RelTypeDef, props: Record<string, unknown>): string {
   return def.properties
-    .filter((p) => p.tags.includes("embedded_content"))
+    .filter((p) => p.tags.includes("embedded"))
     .map((p) => String(props[p.name] ?? ""))
     .filter(Boolean)
     .join(" ");
@@ -198,11 +198,7 @@ sub-locations nested within a larger location (e.g., a basement inside a tavern)
       return v;
     }
 
-    const wantsNameEmbedding = relDef.properties.some((p) => p.tags.includes("embedded_name"));
-    const wantsContentEmbedding = relDef.properties.some((p) =>
-      p.tags.includes("embedded_content"),
-    );
-    const wantsEmbedding = wantsNameEmbedding || wantsContentEmbedding;
+    const wantsEmbedding = relDef.properties.some((p) => p.tags.includes("embedded"));
 
     // ── CREATE ──
     if (args.action === "CREATE") {
@@ -376,30 +372,19 @@ sub-locations nested within a larger location (e.g., a basement inside a tavern)
       let relContentVec: number[] | null = null;
       let relNameText: string | null = null;
       if (wantsEmbedding) {
-        const contentEmbeddedNames = new Set(
-          relDef.properties.filter((p) => p.tags.includes("embedded_content")).map((p) => p.name),
+        const embeddedNames = new Set(
+          relDef.properties.filter((p) => p.tags.includes("embedded")).map((p) => p.name),
         );
-        const nameEmbeddedNames = new Set(
-          relDef.properties.filter((p) => p.tags.includes("embedded_name")).map((p) => p.name),
-        );
-        const nameChanged = Object.keys(args.properties).some((k) => nameEmbeddedNames.has(k));
-        const contentChanged = Object.keys(args.properties).some((k) =>
-          contentEmbeddedNames.has(k),
-        );
-        if (nameChanged || contentChanged) {
+        if (Object.keys(args.properties).some((k) => embeddedNames.has(k))) {
           const merged = { ...existingRel, ...args.properties };
           const embedder = getEmbedder();
-          if (nameChanged) {
-            relNameText = getRelEmbeddingNameText(args.relationshipType, merged, srcVal, tgtVal);
-          }
-          if (contentChanged) {
-            const contentText = getRelEmbeddingContentText(relDef, merged);
-            if (contentText) {
-              try {
-                relContentVec = await embedder.embed(contentText);
-              } catch {
-                /* ignore */
-              }
+          relNameText = getRelEmbeddingNameText(args.relationshipType, merged, srcVal, tgtVal);
+          const contentText = getRelEmbeddingContentText(relDef, merged);
+          if (contentText) {
+            try {
+              relContentVec = await embedder.embed(contentText);
+            } catch {
+              /* ignore */
             }
           }
         }

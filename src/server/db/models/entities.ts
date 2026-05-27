@@ -70,7 +70,7 @@ export class EntityModel {
     );
 
     const entityProps = { name: props.name, brief, description };
-    const contentText = registry.getEmbeddingContentText(label, entityProps);
+    const contentText = registry.getEmbeddingText(label, entityProps);
     const contentVec = await this.embedder.embed(contentText || `${props.name} ${brief} ${description}`);
     const sparseVec = encodeSparse(contentText || props.name);
 
@@ -152,7 +152,7 @@ export class EntityModel {
     );
 
     const entityProps = { name, brief, description };
-    const contentText = registry.getEmbeddingContentText(label, entityProps);
+    const contentText = registry.getEmbeddingText(label, entityProps);
     const contentVec = await this.embedder.embed(contentText || `${name} ${brief} ${description}`);
     const sparseVec = encodeSparse(contentText || name);
     // Delete old vector if name changed (pointId uses the name)
