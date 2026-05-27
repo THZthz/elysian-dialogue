@@ -50,4 +50,4 @@ curl -s -X POST "http://localhost:3000/api/debug/tools/editPlot" -H "Content-Typ
 curl -s -X POST "http://localhost:3000/api/debug/tools/editPlot" -H "Content-Type: application/json" -d '{"plotName":"debug_plot","action":"DELETE"}'
 
 # getContext
-curl -s -X POST "http://localhost:3000/api/debug/tools/getContext" -H "Content-Type: application/json" -d '{"types":["SCENE_CONTEXT","CHARACTERS_BRIEF","LOCATIONS_BRIEF","OBJECTS_BRIEF","PLOTS_BRIEF","SCHEMA_DUMP","RELATIONSHIP_DUMP"]}'
+curl -s -X POST "http://localhost:3000/api/debug/tools/getContext" -H "Content-Type: application/json" -d '{"types":["CHARACTERS_BRIEF","LOCATIONS_BRIEF","OBJECTS_BRIEF","PLOTS_BRIEF","SCHEMA_DUMP","RELATIONSHIP_DUMP"]}'

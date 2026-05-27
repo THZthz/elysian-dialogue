@@ -21,7 +21,6 @@ import { z } from "zod";
 import { TOOL_NAMES } from "@/shared/constants";
 import { wrapSafe } from "@/server/llm/tools/shared";
 import {
-  buildSceneContext,
   buildCharactersBrief,
   buildLocationsBrief,
   buildObjectsBrief,
@@ -32,7 +31,6 @@ import { Database } from "@/server/db";
 import { SchemaRegistry } from "@/server/db/schema";
 
 const CONTEXT_TYPES = [
-  "SCENE_CONTEXT",
   "CHARACTERS_BRIEF",
   "LOCATIONS_BRIEF",
   "OBJECTS_BRIEF",
@@ -148,20 +146,17 @@ Pull pre-built context from the world. Nothing is auto-loaded — you choose wha
 - LOCATIONS_BRIEF — All locations with brief descriptions.
 - OBJECTS_BRIEF — All objects with carrier or location.
 - PLOTS_BRIEF — All plots with status, brief, and flags.
-- SCENE_CONTEXT — Current scene time, location, characters present, nearby NPCs/objects, inventory and NPC dispositions related to player.
 - RELATIONSHIP_DUMP — All active relationships grouped by type. LOCATED_AT/LOCATED_IN are grouped by location showing occupants and access details.
 `.trim(),
   inputSchema: z.object({
     types: z
       .array(z.enum(CONTEXT_TYPES))
-      .default(["SCENE_CONTEXT"])
-      .describe("Which context sections to return. Default: SCENE_CONTEXT only."),
+      .describe("Which context sections to return."),
   }),
   execute: wrapSafe(async (args: { types: ContextType[] }) => {
-    const sections: ContextType[] = args.types.length > 0 ? args.types : ["SCENE_CONTEXT"];
+    const sections: ContextType[] = args.types.length > 0 ? args.types : [];
 
     const builders: Record<ContextType, () => Promise<string>> = {
-      SCENE_CONTEXT: buildSceneContext,
       CHARACTERS_BRIEF: buildCharactersBrief,
       LOCATIONS_BRIEF: buildLocationsBrief,
       OBJECTS_BRIEF: buildObjectsBrief,
