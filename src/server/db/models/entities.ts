@@ -70,19 +70,14 @@ export class EntityModel {
     );
 
     const entityProps = { name: props.name, brief, description };
-    const nameText = registry.getEmbeddingNameText(label, entityProps);
     const contentText = registry.getEmbeddingContentText(label, entityProps);
-    const [nameVec, contentVec] = await Promise.all([
-      this.embedder.embed(nameText || props.name),
-      this.embedder.embed(contentText || `${props.name} ${brief} ${description}`),
-    ]);
+    const contentVec = await this.embedder.embed(contentText || `${props.name} ${brief} ${description}`);
     const sparseVec = encodeSparse(contentText || props.name);
 
     this.vectors.upsert(
       `${label}:${props.name}`,
       label,
       "node",
-      new Float32Array(nameVec),
       new Float32Array(contentVec),
       sparseVec,
       {
@@ -157,12 +152,8 @@ export class EntityModel {
     );
 
     const entityProps = { name, brief, description };
-    const nameText = registry.getEmbeddingNameText(label, entityProps);
     const contentText = registry.getEmbeddingContentText(label, entityProps);
-    const [nameVec, contentVec] = await Promise.all([
-      this.embedder.embed(nameText || name),
-      this.embedder.embed(contentText || `${name} ${brief} ${description}`),
-    ]);
+    const contentVec = await this.embedder.embed(contentText || `${name} ${brief} ${description}`);
     const sparseVec = encodeSparse(contentText || name);
     // Delete old vector if name changed (pointId uses the name)
     if (oldName !== name) {
@@ -172,7 +163,6 @@ export class EntityModel {
       `${label}:${name}`,
       label,
       "node",
-      new Float32Array(nameVec),
       new Float32Array(contentVec),
       sparseVec,
       {

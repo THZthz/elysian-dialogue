@@ -46,17 +46,12 @@ export class NoteModel {
       { name, content, now },
     );
 
-    const nameText = registry.getEmbeddingNameText("Note", { name });
     const contentText = registry.getEmbeddingContentText("Note", { content });
-    const [nameVec, contentVec] = await Promise.all([
-      this.embedder.embed(nameText || name),
-      this.embedder.embed(contentText || content),
-    ]);
+    const contentVec = await this.embedder.embed(contentText || content);
     this.vectors.upsert(
       `Note:${name}`,
       "Note",
       "node",
-      new Float32Array(nameVec),
       new Float32Array(contentVec),
       encodeSparse(contentText || content),
       {
@@ -80,15 +75,11 @@ export class NoteModel {
     );
 
     const contentText = registry.getEmbeddingContentText("Note", { content });
-    const [nameVec, contentVec] = await Promise.all([
-      this.embedder.embed(name),
-      this.embedder.embed(contentText || content),
-    ]);
+    const contentVec = await this.embedder.embed(contentText || content);
     this.vectors.upsert(
       `Note:${name}`,
       "Note",
       "node",
-      new Float32Array(nameVec),
       new Float32Array(contentVec),
       encodeSparse(contentText || content),
       {

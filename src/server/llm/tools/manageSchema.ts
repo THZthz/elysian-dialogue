@@ -46,7 +46,7 @@ Only GM_DEFINED types can be unregistered. PREDEFINED and INTERNAL types are per
 - \`number\`: normal number
 - \`number[]\`: list of numbers
 - \`json\`: Saved as a JSON string. But when used in tools supporting partial update, will automatically unfold the JSON string property to avoid the whole string being overwritten
-- \`embedded_name\`: used for identity/exact-match vector (name_vec) when the property is created or updated
+- \`embedded_name\`: used to build embedding text for vector search (combined with embedded_content) when the property is created or updated
 - \`embedded_content\`: used for semantic/meaning vector (content_vec) when the property is created or updated
 - \`unique\`: will create a unique constraint on this property, not available for relationship
 `.trim(),

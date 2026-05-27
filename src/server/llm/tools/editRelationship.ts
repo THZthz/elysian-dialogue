@@ -232,7 +232,6 @@ sub-locations nested within a larger location (e.g., a basement inside a tavern)
       // (e.g., moving character to new location should expire old LOCATED_AT)
 
       // Compute embeddings if the relationship type supports it.
-      let nameVec: number[] | null = null;
       let contentVec: number[] | null = null;
       let nameText: string | null = null;
 
@@ -241,14 +240,9 @@ sub-locations nested within a larger location (e.g., a basement inside a tavern)
         const contentText = getRelEmbeddingContentText(relDef, createProps);
 
         const embedder = getEmbedder();
-        const tasks: Promise<number[] | null>[] = [];
-        tasks.push(nameText ? embedder.embed(nameText).catch(() => null) : Promise.resolve(null));
-        tasks.push(
-          contentText ? embedder.embed(contentText).catch(() => null) : Promise.resolve(null),
-        );
-        const [nv, cv] = await Promise.all(tasks);
-        nameVec = nv;
-        contentVec = cv;
+        contentVec = contentText
+          ? await embedder.embed(contentText).catch(() => null)
+          : null;
       }
 
       await db.graph.mergeRelationship(
@@ -275,7 +269,7 @@ sub-locations nested within a larger location (e.g., a basement inside a tavern)
         );
       }
 
-      if (nameVec || contentVec) {
+      if (contentVec) {
         const pointId = `:rel:${args.relationshipType}:${srcVal}:${tgtVal}`;
         try {
           const contentText = getRelEmbeddingContentText(relDef, createProps);
@@ -288,7 +282,6 @@ sub-locations nested within a larger location (e.g., a basement inside a tavern)
           for (const [k, v] of Object.entries(createProps)) {
             if (!k.startsWith("_")) payload[k] = v;
           }
-          const nameVecFA = nameVec ? new Float32Array(nameVec) : new Float32Array(0);
           const contentVecFA = contentVec ? new Float32Array(contentVec) : new Float32Array(0);
           const sparse = nameText
             ? encodeSparse(nameText)
@@ -297,7 +290,6 @@ sub-locations nested within a larger location (e.g., a basement inside a tavern)
             pointId,
             args.relationshipType,
             "relationship",
-            nameVecFA,
             contentVecFA,
             sparse,
             payload,
@@ -381,15 +373,14 @@ sub-locations nested within a larger location (e.g., a basement inside a tavern)
       }
 
       // Recompute embedding if any embedded-tagged property changed.
-      let relNameVec: number[] | null = null;
       let relContentVec: number[] | null = null;
       let relNameText: string | null = null;
       if (wantsEmbedding) {
-        const nameEmbeddedNames = new Set(
-          relDef.properties.filter((p) => p.tags.includes("embedded_name")).map((p) => p.name),
-        );
         const contentEmbeddedNames = new Set(
           relDef.properties.filter((p) => p.tags.includes("embedded_content")).map((p) => p.name),
+        );
+        const nameEmbeddedNames = new Set(
+          relDef.properties.filter((p) => p.tags.includes("embedded_name")).map((p) => p.name),
         );
         const nameChanged = Object.keys(args.properties).some((k) => nameEmbeddedNames.has(k));
         const contentChanged = Object.keys(args.properties).some((k) =>
@@ -400,13 +391,6 @@ sub-locations nested within a larger location (e.g., a basement inside a tavern)
           const embedder = getEmbedder();
           if (nameChanged) {
             relNameText = getRelEmbeddingNameText(args.relationshipType, merged, srcVal, tgtVal);
-            if (relNameText) {
-              try {
-                relNameVec = await embedder.embed(relNameText);
-              } catch {
-                /* ignore */
-              }
-            }
           }
           if (contentChanged) {
             const contentText = getRelEmbeddingContentText(relDef, merged);
@@ -426,7 +410,7 @@ sub-locations nested within a larger location (e.g., a basement inside a tavern)
         setParams,
       );
 
-      if (relNameVec || relContentVec) {
+      if (relContentVec) {
         const pointId = `:rel:${args.relationshipType}:${srcVal}:${tgtVal}`;
         try {
           const merged = { ...existingRel, ...args.properties } as Record<string, unknown>;
@@ -440,7 +424,6 @@ sub-locations nested within a larger location (e.g., a basement inside a tavern)
           for (const [k, v] of Object.entries(merged)) {
             if (!k.startsWith("_")) payload[k] = v;
           }
-          const nameVecFA = relNameVec ? new Float32Array(relNameVec) : new Float32Array(0);
           const contentVecFA = relContentVec
             ? new Float32Array(relContentVec)
             : new Float32Array(0);
@@ -451,7 +434,6 @@ sub-locations nested within a larger location (e.g., a basement inside a tavern)
             pointId,
             args.relationshipType,
             "relationship",
-            nameVecFA,
             contentVecFA,
             sparse,
             payload,

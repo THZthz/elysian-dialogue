@@ -38,17 +38,16 @@ describe("VectorStore", () => {
   });
 
   it("upserts and retrieves vectors", () => {
-    const nameVec = new Float32Array([0.1, 0.2, 0.3]);
     const contentVec = new Float32Array([0.4, 0.5, 0.6]);
     const sparseVec = { indices: [0, 2], values: [1.0, 2.0] };
 
-    store.upsert("Character:Alice", "Character", "node", nameVec, contentVec, sparseVec, {
+    store.upsert("Character:Alice", "Character", "node", contentVec, sparseVec, {
       name: "Alice",
     });
     const results = store.getAllByFilter("Character", "node");
     expect(results).toHaveLength(1);
     expect(results[0].pointId).toBe("Character:Alice");
-    expect(results[0].nameVec[0]).toBeCloseTo(0.1);
+    expect(results[0].contentVec[0]).toBeCloseTo(0.4);
   });
 
   it("delete removes a single point", () => {
@@ -57,7 +56,6 @@ describe("VectorStore", () => {
       "Note:Test",
       "Note",
       "node",
-      vec,
       vec,
       { indices: [], values: [] },
       { name: "Test" },
@@ -69,9 +67,9 @@ describe("VectorStore", () => {
 
   it("deleteByFilter removes all matching points", () => {
     const vec = new Float32Array([1.0]);
-    store.upsert("A:1", "A", "node", vec, vec, { indices: [], values: [] }, {});
-    store.upsert("A:2", "A", "node", vec, vec, { indices: [], values: [] }, {});
-    store.upsert("B:1", "B", "node", vec, vec, { indices: [], values: [] }, {});
+    store.upsert("A:1", "A", "node", vec, { indices: [], values: [] }, {});
+    store.upsert("A:2", "A", "node", vec, { indices: [], values: [] }, {});
+    store.upsert("B:1", "B", "node", vec, { indices: [], values: [] }, {});
     store.deleteByFilter("A", "node");
     expect(store.getAllByFilter("A", "node")).toHaveLength(0);
     expect(store.getAllByFilter("B", "node")).toHaveLength(1);
@@ -79,8 +77,8 @@ describe("VectorStore", () => {
 
   it("clear removes everything", () => {
     const vec = new Float32Array([1.0]);
-    store.upsert("X:1", "X", "node", vec, vec, { indices: [], values: [] }, {});
-    store.upsert("Y:1", "Y", "node", vec, vec, { indices: [], values: [] }, {});
+    store.upsert("X:1", "X", "node", vec, { indices: [], values: [] }, {});
+    store.upsert("Y:1", "Y", "node", vec, { indices: [], values: [] }, {});
     store.clear();
     expect(store.getAllByFilter("X", "node")).toHaveLength(0);
     expect(store.getAllByFilter("Y", "node")).toHaveLength(0);
@@ -94,7 +92,6 @@ describe("VectorStore", () => {
       "Character",
       "node",
       v1,
-      v1,
       { indices: [], values: [] },
       { name: "Bob", version: 1 },
     );
@@ -102,7 +99,6 @@ describe("VectorStore", () => {
       "Character:Bob",
       "Character",
       "node",
-      v2,
       v2,
       { indices: [], values: [] },
       { name: "Bob", version: 2 },

@@ -104,6 +104,8 @@ function generateRelDDL(def: RelTypeDef): string {
   return `CREATE REL TABLE \`${def.name}\` (FROM \`${def.sourceLabel}\` TO \`${def.targetLabel}\`${cols.length > 0 ? ", " + cols.join(", ") : ""});`;
 }
 
+// WARNING: The schema description should be useful since it will be used by GM, which has no prior knowledge.
+
 const CREATED_AT_PROP: any = {
   name: "_created_at",
   description: "ISO 8601 timestamp of creation.",

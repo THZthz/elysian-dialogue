@@ -66,7 +66,6 @@ describe("HybridSearcher", () => {
       "Character",
       "node",
       vAlice,
-      vAlice,
       { indices: [], values: [] },
       { name: "Alice", text: "brave knight" },
     );
@@ -74,7 +73,6 @@ describe("HybridSearcher", () => {
       "Character:Bob",
       "Character",
       "node",
-      vBob,
       vBob,
       { indices: [], values: [] },
       { name: "Bob", text: "cowardly mage" },
@@ -113,7 +111,6 @@ describe("HybridSearcher", () => {
         `Character:${name}`,
         "Character",
         "node",
-        v,
         v,
         { indices: [], values: [] },
         { name },

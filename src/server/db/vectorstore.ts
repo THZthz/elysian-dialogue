@@ -34,7 +34,6 @@ function blobToFloat32(buf: Buffer): Float32Array {
 
 export interface StoredVector {
   pointId: string;
-  nameVec: Float32Array;
   contentVec: Float32Array;
   sparseVec: SparseVector;
   payload: Record<string, unknown>;
@@ -56,7 +55,6 @@ export class VectorStore {
         point_id    TEXT PRIMARY KEY,
         node_type   TEXT NOT NULL,
         kind        TEXT NOT NULL,
-        name_vec    BLOB NOT NULL,
         content_vec BLOB NOT NULL,
         sparse_vec  TEXT NOT NULL,
         payload     TEXT NOT NULL,
@@ -70,7 +68,6 @@ export class VectorStore {
     pointId: string,
     nodeType: string,
     kind: string,
-    nameVec: Float32Array,
     contentVec: Float32Array,
     sparseVec: SparseVector,
     payload: Record<string, unknown>,
@@ -78,14 +75,13 @@ export class VectorStore {
     if (!this.db) throw new Error("VectorStore not initialized");
     this.db
       .prepare(
-        `INSERT OR REPLACE INTO vectors (point_id, node_type, kind, name_vec, content_vec, sparse_vec, payload, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT OR REPLACE INTO vectors (point_id, node_type, kind, content_vec, sparse_vec, payload, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         pointId,
         nodeType,
         kind,
-        float32ToBlob(nameVec),
         float32ToBlob(contentVec),
         JSON.stringify(sparseVec),
         JSON.stringify(payload),
@@ -107,18 +103,16 @@ export class VectorStore {
     if (!this.db) throw new Error("VectorStore not initialized");
     const rows = this.db
       .prepare(
-        "SELECT point_id, name_vec, content_vec, sparse_vec, payload FROM vectors WHERE node_type = ? AND kind = ?",
+        "SELECT point_id, content_vec, sparse_vec, payload FROM vectors WHERE node_type = ? AND kind = ?",
       )
       .all(nodeType, kind) as Array<{
       point_id: string;
-      name_vec: Buffer;
       content_vec: Buffer;
       sparse_vec: string;
       payload: string;
     }>;
     return rows.map((r) => ({
       pointId: r.point_id,
-      nameVec: blobToFloat32(r.name_vec),
       contentVec: blobToFloat32(r.content_vec),
       sparseVec: JSON.parse(r.sparse_vec) as SparseVector,
       payload: JSON.parse(r.payload) as Record<string, unknown>,
