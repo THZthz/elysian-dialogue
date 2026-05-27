@@ -80,7 +80,7 @@ export class SceneModel {
     return this.parseScene(s);
   }
 
-  async create(input: CreateSceneInput): Promise<SceneData> {
+  async create(input: CreateSceneInput): Promise<{ scene: SceneData; timeMismatchWarning?: string }> {
     const now = new Date().toISOString();
     const _uid = uuidv4();
 
@@ -112,6 +112,21 @@ export class SceneModel {
     }
 
     if (isPlaceholder && oldScene) {
+      // Check if previous scene's end_time matches new start_time
+      let timeMismatchWarning: string | undefined;
+      const prevResult = await this.graph.query(
+        `MATCH (prev:Scene)-[r:NEXT_SCENE]->(:Scene {_uid: $_uid})
+         RETURN prev.end_time AS prev_end_time, prev.location_name AS prev_loc`,
+        { _uid: oldScene._uid },
+      );
+      if (prevResult.rows.length > 0) {
+        const prevEndTime = prevResult.rows[0].prev_end_time as number | null;
+        if (prevEndTime !== null && prevEndTime !== input.start_time) {
+          const prevLoc = (prevResult.rows[0].prev_loc as string) ?? "(unknown)";
+          timeMismatchWarning = `Time mismatch: previous scene "${prevLoc}" ended at ${prevEndTime} but new scene starts at ${input.start_time}.`;
+        }
+      }
+
       // Populate the placeholder
       await this.graph.query(
         `MATCH (s:Scene {_uid: $_uid})
@@ -133,7 +148,8 @@ export class SceneModel {
         { _uid: oldScene._uid, reason: input.reason, now },
       );
 
-      return this.getByUid(oldScene._uid);
+      const scene = await this.getByUid(oldScene._uid);
+      return { scene, timeMismatchWarning };
     }
 
     // Create brand new scene
@@ -166,7 +182,8 @@ export class SceneModel {
       );
     }
 
-    return this.getByUid(_uid);
+    const scene = await this.getByUid(_uid);
+    return { scene };
   }
 
   async modify(input: ModifySceneInput): Promise<SceneData | null> {
@@ -297,12 +314,25 @@ export class SceneModel {
     return allEntries;
   }
 
-  async getChain(): Promise<SceneData[]> {
+  async getChain(): Promise<{ scenes: SceneData[]; warnings: string[] }> {
     const result = await this.graph.query("MATCH (s:Scene) RETURN s ORDER BY s.start_time");
-    return result.rows.map((row) => {
+    const scenes = result.rows.map((row) => {
       const s = (row.s || row) as Record<string, unknown>;
       return this.parseScene(s);
     });
+
+    const warnings: string[] = [];
+    for (let i = 0; i < scenes.length - 1; i++) {
+      const prev = scenes[i];
+      const curr = scenes[i + 1];
+      if (prev.end_time !== null && prev.end_time !== curr.start_time) {
+        warnings.push(
+          `Scene "${prev.location_name ?? "(placeholder)"}" (${prev._uid}) end_time=${prev.end_time} but next scene "${curr.location_name ?? "(placeholder)"}" (${curr._uid}) start_time=${curr.start_time}`,
+        );
+      }
+    }
+
+    return { scenes, warnings };
   }
 
   private async getActiveRaw(): Promise<SceneData | null> {

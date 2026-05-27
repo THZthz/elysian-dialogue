@@ -71,7 +71,9 @@ export class EntityModel {
 
     const entityProps = { name: props.name, brief, description };
     const contentText = registry.getEmbeddingText(label, entityProps);
-    const contentVec = await this.embedder.embed(contentText || `${props.name} ${brief} ${description}`);
+    const contentVec = await this.embedder.embed(
+      contentText || `${props.name} ${brief} ${description}`,
+    );
     const sparseVec = encodeSparse(contentText || props.name);
 
     this.vectors.upsert(

@@ -22,8 +22,8 @@ import type { Embedder } from "@/server/search/embedder";
 import { getSchemaRegistry } from "@/server/db/schema";
 import { encodeSparse } from "@/server/search/sparseEncoder";
 
-export type PlotStatus = "PENDING" | "ACTIVE" | "COMPLETED" | "ABANDONED";
 export const PLOT_STATUSES = ["PENDING", "ACTIVE", "COMPLETED", "ABANDONED"] as const;
+export type PlotStatus = (typeof PLOT_STATUSES)[number];
 
 export interface PlotFlag {
   flagId: string;
