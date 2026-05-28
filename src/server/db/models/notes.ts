@@ -123,14 +123,14 @@ export class NoteModel {
     );
   }
 
-  async linkToScene(noteName: string, sceneUid: string): Promise<void> {
+  async linkToScene(noteName: string, sceneName: string): Promise<void> {
     await this.graph.mergeRelationship(
       "Note",
       "name",
       noteName,
       "Scene",
-      "_uid",
-      sceneUid,
+      "name",
+      sceneName,
       "ABOUT_SCENE",
     );
   }
@@ -169,10 +169,10 @@ export class NoteModel {
 
   async getLinkedScenes(noteName: string): Promise<string[]> {
     const r = await this.graph.query(
-      "MATCH (n:Note {name: $name})-[:ABOUT_SCENE]->(s:Scene) RETURN s._uid AS uid",
+      "MATCH (n:Note {name: $name})-[:ABOUT_SCENE]->(s:Scene) RETURN s.name AS name",
       { name: noteName },
     );
-    return r.rows.map((row) => row.uid as string);
+    return r.rows.map((row) => row.name as string);
   }
 
   async getLinkedPlots(noteName: string): Promise<string[]> {

@@ -37,7 +37,7 @@ describe("SceneModel", () => {
       characters: ["Player", "Bartender"],
       reason: "Story begins",
     });
-    expect(scene._uid).toBeDefined();
+    expect(scene.name).toBeDefined();
     expect(scene.start_time).toBe(204);
     expect(scene.end_time).toBeNull();
     expect(scene.location_name).toBe("Tavern");
@@ -81,8 +81,8 @@ describe("SceneModel", () => {
       reason: "Entered castle",
     });
 
-    await db.scene.appendPlayerLog(scene._uid, "I kneel before the king.");
-    await db.scene.appendGMLog(scene._uid, [
+    await db.scene.appendPlayerLog(scene.name, "I kneel before the king.");
+    await db.scene.appendGMLog(scene.name, [
       { speaker: "King", type: "CHARACTER", text: "Rise, hero." },
     ]);
 

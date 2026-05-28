@@ -95,7 +95,7 @@ Remove a node and all its relationships (DETACH DELETE). Requires exact match cr
 
 ## Disposition
 Stored as a NODE (not a relationship), linked via (npc:Character)-[:HAS_DISPOSITION]->(d:Disposition).
-Sentiment keywords can be protective, trusting, fearful, hostile, attracted, suspicious, resentful, grateful, indifferent.
+Sentiment keywords can be protective, trusting, fearful, hostile, attracted, suspicious, resentful, grateful, indifferent, etc.
 Set or update disposition when an NPC's feelings shift due to player actions.
 
 ## Example

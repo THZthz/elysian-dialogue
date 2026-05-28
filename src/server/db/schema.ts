@@ -216,7 +216,7 @@ const PREDEFINED_NODES: NodeTypeDef[] = [
     description:
       "A narrative scene tracking time, location, characters, log, and dialogue options. Active scene has end_time IS NULL.",
     properties: [
-      { name: "_uid", description: "UUID.", tags: ["string", "unique"] },
+      { name: "name", description: "Unique scene ID (scene_XXXX).", tags: ["string", "unique"] },
       {
         name: "start_time",
         description: "Scene start time: day * 48 + half-hour.",

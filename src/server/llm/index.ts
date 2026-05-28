@@ -81,7 +81,7 @@ export async function generateTurn(
     try {
       const activeScene = await db.scene.getActive();
       if (activeScene) {
-        await db.scene.appendPlayerLog(activeScene._uid, userInput);
+        await db.scene.appendPlayerLog(activeScene.name, userInput);
       }
     } catch (err) {
       console.error("[generateTurn] failed to log player input to scene:", err);
@@ -147,7 +147,7 @@ export async function generateTurn(
         try {
           const activeScene = await db.scene.getActive();
           if (activeScene) {
-            await db.scene.appendRollLog(activeScene._uid, rollText, {
+            await db.scene.appendRollLog(activeScene.name, rollText, {
               speaker: check.skill,
               rollResult: {
                 skill: rollResult.skill as SkillName,
@@ -520,7 +520,7 @@ export async function generateTurn(
         const activeScene = await db.scene.getActive();
         if (activeScene) {
           await db.scene.appendGMLog(
-            activeScene._uid,
+            activeScene.name,
             finalMessages as Array<{
               speaker: string;
               type: string;
@@ -571,7 +571,7 @@ export async function generateTurn(
       try {
         const activeScene = await db.scene.getActive();
         if (activeScene) {
-          await db.scene.saveOptions(activeScene._uid, finalOptions);
+          await db.scene.saveOptions(activeScene.name, finalOptions);
         }
       } catch (err) {
         console.error("[generateTurn] failed to persist options:", err);

@@ -16,11 +16,11 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { v4 as uuidv4 } from "uuid";
+import { nextId } from "@/server/db/idGenerator";
 import type { LadybugClient } from "@/server/db/ladybug";
 
 export interface SceneData {
-  _uid: string;
+  name: string;
   start_time: number;
   end_time: number | null;
   location_name: string | null;
@@ -82,7 +82,7 @@ export class SceneModel {
 
   async create(input: CreateSceneInput): Promise<{ scene: SceneData; timeMismatchWarning?: string }> {
     const now = new Date().toISOString();
-    const _uid = uuidv4();
+    const name = `scene_${await nextId(this.graph)}`;
 
     // Check if active scene exists
     const existingResult = await this.graph.query(
@@ -106,8 +106,8 @@ export class SceneModel {
     if (oldScene && !isPlaceholder) {
       // Close the old scene
       await this.graph.query(
-        "MATCH (s:Scene {_uid: $_uid}) SET s.end_time = $end_time, s._updated_at = $now",
-        { _uid: oldScene._uid, end_time: input.start_time, now },
+        "MATCH (s:Scene {name: $oldName}) SET s.end_time = $end_time, s._updated_at = $now",
+        { oldName: oldScene.name, end_time: input.start_time, now },
       );
     }
 
@@ -115,9 +115,9 @@ export class SceneModel {
       // Check if previous scene's end_time matches new start_time
       let timeMismatchWarning: string | undefined;
       const prevResult = await this.graph.query(
-        `MATCH (prev:Scene)-[r:NEXT_SCENE]->(:Scene {_uid: $_uid})
+        `MATCH (prev:Scene)-[r:NEXT_SCENE]->(:Scene {name: $name})
          RETURN prev.end_time AS prev_end_time, prev.location_name AS prev_loc`,
-        { _uid: oldScene._uid },
+        { name: oldScene.name },
       );
       if (prevResult.rows.length > 0) {
         const prevEndTime = prevResult.rows[0].prev_end_time as number | null;
@@ -129,11 +129,11 @@ export class SceneModel {
 
       // Populate the placeholder
       await this.graph.query(
-        `MATCH (s:Scene {_uid: $_uid})
+        `MATCH (s:Scene {name: $name})
          SET s.start_time = $start_time, s.location_name = $loc, s.characters = $chars,
              s._updated_at = $now`,
         {
-          _uid: oldScene._uid,
+          name: oldScene.name,
           start_time: input.start_time,
           loc: input.location_name,
           chars: JSON.stringify(input.characters),
@@ -143,24 +143,24 @@ export class SceneModel {
 
       // Update the reason on the NEXT_SCENE relationship
       await this.graph.query(
-        `MATCH (:Scene)-[r:NEXT_SCENE]->(:Scene {_uid: $_uid})
+        `MATCH (:Scene)-[r:NEXT_SCENE]->(:Scene {name: $name})
          SET r.reason = $reason, r._updated_at = $now`,
-        { _uid: oldScene._uid, reason: input.reason, now },
+        { name: oldScene.name, reason: input.reason, now },
       );
 
-      const scene = await this.getByUid(oldScene._uid);
+      const scene = await this.getByName(oldScene.name);
       return { scene, timeMismatchWarning };
     }
 
     // Create brand new scene
     await this.graph.query(
       `CREATE (s:Scene {
-         _uid: $_uid, start_time: $start_time, end_time: NULL,
+         name: $name, start_time: $start_time, end_time: NULL,
          location_name: $loc, characters: $chars, log: $log,
          options: NULL, _updated_at: $now
        })`,
       {
-        _uid,
+        name,
         start_time: input.start_time,
         loc: input.location_name,
         chars: JSON.stringify(input.characters),
@@ -172,17 +172,17 @@ export class SceneModel {
     if (oldScene) {
       await this.graph.mergeRelationship(
         "Scene",
-        "_uid",
-        oldScene._uid,
+        "name",
+        oldScene.name,
         "Scene",
-        "_uid",
-        _uid,
+        "name",
+        name,
         "NEXT_SCENE",
         { reason: input.reason },
       );
     }
 
-    const scene = await this.getByUid(_uid);
+    const scene = await this.getByName(name);
     return { scene };
   }
 
@@ -195,28 +195,28 @@ export class SceneModel {
     if (input.add_characters && input.add_characters.length > 0) {
       const merged = [...new Set([...active.characters, ...input.add_characters])];
       await this.graph.query(
-        "MATCH (s:Scene {_uid: $_uid}) SET s.characters = $chars, s._updated_at = $now",
-        { _uid: active._uid, chars: JSON.stringify(merged), now },
+        "MATCH (s:Scene {name: $name}) SET s.characters = $chars, s._updated_at = $now",
+        { name: active.name, chars: JSON.stringify(merged), now },
       );
     }
 
     if (input.end_time !== undefined) {
       // Close the current scene
       await this.graph.query(
-        "MATCH (s:Scene {_uid: $_uid}) SET s.end_time = $end_time, s._updated_at = $now",
-        { _uid: active._uid, end_time: input.end_time, now },
+        "MATCH (s:Scene {name: $name}) SET s.end_time = $end_time, s._updated_at = $now",
+        { name: active.name, end_time: input.end_time, now },
       );
 
       // Create placeholder
-      const phUid = uuidv4();
+      const phName = `scene_${await nextId(this.graph)}`;
       await this.graph.query(
         `CREATE (s:Scene {
-           _uid: $_uid, start_time: $end_time, end_time: NULL,
+           name: $name, start_time: $end_time, end_time: NULL,
            location_name: NULL, characters: $emptyArr, log: $emptyArr,
            options: NULL, _updated_at: $now
          })`,
         {
-          _uid: phUid,
+          name: phName,
           end_time: input.end_time,
           emptyArr: JSON.stringify([]),
           now,
@@ -225,51 +225,51 @@ export class SceneModel {
 
       await this.graph.mergeRelationship(
         "Scene",
-        "_uid",
-        active._uid,
+        "name",
+        active.name,
         "Scene",
-        "_uid",
-        phUid,
+        "name",
+        phName,
         "NEXT_SCENE",
         { reason: input.reason ?? "" },
       );
 
-      return this.getByUid(phUid);
+      return this.getByName(phName);
     }
 
     return this.getActive();
   }
 
-  async appendPlayerLog(sceneUid: string, userInput: string): Promise<void> {
+  async appendPlayerLog(sceneName: string, userInput: string): Promise<void> {
     const entry: SceneLogEntry = { type: "player", content: userInput };
-    const result = await this.graph.query("MATCH (s:Scene {_uid: $_uid}) RETURN s.log AS log", {
-      _uid: sceneUid,
+    const result = await this.graph.query("MATCH (s:Scene {name: $name}) RETURN s.log AS log", {
+      name: sceneName,
     });
     const currentLog: SceneLogEntry[] = parseJsonField<SceneLogEntry[]>(result.rows[0]?.log, []);
     currentLog.push(entry);
-    await this.graph.query("MATCH (s:Scene {_uid: $_uid}) SET s.log = $log, s._updated_at = $now", {
-      _uid: sceneUid,
+    await this.graph.query("MATCH (s:Scene {name: $name}) SET s.log = $log, s._updated_at = $now", {
+      name: sceneName,
       log: JSON.stringify(currentLog),
       now: new Date().toISOString(),
     });
   }
 
   async appendGMLog(
-    sceneUid: string,
+    sceneName: string,
     messages: SceneMessageContent[],
     options?: Record<string, unknown>,
   ): Promise<void> {
     const entry: SceneLogEntry = { type: "gm", content: messages, options };
-    const result = await this.graph.query("MATCH (s:Scene {_uid: $_uid}) RETURN s.log AS log", {
-      _uid: sceneUid,
+    const result = await this.graph.query("MATCH (s:Scene {name: $name}) RETURN s.log AS log", {
+      name: sceneName,
     });
     const currentLog: SceneLogEntry[] = parseJsonField<SceneLogEntry[]>(result.rows[0]?.log, []);
     currentLog.push(entry);
     const now = new Date().toISOString();
     await this.graph.query(
-      "MATCH (s:Scene {_uid: $_uid}) SET s.log = $log, s.options = $opts, s._updated_at = $now",
+      "MATCH (s:Scene {name: $name}) SET s.log = $log, s.options = $opts, s._updated_at = $now",
       {
-        _uid: sceneUid,
+        name: sceneName,
         log: JSON.stringify(currentLog),
         opts: options ? JSON.stringify(options) : null,
         now,
@@ -278,27 +278,27 @@ export class SceneModel {
   }
 
   async appendRollLog(
-    sceneUid: string,
+    sceneName: string,
     content: string,
     metadata?: Record<string, unknown>,
   ): Promise<void> {
     const entry: SceneLogEntry = { type: "roll", content, metadata };
-    const result = await this.graph.query("MATCH (s:Scene {_uid: $_uid}) RETURN s.log AS log", {
-      _uid: sceneUid,
+    const result = await this.graph.query("MATCH (s:Scene {name: $name}) RETURN s.log AS log", {
+      name: sceneName,
     });
     const currentLog: SceneLogEntry[] = parseJsonField<SceneLogEntry[]>(result.rows[0]?.log, []);
     currentLog.push(entry);
-    await this.graph.query("MATCH (s:Scene {_uid: $_uid}) SET s.log = $log, s._updated_at = $now", {
-      _uid: sceneUid,
+    await this.graph.query("MATCH (s:Scene {name: $name}) SET s.log = $log, s._updated_at = $now", {
+      name: sceneName,
       log: JSON.stringify(currentLog),
       now: new Date().toISOString(),
     });
   }
 
-  async saveOptions(sceneUid: string, options: unknown): Promise<void> {
+  async saveOptions(sceneName: string, options: unknown): Promise<void> {
     await this.graph.query(
-      "MATCH (s:Scene {_uid: $_uid}) SET s.options = $options, s._updated_at = $now",
-      { _uid: sceneUid, options: JSON.stringify(options), now: new Date().toISOString() },
+      "MATCH (s:Scene {name: $name}) SET s.options = $options, s._updated_at = $now",
+      { name: sceneName, options: JSON.stringify(options), now: new Date().toISOString() },
     );
   }
 
@@ -327,7 +327,7 @@ export class SceneModel {
       const curr = scenes[i + 1];
       if (prev.end_time !== null && prev.end_time !== curr.start_time) {
         warnings.push(
-          `Scene "${prev.location_name ?? "(placeholder)"}" (${prev._uid}) end_time=${prev.end_time} but next scene "${curr.location_name ?? "(placeholder)"}" (${curr._uid}) start_time=${curr.start_time}`,
+          `Scene "${prev.location_name ?? "(placeholder)"}" (${prev.name}) end_time=${prev.end_time} but next scene "${curr.location_name ?? "(placeholder)"}" (${curr.name}) start_time=${curr.start_time}`,
         );
       }
     }
@@ -340,7 +340,7 @@ export class SceneModel {
     if (result.rows.length === 0) return null;
     const s = (result.rows[0].s || result.rows[0]) as Record<string, unknown>;
     return {
-      _uid: s._uid as string,
+      name: s.name as string,
       start_time: s.start_time as number,
       end_time: (s.end_time as number) ?? null,
       location_name: (s.location_name as string) ?? null,
@@ -351,15 +351,15 @@ export class SceneModel {
     };
   }
 
-  private async getByUid(_uid: string): Promise<SceneData> {
-    const result = await this.graph.query("MATCH (s:Scene {_uid: $_uid}) RETURN s", { _uid });
+  private async getByName(name: string): Promise<SceneData> {
+    const result = await this.graph.query("MATCH (s:Scene {name: $name}) RETURN s", { name });
     const s = (result.rows[0].s || result.rows[0]) as Record<string, unknown>;
     return this.parseScene(s);
   }
 
   private parseScene(s: Record<string, unknown>): SceneData {
     return {
-      _uid: s._uid as string,
+      name: s.name as string,
       start_time: s.start_time as number,
       end_time: (s.end_time as number) ?? null,
       location_name: (s.location_name as string) ?? null,

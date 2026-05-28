@@ -120,7 +120,7 @@ apiRouter.get("/game/current", async (_req, res) => {
     const db = Database.getExisting();
     const active = await db.scene.getActive();
     if (active && active.options) {
-      res.json({ id: active._uid, options: active.options });
+      res.json({ id: active.name, options: active.options });
     } else {
       res.json(null);
     }

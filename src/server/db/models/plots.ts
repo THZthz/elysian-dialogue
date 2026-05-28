@@ -180,7 +180,7 @@ export class PlotModel {
     return r.rows.map((row) => row.name as string);
   }
 
-  async markPlotTimeRel(name: string, relType: string): Promise<void> {
+  async markPlotSceneRel(name: string, relType: string): Promise<void> {
     await this.graph.query(
       `MATCH (s:Scene) WHERE s.end_time IS NULL
        MATCH (p:Plot {name: $name})

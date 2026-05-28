@@ -126,7 +126,7 @@ At most one Scene has \`end_time = NULL\` (the active scene). When CREATE is cal
         });
 
         events.emitSceneUpdate({
-          scene_id: scene._uid,
+          scene_id: scene.name,
           start_time: scene.start_time,
           end_time: scene.end_time,
           location_name: scene.location_name!,
@@ -152,7 +152,7 @@ At most one Scene has \`end_time = NULL\` (the active scene). When CREATE is cal
           reason: args.reason ?? undefined,
         });
         events.emitSceneUpdate({
-          scene_id: active._uid,
+          scene_id: active.name,
           start_time: active.start_time,
           end_time: endTime,
           location_name: active.location_name!,

@@ -45,7 +45,7 @@ const inputSchema = z.object({
     .nullable()
     .optional()
     .describe(
-      "Scene _uid values to link this note to. Replaces existing ABOUT_SCENE links — pass [] to clear all.",
+      "Scene name values to link this note to. Replaces existing ABOUT_SCENE links — pass [] to clear all.",
     ),
   aboutPlots: z
     .array(z.string())
@@ -97,7 +97,7 @@ or ABOUT_SCENE first if you have a clear target.
       if (args.aboutPlots) {
         for (const name of args.aboutPlots) await db.notes.linkToPlot(args.noteName, name);
       }
-      return `Note "${args.noteName}" is successfully created (${args.content.length} chars, ${args.aboutEntities?.length ?? 0} entities linked, ${args.aboutScenes?.length ?? 0} scenes linked, ${args.aboutPlots?.length ?? 0} plots linked).`;
+      return `Note "${args.noteName}" is successfully created with ${args.content.length} characters (currently ${args.aboutEntities?.length ?? 0} entities linked, ${args.aboutScenes?.length ?? 0} scenes linked, ${args.aboutPlots?.length ?? 0} plots linked).`;
     }
 
     const existing = await db.notes.getByName(args.noteName);
@@ -132,6 +132,6 @@ or ABOUT_SCENE first if you have a clear target.
     if (flags & 0x2) updatedFields.push("all entities links");
     if (flags & 0x4) updatedFields.push("all scenes links");
     if (flags & 0x8) updatedFields.push("all plots links");
-    return `Note "${args.noteName}" is successfully updated (${updatedFields.join(", ")} is overwritten).`;
+    return `Note "${args.noteName}" is successfully updated (overwritten ${updatedFields.join(", ")}).`;
   }, TOOL_NAMES.EDIT_NOTE),
 });
