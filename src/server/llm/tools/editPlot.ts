@@ -74,7 +74,7 @@ Manage narrative arcs — CREATE, UPDATE (partial overwrite), or DELETE a plot.
 
 ## Status flow
 > PENDING → ACTIVE → COMPLETED / ABANDONED
-Status transitions auto-wire scene relationships (STARTED_AT, ACTIVE_AT, COMPLETED_AT) to the active
+Status transitions auto-wire scene relationships (STARTED_AT, COMPLETED_AT) to the active
 Scene — just set the \`status\` parameter.
 
 ## Flags and branches
@@ -136,9 +136,6 @@ of action or allegiance, not a single line of dialogue.
     if (newStatus !== oldStatus) {
       if (oldStatus === "PENDING" && newStatus === "ACTIVE") {
         await db.plots.markPlotSceneRel(args.plotName, "STARTED_AT");
-        await db.plots.markPlotSceneRel(args.plotName, "ACTIVE_AT");
-      } else if (newStatus === "ACTIVE" && oldStatus !== "ACTIVE") {
-        await db.plots.markPlotSceneRel(args.plotName, "ACTIVE_AT");
       } else if (newStatus === "COMPLETED") {
         await db.plots.markPlotSceneRel(args.plotName, "COMPLETED_AT");
       }

@@ -43,13 +43,7 @@ export interface NodeTypeDef {
   properties: NodePropertyDef[];
 }
 
-export const REL_PROPERTY_TAGS = [
-  "string",
-  "number",
-  "number[]",
-  "json",
-  "embedded",
-] as const;
+export const REL_PROPERTY_TAGS = ["string", "number", "number[]", "json", "embedded"] as const;
 export type RelPropertyTag = (typeof REL_PROPERTY_TAGS)[number];
 
 export interface RelPropertyDef {
@@ -461,19 +455,11 @@ const PREDEFINED_RELS: RelTypeDef[] = [
     properties: [CREATED_AT_PROP],
   },
   {
-    name: "ACTIVE_AT",
-    sourceLabel: "Plot",
-    targetLabel: "Scene",
-    category: "PREDEFINED",
-    description: `Plot active time. Managed by \`${TOOL_NAMES.EDIT_PLOT}\`.`,
-    properties: [CREATED_AT_PROP],
-  },
-  {
     name: "COMPLETED_AT",
     sourceLabel: "Plot",
     targetLabel: "Scene",
     category: "PREDEFINED",
-    description: `Plot completion time. Managed by \`${TOOL_NAMES.EDIT_PLOT}\`.`,
+    description: `The scene where plot completed. Managed by \`${TOOL_NAMES.EDIT_PLOT}\`.`,
     properties: [CREATED_AT_PROP],
   },
   {
@@ -481,7 +467,7 @@ const PREDEFINED_RELS: RelTypeDef[] = [
     sourceLabel: "Plot",
     targetLabel: "Scene",
     category: "PREDEFINED",
-    description: "Plot start time. Managed by editPlot.",
+    description: "The scene where plot started. Managed by editPlot.",
     properties: [CREATED_AT_PROP],
   },
   {

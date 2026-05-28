@@ -104,7 +104,7 @@ export const editRelationship = tool({
   description: `
 ## Brief
 CREATE or UPDATE a relationship between two nodes in the world archive. It is not recommended
-to use this tool to directly edit ABOUT_ENTITY, ABOUT_SCENE, ABOUT_PLOT, STARTED_AT, ACTIVE_AT,
+to use this tool to directly edit ABOUT_ENTITY, ABOUT_SCENE, ABOUT_PLOT, STARTED_AT,
 COMPLETED_AT or BRANCHES_TO.
 
 ## CREATE
