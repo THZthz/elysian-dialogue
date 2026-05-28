@@ -141,7 +141,7 @@ Only GM_DEFINED types can be unregistered. PREDEFINED and INTERNAL types are per
 
         const existing = db.schema.getRelType(args.name, srcLabel, tgtLabel);
         if (existing && existing.category !== "GM_DEFINED") {
-          return `Cannot register "${args.name}" (${srcLabel}→${tgtLabel}): it is a ${existing.category} type and cannot be modified.`;
+          return `ERROR: Cannot register "${args.name}" (${srcLabel}→${tgtLabel}): it is a ${existing.category} type and cannot be modified.`;
         }
 
         const inputProps = (args.properties ?? [])
@@ -183,7 +183,7 @@ Only GM_DEFINED types can be unregistered. PREDEFINED and INTERNAL types are per
       if (args.target === "NODE") {
         const existing = db.schema.getNodeType(args.name);
         if (!existing || existing.category !== "GM_DEFINED") {
-          return `Cannot unregister "${args.name}": it is not a GM_DEFINED type.`;
+          return `ERROR: Cannot unregister "${args.name}": it is not a GM_DEFINED type.`;
         }
         await db.graph.query("MATCH (nt:NodeType {name: $name}) DETACH DELETE nt", {
           name: args.name,
@@ -199,7 +199,7 @@ Only GM_DEFINED types can be unregistered. PREDEFINED and INTERNAL types are per
         }
         const existing = db.schema.getRelType(args.name, srcLabel, tgtLabel);
         if (!existing || existing.category !== "GM_DEFINED") {
-          return `Cannot unregister "${args.name}" (${srcLabel}→${tgtLabel}): it is not a GM_DEFINED type.`;
+          return `ERROR: Cannot unregister "${args.name}" (${srcLabel}→${tgtLabel}): it is not a GM_DEFINED type.`;
         }
         await db.graph.query(
           "MATCH (rt:RelationshipType {name: $name, source_label: $src, target_label: $tgt}) DETACH DELETE rt",
@@ -209,6 +209,6 @@ Only GM_DEFINED types can be unregistered. PREDEFINED and INTERNAL types are per
       }
     }
 
-    return "Invalid action. Use 'register' or 'unregister'.";
+    return "ERROR: Invalid action. Use 'REGISTER' or 'UNREGISTER'.";
   }, TOOL_NAMES.MANAGE_SCHEMA),
 });

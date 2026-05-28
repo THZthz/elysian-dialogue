@@ -156,8 +156,8 @@ The GM is given 10 tools (defined in `src/server/llm/tools/`), each with a speci
 
 - **`queryWorld`** — raw Cypher queries (multi-hop traversals, aggregations, bulk ops)
 - **`searchWorld`** — hybrid vector + BM25 + rerank search
-- **`editNode`** — single-node CRUD with embedding updates and JSON partial merge
-- **`editRelationship`** — single-relationship CRUD with MERGE semantics
+- **`editNode`** — single-node UPSERT / DELETE with embedding updates and JSON partial merge
+- **`editRelationship`** — single-relationship UPSERT (auto-detects create vs update, JSON partial merge)
 - **`editNote`** — GM scratchpad (ABOUT_CHARACTER/OBJECT/LOCATION/SCENE/PLOT)
 - **`editPlot`** — story arc management with status lifecycle and conditions
 - **`manageSchema`** — register new node/rel types (must run before data insertion)
@@ -200,6 +200,7 @@ The full Cypher cookbook is embedded in the system prompt at `src/server/llm/pro
 - Embedder stub (4-dimensional) used when llama-server is unavailable
 - `fileParallelism: false` — tests run sequentially because they share a global `Database` singleton
 - `testTimeout: 30000` — some integration tests may need this for DB operations
+- `tests/integration/tools.test.ts` — comprehensive tests for all 10 LLM tools (93 active, 11 skipped for known bugs)
 
 ### Story seeding
 

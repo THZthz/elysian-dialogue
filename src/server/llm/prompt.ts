@@ -79,8 +79,8 @@ LadybugDB uses a **structured property graph model** — schema-first, strongly-
 
 | Tool | Maps to | Use for |
 |------|---------|---------|
-| \`${TOOL_NAMES.EDIT_NODE}\` | CREATE / SET / DELETE | Single-node CRUD. Handles JSON partial merge, embeddings, and schema validation automatically. |
-| \`${TOOL_NAMES.EDIT_RELATIONSHIP}\` | CREATE / SET on rels | Single-relationship CRUD. Auto-sets temporal props (\`created_at\`, \`valid_at\`), MERGE semantics. |
+| \`${TOOL_NAMES.EDIT_NODE}\` | UPSERT / DELETE | Single-node UPSERT or DELETE. Handles JSON partial merge, embeddings, and schema validation automatically. |
+| \`${TOOL_NAMES.EDIT_RELATIONSHIP}\` | UPSERT on rels | Single-relationship UPSERT. Auto-sets temporal props (\`created_at\`, \`valid_at\`) on create, JSON partial merge on update. |
 | \`${TOOL_NAMES.MANAGE_SCHEMA}\` | CREATE NODE/REL TABLE | Register new node labels and relationship types before use. Generates the DDL. |
 | \`${TOOL_NAMES.QUERY_WORLD}\` | Raw Cypher | Multi-hop traversals, aggregations, bulk operations, or anything spanning multiple nodes/rels. |
 | \`${TOOL_NAMES.GET_CONTEXT}\` (SCHEMA_DUMP) | — | Discover registered types, property schemas, and tags. |
@@ -101,7 +101,7 @@ LadybugDB uses a **structured property graph model** — schema-first, strongly-
 - Predefined types (Character, Object, Location, Plot, Note, Disposition, etc.) are already registered.
 - For new types, call \`${TOOL_NAMES.MANAGE_SCHEMA}\` first — it creates the actual node/relationship tables.
 - Schema dump shows types from the registry with property schemas and tags.
-- Properties tagged \`json\` receive automatic partial merge on UPDATE in both \`${TOOL_NAMES.EDIT_NODE}\` and \`${TOOL_NAMES.EDIT_RELATIONSHIP}\`.
+- Properties tagged \`json\` receive automatic partial merge on update in both \`${TOOL_NAMES.EDIT_NODE}\` and \`${TOOL_NAMES.EDIT_RELATIONSHIP}\`.
 
 ### Query Rules
 

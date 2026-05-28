@@ -25,8 +25,6 @@ import { getEmbedder } from "@/server/search/embedder";
 import { encodeSparse } from "@/server/search/sparseEncoder";
 import { TOOL_NAMES } from "@/shared/constants";
 
-const REL_ACTIONS = ["CREATE", "UPDATE"] as const;
-
 // Schema stores pipe-delimited source/target labels (e.g. "Character|Object").
 // The LLM passes individual labels, so we need fuzzy matching.
 function matchesEndpoint(defLabel: string, queryLabel: string): boolean {
@@ -72,7 +70,6 @@ function getRelEmbeddingNameText(
 }
 
 const inputSchema = z.object({
-  action: z.enum(REL_ACTIONS).default("CREATE").describe("Action to perform."),
   relationshipType: z
     .string()
     .describe(
@@ -103,29 +100,32 @@ export const editRelationship = tool({
   title: TOOL_NAMES.EDIT_RELATIONSHIP,
   description: `
 ## Brief
-CREATE or UPDATE a relationship between two nodes in the world archive. It is not recommended
-to use this tool to directly edit ABOUT_CHARACTER, ABOUT_OBJECT, ABOUT_LOCATION, ABOUT_SCENE, ABOUT_PLOT, STARTED_AT,
-COMPLETED_AT or BRANCHES_TO.
+Create or update a relationship between two nodes in the world archive. This is a unified
+UPSERT — no need to know whether the relationship already exists. If it exists, properties
+are updated (with JSON partial merge). If it doesn't, it's created. Both endpoint nodes
+must already exist.
 
-## CREATE
-Link two existing nodes. The relationship type must be registered by \`${TOOL_NAMES.MANAGE_SCHEMA}\`.
-Uses MERGE semantics — safe to call twice. Both endpoint nodes must already exist.
+It is not recommended to use this tool to directly **edit** ABOUT_CHARACTER/ABOUT_OBJECT/
+ABOUT_LOCATION/ABOUT_SCENE/ABOUT_PLOT (managed by \`${TOOL_NAMES.EDIT_NOTE}\`),
+STARTED_AT/COMPLETED_AT/BRANCHES_TO (managed by \`${TOOL_NAMES.EDIT_PLOT}\`).
 
-## UPDATE
-Partially change properties on an existing relationship. Only include properties you want
-to change. Properties tagged "json" receive partial merge (like editNode UPDATE).
+## Upsert behavior
+The relationship type must be registered by \`${TOOL_NAMES.MANAGE_SCHEMA}\`. You can get
+existing relationships' schema by \`${TOOL_NAMES.GET_CONTEXT}\` with SCHEMA_DUMP.
+- **New relationship**: \`created_at\` is auto-set to the active scene time and \`valid_at\`
+  starts NULL for temporal relationships. Endpoint nodes must both exist.
+- **Existing relationship**: properties are partially updated. Properties tagged "json"
+  receive partial merge. \`created_at\` is preserved (immutable birth time).
 
-## Others
+## Temporal relationships
 All state-changing relationships (LOCATED_AT, LOCATED_IN, CARRIES, HAS_DISPOSITION) are
-temporal — created_at is auto-set to the active scene time and valid_at starts NULL on
-CREATE. Use UPDATE to set valid_at to end a relationship instead of deleting.
+temporal. Set \`valid_at\` to end a relationship instead of deleting — the relationship
+history is preserved.
 
-## Others
-Relationship properties for spatial/tactical context:
+## Spatial/tactical properties
 - LOCATED_AT.brief — spatial position detail (e.g. "hiding behind crates")
 - LOCATED_IN.brief — access/containment detail (e.g. "accessed through a trapdoor behind the bar")
 - CARRIES.brief — how an item is carried (e.g. "concealed in a boot")
-- CARRIES.brief — how/where an item is carried
 
 Convention: use LOCATED_AT for characters/objects at a specific spot. Use LOCATED_IN for
 sub-locations nested within a larger location (e.g., a basement inside a tavern).
@@ -200,129 +200,25 @@ sub-locations nested within a larger location (e.g., a basement inside a tavern)
 
     const wantsEmbedding = relDef.properties.some((p) => p.tags.includes("embedded"));
 
-    // ── CREATE ──
-    if (args.action === "CREATE") {
-      let createProps: Record<string, unknown> = {};
-      if (args.properties) {
-        const propErr = validateProps(args.properties);
-        if (propErr) return `ERROR: ${propErr}`;
-        const tempManaged = isTemporalRel(relDef)
-          ? new Set(["created_at", "valid_at"])
-          : new Set<string>();
-        for (const [key, value] of Object.entries(args.properties)) {
-          if (tempManaged.has(key)) continue;
-          createProps[key] = serializeValue(value);
-        }
-      }
-
-      // Auto-set temporal properties for state-changing relationships
-      if (isTemporalRel(relDef)) {
-        const activeScene = await db.scene.getActive();
-        createProps["created_at"] = activeScene?.start_time ?? 0;
-        createProps["valid_at"] = null;
-      }
-      // Always auto-set _updated_at
-      createProps["_updated_at"] = new Date().toISOString();
-
-      // TODO: auto-expire old relationship of same type+source when a new one is created
-      // (e.g., moving character to new location should expire old LOCATED_AT)
-
-      // Compute embeddings if the relationship type supports it.
-      let contentVec: number[] | null = null;
-      let nameText: string | null = null;
-
-      if (wantsEmbedding) {
-        nameText = getRelEmbeddingNameText(args.relationshipType, createProps, srcVal, tgtVal);
-        const contentText = getRelEmbeddingContentText(relDef, createProps);
-
-        const embedder = getEmbedder();
-        contentVec = contentText ? await embedder.embed(contentText).catch(() => null) : null;
-      }
-
-      await db.graph.mergeRelationship(
-        args.sourceLabel,
-        srcKey,
-        srcVal,
-        args.targetLabel,
-        tgtKey,
-        tgtVal,
-        safeType,
-        Object.keys(createProps).length > 0 ? createProps : undefined,
-      );
-
-      // Verify the relationship was created (endpoints must both exist for MERGE to succeed)
-      const checkResult = await db.graph.query(
-        `MATCH (src:\`${args.sourceLabel}\` {\`${srcKey}\`: $srcVal})-[r:\`${safeType}\`]->(tgt:\`${args.targetLabel}\` {\`${tgtKey}\`: $tgtVal}) RETURN count(r) AS cnt`,
-        { srcVal, tgtVal },
-      );
-      if ((checkResult.rows[0]?.cnt as number) === 0) {
-        return (
-          `ERROR: Could not create relationship. One or both endpoint nodes may not exist — ` +
-          `source: (:\`${args.sourceLabel}\` ${JSON.stringify(args.sourceMatch)}), ` +
-          `target: (:\`${args.targetLabel}\` ${JSON.stringify(args.targetMatch)}).`
-        );
-      }
-
-      if (contentVec) {
-        const pointId = `:rel:${args.relationshipType}:${srcVal}:${tgtVal}`;
-        try {
-          const contentText = getRelEmbeddingContentText(relDef, createProps);
-          const payload: Record<string, unknown> = {
-            node_type: args.relationshipType,
-            kind: "relationship",
-            object_id: pointId,
-            text: contentText || nameText || "",
-          };
-          for (const [k, v] of Object.entries(createProps)) {
-            if (!k.startsWith("_")) payload[k] = v;
-          }
-          const contentVecFA = contentVec ? new Float32Array(contentVec) : new Float32Array(0);
-          const sparse = nameText
-            ? encodeSparse(nameText)
-            : { indices: [] as number[], values: [] as number[] };
-          db.vectors.upsert(
-            pointId,
-            args.relationshipType,
-            "relationship",
-            contentVecFA,
-            sparse,
-            payload,
-          );
-        } catch (err) {
-          console.warn(
-            `[editRelationship] Vector upsert failed for "${args.relationshipType}":`,
-            err instanceof Error ? err.message : String(err),
-          );
-        }
-      }
-
-      return `Relationship (:${args.sourceLabel})-[:${args.relationshipType}]->(:${args.targetLabel}) created successfully.`;
+    // Check if relationship already exists
+    const existing = await db.graph.query(
+      `MATCH (src:\`${args.sourceLabel}\` {\`${srcKey}\`: $srcVal})-[r:\`${safeType}\`]->(tgt:\`${args.targetLabel}\` {\`${tgtKey}\`: $tgtVal}) RETURN r`,
+      { srcVal, tgtVal },
+    );
+    if (existing.rows.length > 1) {
+      return `ERROR: Multiple (${existing.rows.length}) matching relationships found. Use more specific match criteria.`;
     }
 
-    // ── UPDATE ──
-    if (args.action === "UPDATE") {
+    const exists = existing.rows.length === 1;
+
+    // ── UPDATE existing relationship ──
+    if (exists) {
       if (!args.properties || Object.keys(args.properties).length === 0) {
-        return "ERROR: No properties to update.";
+        return "ERROR: Relationship already exists but no properties were provided to update.";
       }
 
       const propErr = validateProps(args.properties);
       if (propErr) return `ERROR: ${propErr}`;
-
-      // Find the existing relationship
-      const matchParams: Record<string, unknown> = {
-        srcVal: srcVal,
-        tgtVal: tgtVal,
-      };
-      const existing = await db.graph.query(
-        `MATCH (src:\`${args.sourceLabel}\` {${srcKey}: $srcVal})-[r:${safeType}]->(tgt:\`${args.targetLabel}\` {${tgtKey}: $tgtVal}) RETURN r`,
-        matchParams,
-      );
-      if (existing.rows.length === 0) {
-        return `ERROR: Relationship not found — (:${args.sourceLabel} ${JSON.stringify(args.sourceMatch)})-[:${args.relationshipType}]->(:${args.targetLabel} ${JSON.stringify(args.targetMatch)}).`;
-      }
-      if (existing.rows.length > 1) {
-        return `ERROR: Multiple (${existing.rows.length}) matching relationships found. Use more specific match criteria.`;
-      }
 
       const existingRel = existing.rows[0]?.r as Record<string, unknown> | undefined;
 
@@ -355,10 +251,12 @@ sub-locations nested within a larger location (e.g., a basement inside a tavern)
       if (isTemporalRel(relDef)) {
         delete propertiesToSet["created_at"];
       }
-      // Always auto-set _updated_at
-      propertiesToSet["_updated_at"] = new Date().toISOString();
+      // Auto-set _updated_at if the relationship type has it
+      if (relDef.properties.some((p) => p.name === "_updated_at")) {
+        propertiesToSet["_updated_at"] = new Date().toISOString();
+      }
 
-      const setParams: Record<string, unknown> = { srcVal: srcVal, tgtVal: tgtVal };
+      const setParams: Record<string, unknown> = { srcVal, tgtVal };
       const setters: string[] = [];
       for (const [key, value] of Object.entries(propertiesToSet)) {
         const pName = `s_${key}`;
@@ -389,7 +287,7 @@ sub-locations nested within a larger location (e.g., a basement inside a tavern)
       }
 
       await db.graph.query(
-        `MATCH (src:\`${args.sourceLabel}\` {${srcKey}: $srcVal})-[r:${safeType}]->(tgt:\`${args.targetLabel}\` {${tgtKey}: $tgtVal}) SET ${setters.join(", ")}`,
+        `MATCH (src:\`${args.sourceLabel}\` {\`${srcKey}\`: $srcVal})-[r:\`${safeType}\`]->(tgt:\`${args.targetLabel}\` {\`${tgtKey}\`: $tgtVal}) SET ${setters.join(", ")}`,
         setParams,
       );
 
@@ -431,5 +329,104 @@ sub-locations nested within a larger location (e.g., a basement inside a tavern)
 
       return `Relationship (:${args.sourceLabel})-[:${args.relationshipType}]->(:${args.targetLabel}) updated properties: ${Object.keys(args.properties).join(", ")}.`;
     }
+
+    // ── CREATE new relationship ──
+    let createProps: Record<string, unknown> = {};
+    if (args.properties) {
+      const propErr = validateProps(args.properties);
+      if (propErr) return `ERROR: ${propErr}`;
+      const tempManaged = isTemporalRel(relDef)
+        ? new Set(["created_at", "valid_at"])
+        : new Set<string>();
+      for (const [key, value] of Object.entries(args.properties)) {
+        if (tempManaged.has(key)) continue;
+        createProps[key] = serializeValue(value);
+      }
+    }
+
+    // Auto-set temporal properties for state-changing relationships
+    if (isTemporalRel(relDef)) {
+      const activeScene = await db.scene.getActive();
+      createProps["created_at"] = activeScene?.start_time ?? 0;
+      createProps["valid_at"] = null;
+    }
+    // Auto-set _updated_at if the relationship type has it
+    if (relDef.properties.some((p) => p.name === "_updated_at")) {
+      createProps["_updated_at"] = new Date().toISOString();
+    }
+
+    // TODO: auto-expire old relationship of same type+source when a new one is created
+    // (e.g., moving character to new location should expire old LOCATED_AT)
+
+    // Compute embeddings if the relationship type supports it.
+    let contentVec: number[] | null = null;
+    let nameText: string | null = null;
+
+    if (wantsEmbedding) {
+      nameText = getRelEmbeddingNameText(args.relationshipType, createProps, srcVal, tgtVal);
+      const contentText = getRelEmbeddingContentText(relDef, createProps);
+
+      const embedder = getEmbedder();
+      contentVec = contentText ? await embedder.embed(contentText).catch(() => null) : null;
+    }
+
+    await db.graph.mergeRelationship(
+      args.sourceLabel,
+      srcKey,
+      srcVal,
+      args.targetLabel,
+      tgtKey,
+      tgtVal,
+      safeType,
+      Object.keys(createProps).length > 0 ? createProps : undefined,
+    );
+
+    // Verify the relationship was created (endpoints must both exist for MERGE to succeed)
+    const checkResult = await db.graph.query(
+      `MATCH (src:\`${args.sourceLabel}\` {\`${srcKey}\`: $srcVal})-[r:\`${safeType}\`]->(tgt:\`${args.targetLabel}\` {\`${tgtKey}\`: $tgtVal}) RETURN count(r) AS cnt`,
+      { srcVal, tgtVal },
+    );
+    if ((checkResult.rows[0]?.cnt as number) === 0) {
+      return (
+        `ERROR: Could not create relationship. One or both endpoint nodes may not exist — ` +
+        `source: (:\`${args.sourceLabel}\` ${JSON.stringify(args.sourceMatch)}), ` +
+        `target: (:\`${args.targetLabel}\` ${JSON.stringify(args.targetMatch)}).`
+      );
+    }
+
+    if (contentVec) {
+      const pointId = `:rel:${args.relationshipType}:${srcVal}:${tgtVal}`;
+      try {
+        const contentText = getRelEmbeddingContentText(relDef, createProps);
+        const payload: Record<string, unknown> = {
+          node_type: args.relationshipType,
+          kind: "relationship",
+          object_id: pointId,
+          text: contentText || nameText || "",
+        };
+        for (const [k, v] of Object.entries(createProps)) {
+          if (!k.startsWith("_")) payload[k] = v;
+        }
+        const contentVecFA = contentVec ? new Float32Array(contentVec) : new Float32Array(0);
+        const sparse = nameText
+          ? encodeSparse(nameText)
+          : { indices: [] as number[], values: [] as number[] };
+        db.vectors.upsert(
+          pointId,
+          args.relationshipType,
+          "relationship",
+          contentVecFA,
+          sparse,
+          payload,
+        );
+      } catch (err) {
+        console.warn(
+          `[editRelationship] Vector upsert failed for "${args.relationshipType}":`,
+          err instanceof Error ? err.message : String(err),
+        );
+      }
+    }
+
+    return `Relationship (:${args.sourceLabel})-[:${args.relationshipType}]->(:${args.targetLabel}) created successfully.`;
   }, TOOL_NAMES.EDIT_RELATIONSHIP),
 });
