@@ -148,6 +148,10 @@ LadybugDB uses a **structured property graph model** — schema-first, strongly-
 
 ---
 
+## SETTING
+
+{{setting_description}}
+
 ## NARRATION TONE
 
 {{tone_description}}
@@ -159,7 +163,9 @@ LadybugDB uses a **structured property graph model** — schema-first, strongly-
 
 export async function buildSystemPrompt(): Promise<string> {
   const seedStory = getActiveSeedStory();
-  return DEFAULT_SYSTEM_PROMPT_TEMPLATE.replace("{{tone_description}}", seedStory.toneDescription);
+  return DEFAULT_SYSTEM_PROMPT_TEMPLATE
+    .replace("{{setting_description}}", seedStory.settingDescription)
+    .replace("{{tone_description}}", seedStory.toneDescription);
 }
 
 export { MAX_GM_STEPS };

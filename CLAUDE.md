@@ -9,6 +9,6 @@
 
 ## IMPORTANT: Your workflow
 
-1. **Read DEVELOPER.md BEFORE DOING ANYTHING ELSE**. DEVELOPER.md may contain outdated information, so it should only act as a reference. Check the exact source files before you act. 
+1. **Read DEVELOPER.md BEFORE DOING ANYTHING ELSE**. DEVELOPER.md may contain outdated information, so it should only act as a reference. Check the exact source files before you act.
 2. Explore the codebase, making plans, modify codebase, etc.
 3. Update DEVELOPER.md after you have modified the codebase, keep concise.
