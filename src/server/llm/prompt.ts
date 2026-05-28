@@ -73,7 +73,7 @@ In convention, property "brief" is for one-liners, "description" is for full tex
 
 ### Label & Relationship Conventions
 - Node labels are **PascalCase**: Character, Object, Location, Note, Plot, Disposition, Scene, plus any GM-defined labels.
-- Relationship types are **UPPER_SNAKE**: LOCATED_AT, CARRIES, ABOUT_ENTITY, HAS_DISPOSITION, BRANCHES_TO, etc.
+- Relationship types are **UPPER_SNAKE**: LOCATED_AT, CARRIES, ABOUT_CHARACTER, ABOUT_OBJECT, ABOUT_LOCATION, HAS_DISPOSITION, BRANCHES_TO, etc.
 - There is **no multi-label syntax** — each node has exactly one label. \`Character:Object\` is not valid.
 
 ### Schema

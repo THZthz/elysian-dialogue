@@ -77,24 +77,34 @@ function buildPlotTreeFromNodes(plots: PlotNode[]): string {
   }
   const roots = plots.filter((p) => !childNames.has(p.name));
 
-  function render(nodes: PlotNode[], indent: number): string {
+  function render(nodes: PlotNode[], isLastAncestors: boolean[]): string {
     let result = "";
-    for (const node of nodes) {
-      const prefix = "  ".repeat(indent);
-      result += `${prefix}- **${node.name}** [${node.status}]`;
-      if (node.brief) result += ` ${node.brief}`;
+    for (let i = 0; i < nodes.length; i++) {
+      const node = nodes[i];
+      const last = i === nodes.length - 1;
+
+      const indent = isLastAncestors.map((l) => (l ? "    " : "│   ")).join("");
+      const soleRoot = isLastAncestors.length === 0 && nodes.length === 1;
+      const branch = soleRoot ? "" : last ? "└── " : "├── ";
+
+      result += `${indent}${branch}**${node.name}** [${node.status}]`;
+      if (node.brief) result += ` — ${node.brief}`;
       result += "\n";
+
+      const continuation = indent +
+        (soleRoot ? "" : last ? "    " : "│   ");
+
       if (node.triggerCondition) {
-        result += `${prefix}  ▸ ${node.triggerCondition}\n`;
+        result += `${continuation}▸ ${node.triggerCondition}\n`;
       }
       if (node.children.length > 0) {
-        result += render(node.children, indent + 1);
+        result += render(node.children, [...isLastAncestors, last]);
       }
     }
     return result;
   }
 
-  return render(roots, 0);
+  return render(roots, []);
 }
 
 // ── CHARACTERS_BRIEF ──
@@ -244,7 +254,7 @@ export async function buildPlotsBrief(): Promise<string> {
   const lines: string[] = [
     "## PLOTS",
     "",
-    "Each plot shows its triggerCondition (when present) as a sub-line with '▸', inheriting the same tree indentation",
+    "ASCII tree layout. Trigger conditions (when present) shown with '▸' below their plot.",
     "",
     "```",
     tree,
@@ -271,7 +281,9 @@ export async function buildRelationshipDump(): Promise<string> {
   for (const name of [
     "HAS_DISPOSITION",
     "BRANCHES_TO",
-    "ABOUT_ENTITY",
+    "ABOUT_CHARACTER",
+    "ABOUT_OBJECT",
+    "ABOUT_LOCATION",
     "ABOUT_SCENE",
     "ABOUT_PLOT",
   ]) {

@@ -112,6 +112,7 @@ export class NoteModel {
     );
     if (r.rows.length === 0) throw new Error(`Entity "${entityName}" not found.`);
     const label = r.rows[0].label as string;
+    const relType = `ABOUT_${label.toUpperCase()}`;
     await this.graph.mergeRelationship(
       "Note",
       "name",
@@ -119,7 +120,7 @@ export class NoteModel {
       label,
       "name",
       entityName,
-      "ABOUT_ENTITY",
+      relType,
     );
   }
 
@@ -148,7 +149,13 @@ export class NoteModel {
   }
 
   async clearLinks(noteName: string): Promise<void> {
-    await this.graph.query("MATCH (n:Note {name: $name})-[r:ABOUT_ENTITY]->() DELETE r", {
+    await this.graph.query("MATCH (n:Note {name: $name})-[r:ABOUT_CHARACTER]->() DELETE r", {
+      name: noteName,
+    });
+    await this.graph.query("MATCH (n:Note {name: $name})-[r:ABOUT_OBJECT]->() DELETE r", {
+      name: noteName,
+    });
+    await this.graph.query("MATCH (n:Note {name: $name})-[r:ABOUT_LOCATION]->() DELETE r", {
       name: noteName,
     });
     await this.graph.query("MATCH (n:Note {name: $name})-[r:ABOUT_SCENE]->() DELETE r", {
@@ -160,11 +167,19 @@ export class NoteModel {
   }
 
   async getLinkedEntities(noteName: string): Promise<string[]> {
-    const r = await this.graph.query(
-      "MATCH (n:Note {name: $name})-[:ABOUT_ENTITY]->(e) WHERE (label(e) = 'Character' OR label(e) = 'Object' OR label(e) = 'Location') RETURN e.name AS name",
-      { name: noteName },
-    );
-    return r.rows.map((row) => row.name as string);
+    const names = new Set<string>();
+    for (const label of ["Character", "Object", "Location"]) {
+      try {
+        const r = await this.graph.query(
+          `MATCH (n:Note {name: $name})-[:ABOUT_${label.toUpperCase()}]->(e) RETURN e.name AS name`,
+          { name: noteName },
+        );
+        for (const row of r.rows) names.add(row.name as string);
+      } catch {
+        // table may not exist yet
+      }
+    }
+    return [...names];
   }
 
   async getLinkedScenes(noteName: string): Promise<string[]> {

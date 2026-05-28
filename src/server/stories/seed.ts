@@ -70,7 +70,9 @@ export async function seedDatabase(): Promise<void> {
         category: "GM_DEFINED",
         sourceLabel: rt.sourceLabel,
         targetLabel: rt.targetLabel,
-        properties: [],
+        properties: [
+          { name: "brief", description: "Connection detail.", tags: ["string", "embedded"] },
+        ],
       });
     }
     console.log(
@@ -134,7 +136,7 @@ export async function seedDatabase(): Promise<void> {
       "name",
       rel.targetName,
       rel.type,
-      rel.description ? { description: rel.description } : undefined,
+      rel.description ? { brief: rel.description } : undefined,
     );
   }
 
@@ -176,19 +178,23 @@ export async function seedDatabase(): Promise<void> {
     }
 
     // Merge Disposition node
-    await db.graph.query(
-      `MERGE (d:Disposition {source_name: $src, target_name: $tgt})
-       ON CREATE SET d._uid = $_uid, d.sentiment = $sentiment, d.summary = $summary, d._created_at = $now, d._updated_at = $now
-       ON MATCH SET d.sentiment = $sentiment, d.summary = $summary, d._updated_at = $now`,
-      {
-        src: srcName,
-        tgt: tgtName,
-        _uid: uuidv4(),
-        sentiment: disp.sentiment,
-        summary: disp.summary,
-        now,
-      },
+    const dispCheck = await db.graph.query(
+      "MATCH (d:Disposition {source_name: $src, target_name: $tgt}) RETURN d LIMIT 1",
+      { src: srcName, tgt: tgtName },
     );
+
+    if (dispCheck.rows.length > 0) {
+      await db.graph.query(
+        "MATCH (d:Disposition {source_name: $src, target_name: $tgt}) SET d.sentiment = $sentiment, d.summary = $summary, d._updated_at = $now",
+        { src: srcName, tgt: tgtName, sentiment: disp.sentiment, summary: disp.summary, now },
+      );
+    } else {
+      const _uid = uuidv4();
+      await db.graph.query(
+        `CREATE (d:Disposition {_uid: $_uid, source_name: $src, target_name: $tgt, sentiment: $sentiment, summary: $summary, _created_at: $now, _updated_at: $now})`,
+        { _uid, src: srcName, tgt: tgtName, sentiment: disp.sentiment, summary: disp.summary, now },
+      );
+    }
 
     // Link NPC to Disposition
     await db.graph.query(

@@ -38,7 +38,7 @@ const inputSchema = z.object({
     .nullable()
     .optional()
     .describe(
-      "Entity names to link this note to. Replaces existing ABOUT_ENTITY links — pass [] to clear all.",
+      "Entity names to link this note to. Replaces existing ABOUT_CHARACTER / ABOUT_OBJECT / ABOUT_LOCATION links — pass [] to clear all.",
     ),
   aboutScenes: z
     .array(z.string())
@@ -61,7 +61,7 @@ export const editNote = tool({
   description: `
 ## Brief
 Your scratchpad — CREATE, UPDATE (partial overwrite), or DELETE a note. Notes can be
-linked to entities via \`aboutEntities\` (ABOUT_ENTITY), scenes via \`aboutScenes\`
+linked to entities via \`aboutEntities\` (ABOUT_CHARACTER / ABOUT_OBJECT / ABOUT_LOCATION), scenes via \`aboutScenes\`
 (ABOUT_SCENE), and plots via \`aboutPlots\` (ABOUT_PLOT) for cross-referencing to the world,
 timeline, and story arcs.
 
@@ -71,7 +71,7 @@ a clue appeared but its meaning is unresolved, a player choice deserves future c
 A good note reads like a concise reminder to yourself, and positively contributes to story progression.
 
 ## Search a note
-Do not readily use \`${TOOL_NAMES.SEARCH_WORLD}\`, consider relationships ABOUT_ENTITY, ABOUT_PLOT
+Do not readily use \`${TOOL_NAMES.SEARCH_WORLD}\`, consider relationships ABOUT_CHARACTER, ABOUT_OBJECT, ABOUT_LOCATION, ABOUT_PLOT
 or ABOUT_SCENE first if you have a clear target.
 `.trim(),
   inputSchema,

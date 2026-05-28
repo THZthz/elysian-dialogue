@@ -22,6 +22,11 @@ export interface QueryResult {
   rows: Record<string, unknown>[];
 }
 
+function extractPropName(clause: string): string {
+  const m = clause.match(/^r\.`?(\w+)`?/);
+  return m ? m[1] : "";
+}
+
 export class LadybugClient {
   private db: Database | null = null;
   private conn: Connection | null = null;
@@ -61,6 +66,8 @@ export class LadybugClient {
     }
   }
 
+
+
   async mergeRelationship(
     srcLabel: string,
     srcKey: string,
@@ -71,21 +78,34 @@ export class LadybugClient {
     type: string,
     props?: Record<string, unknown>,
   ): Promise<void> {
-    const setClauses: string[] = ["r._created_at = current_timestamp()"];
-    const setParams: Record<string, unknown> = { srcVal, tgtVal };
+    const allClauses: string[] = ["r._created_at = current_timestamp()"];
+    const allParams: Record<string, unknown> = { srcVal, tgtVal };
     if (props) {
       for (const [k, v] of Object.entries(props)) {
-        setClauses.push(`r.\`${k}\` = $p_${k}`);
-        setParams[`p_${k}`] = v;
+        allClauses.push(`r.\`${k}\` = $p_${k}`);
+        allParams[`p_${k}`] = v;
       }
     }
-    await this.query(
-      `MATCH (src:\`${srcLabel}\` {\`${srcKey}\`: $srcVal})
+
+    const baseQuery = `MATCH (src:\`${srcLabel}\` {\`${srcKey}\`: $srcVal})
        MATCH (tgt:\`${tgtLabel}\` {\`${tgtKey}\`: $tgtVal})
-       MERGE (src)-[r:\`${type}\`]->(tgt)
-       ON CREATE SET ${setClauses.join(", ")}`,
-      setParams,
-    );
+       MERGE (src)-[r:\`${type}\`]->(tgt)`;
+
+    const missing = new Set<string>();
+    let clauses = allClauses;
+    while (true) {
+      try {
+        await this.query(`${baseQuery} ON CREATE SET ${clauses.join(", ")}`, allParams);
+        return;
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        const m = msg.match(/Cannot find property (\S+) for r/);
+        if (!m) throw err;
+        const missingProp = m[1];
+        missing.add(missingProp);
+        clauses = allClauses.filter((c) => !missing.has(extractPropName(c)));
+      }
+    }
   }
 
   async deleteRelationship(

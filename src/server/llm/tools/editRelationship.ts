@@ -104,7 +104,7 @@ export const editRelationship = tool({
   description: `
 ## Brief
 CREATE or UPDATE a relationship between two nodes in the world archive. It is not recommended
-to use this tool to directly edit ABOUT_ENTITY, ABOUT_SCENE, ABOUT_PLOT, STARTED_AT,
+to use this tool to directly edit ABOUT_CHARACTER, ABOUT_OBJECT, ABOUT_LOCATION, ABOUT_SCENE, ABOUT_PLOT, STARTED_AT,
 COMPLETED_AT or BRANCHES_TO.
 
 ## CREATE
@@ -236,9 +236,7 @@ sub-locations nested within a larger location (e.g., a basement inside a tavern)
         const contentText = getRelEmbeddingContentText(relDef, createProps);
 
         const embedder = getEmbedder();
-        contentVec = contentText
-          ? await embedder.embed(contentText).catch(() => null)
-          : null;
+        contentVec = contentText ? await embedder.embed(contentText).catch(() => null) : null;
       }
 
       await db.graph.mergeRelationship(
@@ -298,7 +296,7 @@ sub-locations nested within a larger location (e.g., a basement inside a tavern)
         }
       }
 
-      return `Relationship (:\`${args.sourceLabel}\`)-[:${args.relationshipType}]->(:\`${args.targetLabel}\`) created successfully.`;
+      return `Relationship (:${args.sourceLabel})-[:${args.relationshipType}]->(:${args.targetLabel}) created successfully.`;
     }
 
     // ── UPDATE ──
@@ -320,7 +318,7 @@ sub-locations nested within a larger location (e.g., a basement inside a tavern)
         matchParams,
       );
       if (existing.rows.length === 0) {
-        return `ERROR: Relationship not found — (:\`${args.sourceLabel}\` ${JSON.stringify(args.sourceMatch)})-[:${args.relationshipType}]->(:\`${args.targetLabel}\` ${JSON.stringify(args.targetMatch)}).`;
+        return `ERROR: Relationship not found — (:${args.sourceLabel} ${JSON.stringify(args.sourceMatch)})-[:${args.relationshipType}]->(:${args.targetLabel} ${JSON.stringify(args.targetMatch)}).`;
       }
       if (existing.rows.length > 1) {
         return `ERROR: Multiple (${existing.rows.length}) matching relationships found. Use more specific match criteria.`;
@@ -431,7 +429,7 @@ sub-locations nested within a larger location (e.g., a basement inside a tavern)
         }
       }
 
-      return `Relationship (:\`${args.sourceLabel}\`)-[:${args.relationshipType}]->(:\`${args.targetLabel}\`) updated properties: ${Object.keys(args.properties).join(", ")}.`;
+      return `Relationship (:${args.sourceLabel})-[:${args.relationshipType}]->(:${args.targetLabel}) updated properties: ${Object.keys(args.properties).join(", ")}.`;
     }
   }, TOOL_NAMES.EDIT_RELATIONSHIP),
 });

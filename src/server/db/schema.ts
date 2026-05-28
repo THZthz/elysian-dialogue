@@ -146,7 +146,7 @@ const PREDEFINED_NODES: NodeTypeDef[] = [
   {
     name: "Note",
     category: "PREDEFINED",
-    description: `GM scratchpad note. Can link to Entities, Scenes, or Plots via ABOUT_ENTITY / ABOUT_SCENE / ABOUT_PLOT. Managed by \`${TOOL_NAMES.EDIT_NOTE}\`.`,
+    description: `GM scratchpad note. Can link to Entities, Scenes, or Plots via ABOUT_CHARACTER / ABOUT_OBJECT / ABOUT_LOCATION / ABOUT_SCENE / ABOUT_PLOT. Managed by \`${TOOL_NAMES.EDIT_NOTE}\`.`,
     properties: [
       {
         name: "name",
@@ -415,7 +415,7 @@ const PREDEFINED_RELS: RelTypeDef[] = [
     ],
   },
   {
-    name: "ABOUT_ENTITY",
+    name: "ABOUT_CHARACTER",
     sourceLabel: "Note",
     targetLabel: "Character",
     category: "PREDEFINED",
@@ -423,7 +423,7 @@ const PREDEFINED_RELS: RelTypeDef[] = [
     properties: [CREATED_AT_PROP],
   },
   {
-    name: "ABOUT_ENTITY",
+    name: "ABOUT_OBJECT",
     sourceLabel: "Note",
     targetLabel: "Object",
     category: "PREDEFINED",
@@ -431,7 +431,7 @@ const PREDEFINED_RELS: RelTypeDef[] = [
     properties: [CREATED_AT_PROP],
   },
   {
-    name: "ABOUT_ENTITY",
+    name: "ABOUT_LOCATION",
     sourceLabel: "Note",
     targetLabel: "Location",
     category: "PREDEFINED",
