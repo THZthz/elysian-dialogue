@@ -134,7 +134,7 @@ At most one Scene has \`end_time = NULL\` (the active scene). When CREATE is cal
           reason: args.reason ?? null,
         });
 
-        const msg = `Scene created: ${describeTime(scene.start_time)} at "${scene.location_name}" with [${scene.characters.join(", ")}].`;
+        const msg = `Scene (unique name: "${scene.name}") created: ${describeTime(scene.start_time)} at "${scene.location_name}" with [${scene.characters.join(", ")}].`;
         return timeMismatchWarning ? `${msg}\n${timeMismatchWarning}` : msg;
       }
 
@@ -159,13 +159,13 @@ At most one Scene has \`end_time = NULL\` (the active scene). When CREATE is cal
           characters: active.characters,
           reason: args.reason ?? null,
         });
-        return `Scene closed at ${describeTime(endTime)}. A placeholder scene is ready for the next CREATE.${
+        return `Scene (unique name: "${active.name}") closed at ${describeTime(endTime)}. A placeholder scene (unique name: "${placeholder.name}") is ready for the next CREATE.${
           args.reason ? ` Reason: "${args.reason}"` : ""
         }`;
       }
 
       const updated = await db.scene.getActive();
-      return `Scene modified. Current characters: [${updated?.characters.join(", ") ?? ""}].`;
+      return `Scene (unique name: "${active.name}") modified. Current characters: [${updated?.characters.join(", ") ?? ""}].`;
     }, TOOL_NAMES.MANAGE_SCENE),
   });
 }
