@@ -50,8 +50,7 @@ export const queryWorld = tool({
 ## Brief
 READ or WRITE the world archive using Cypher.
 
-READ — MATCH...RETURN. The current scene is pre-loaded in SCENE_CONTEXT — don't
-re-query that information. Use READ for: entities at other locations, message history,
+READ — MATCH...RETURN. Use READ for: entities at other locations, message history,
 scene history, or entity details not shown in the scene context. Auto-limited to 50 rows.
 
 WRITE — CREATE, MERGE, SET, DELETE. The archive IS the world — if you don't WRITE it,
