@@ -149,7 +149,9 @@ Pull pre-built context from the world. Nothing is auto-loaded — you choose wha
 - RELATIONSHIP_DUMP — All active relationships grouped by type. LOCATED_AT/LOCATED_IN are grouped by location showing occupants and access details.
 `.trim(),
   inputSchema: z.object({
-    types: z.array(z.enum(CONTEXT_TYPES)).describe("Which context sections to return."),
+    types: z
+      .array(z.enum(CONTEXT_TYPES))
+      .describe("Which context sections to return."),
   }),
   execute: wrapSafe(async (args: { types: ContextType[] }) => {
     const sections: ContextType[] = args.types.length > 0 ? args.types : [];

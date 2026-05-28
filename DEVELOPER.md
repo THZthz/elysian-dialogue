@@ -161,6 +161,14 @@ flowchart TD
 
 ---
 
+## Documentation
+
+| File                              | Purpose                                           |
+|-----------------------------------|---------------------------------------------------|
+| `CYPHER.md`                       | LadybugDB Cypher syntax reference                 |
+| `docs/ladybugdb-cypher/`          | Detailed LadybugDB Cypher manual (per-topic)       |
+| `docs/ladybugdb-gm-cookbook.md`   | Task-oriented GM cookbook for this project's schema |
+
 ## Data Files
 
 | File                     | Purpose                         |
