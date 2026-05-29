@@ -334,8 +334,8 @@ export function createGameLoop(opts: GameLoopOptions) {
       if (toolCalls.length > 0) {
         assistantMsg.tool_calls = toolCalls;
       }
-      if (thinking && acc.reasoning) {
-        assistantMsg.reasoning_content = acc.reasoning;
+      if (thinking) {
+        assistantMsg.reasoning_content = acc.reasoning || "";
       }
       log.append(assistantMsg);
 
