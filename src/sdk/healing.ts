@@ -1,3 +1,21 @@
+/**
+ * Chorus — cinematic dialogue engine
+ * Copyright (C) 2026 Amias
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
 // src/sdk/healing.ts
 // Message healing pipeline — sanitises conversation history before sending to DeepSeek.
 // DeepSeek 400s on unpaired tool_calls / tool messages, missing thinking headers, etc.
@@ -30,11 +48,7 @@ function stampMissingIds(messages: ChatMessage[]): {
 } {
   let healed = 0;
   const out = messages.map((m) => {
-    if (
-      m.role === "assistant" &&
-      Array.isArray(m.tool_calls) &&
-      m.tool_calls.length > 0
-    ) {
+    if (m.role === "assistant" && Array.isArray(m.tool_calls) && m.tool_calls.length > 0) {
       const stamped = m.tool_calls.map((tc) => {
         if (!tc.id) {
           healed++;
@@ -174,12 +188,10 @@ function stripDroppableReasoning(
 /** Strip hallucinated DSML / function_calls markup from model prose content.
  *  Thinking-mode models may emit `<function_calls>` or `<|DSML|function_calls>`
  *  markup even when tools are undefined. */
-const DSML_REGEX =
-  /<\|?DSML\|?\s*function_calls>[\s\S]*?<\/\|?DSML\|?\s*function_calls>/gi;
+const DSML_REGEX = /<\|?DSML\|?\s*function_calls>[\s\S]*?<\/\|?DSML\|?\s*function_calls>/gi;
 const FUNC_CALLS_REGEX = /<function_calls>[\s\S]*?<\/function_calls>/gi;
 // Full-width "｜" is the form R1 emits in practice.
-const FULLWIDTH_DSML_REGEX =
-  /<｜DSML｜function_calls>[\s\S]*?<\/?｜DSML｜function_calls>/g;
+const FULLWIDTH_DSML_REGEX = /<｜DSML｜function_calls>[\s\S]*?<\/?｜DSML｜function_calls>/g;
 const LONE_OPEN_REGEX = /<｜DSML｜[\s\S]*$/g;
 
 export function stripHallucinatedToolMarkup(content: string): string {

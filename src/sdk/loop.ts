@@ -1,3 +1,21 @@
+/**
+ * Chorus — cinematic dialogue engine
+ * Copyright (C) 2026 Amias
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
 // src/sdk/loop.ts
 // GameLoop — generator-based turn loop that streams model output, dispatches
 // tool calls, detects storms, and folds history via ContextManager.
@@ -193,8 +211,7 @@ export function createGameLoop(opts: GameLoopOptions) {
   if (log.totalLength > 0) {
     const loaded = log.toFullHistory();
     const healed = healMessages(loaded, {
-      thinkingModeModel:
-        (opts.thinking ?? true) ? (opts.model ?? "deepseek-v4-flash") : null,
+      thinkingModeModel: (opts.thinking ?? true) ? (opts.model ?? "deepseek-v4-flash") : null,
     });
     if (healed.healedCount > 0) {
       log.compactInPlace(healed.messages);
@@ -293,8 +310,7 @@ export function createGameLoop(opts: GameLoopOptions) {
           // user can see the interruption and retry.
           log.append({
             role: "assistant",
-            content:
-              "[aborted by user — ask again or retry when ready]",
+            content: "[aborted by user — ask again or retry when ready]",
           });
         }
         yield { turn, role: "done", content: "[aborted]" };
@@ -441,8 +457,7 @@ export function createGameLoop(opts: GameLoopOptions) {
       }
 
       // ── All calls suppressed ──
-      const allSuppressed =
-        suppressedCount > 0 && suppressedCount === toolCalls.length;
+      const allSuppressed = suppressedCount > 0 && suppressedCount === toolCalls.length;
 
       if (allSuppressed && !turnSelfCorrected) {
         // First all-suppressed: give model one self-correction chance.

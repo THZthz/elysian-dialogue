@@ -1,3 +1,21 @@
+/**
+ * Chorus — cinematic dialogue engine
+ * Copyright (C) 2026 Amias
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
 // src/sdk/context.ts
 // ContextManager — decides when to fold history and performs chat()-based
 // compaction by summarizing older turns into a single assistant message.
@@ -7,7 +25,7 @@ import type { ChatMessage, ToolSpec, Usage } from "./types.js";
 import { healMessages, stripHallucinatedToolMarkup } from "./healing.js";
 
 // ---------------------------------------------------------------------------
-// Constants (mirrors DeepSeek-Reasonix context-manager.ts)
+// Constants
 // ---------------------------------------------------------------------------
 
 const FOLD_THRESHOLD = 0.75;
