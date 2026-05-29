@@ -182,9 +182,9 @@ export interface SessionPersistence {
 }
 
 // Forward-declare classes to break circular type dependency
-import type { DeepSeekClient } from "./client.js";
-import type { ImmutablePrefix } from "./prefix.js";
-import type { AppendOnlyLog } from "./log.js";
+import type { DeepSeekClient } from "@/sdk/client";
+import type { ImmutablePrefix } from "@/sdk/prefix";
+import type { AppendOnlyLog } from "@/sdk/log";
 
 export interface GameLoopOptions {
   client: DeepSeekClient;

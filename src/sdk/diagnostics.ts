@@ -20,7 +20,7 @@
 // Cache telemetry — tracks prefix-hash stability across turns so callers can
 // detect cache-warm/cache-cold transitions and attribute cache misses.
 import { createHash } from "node:crypto";
-import type { Usage } from "./types.js";
+import type { Usage } from "@/sdk/types";
 
 export interface PrefixDiagnosticHashes {
   system: string;

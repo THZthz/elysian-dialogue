@@ -18,7 +18,7 @@
 
 // tests/unit/sdk/usage.test.ts
 import { describe, it, expect } from "vitest";
-import { Usage } from "@/sdk/types.js";
+import { Usage } from "@/sdk/types";
 
 describe("Usage", () => {
   it("constructs with explicit values", () => {

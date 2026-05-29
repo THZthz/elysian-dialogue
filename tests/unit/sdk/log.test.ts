@@ -17,8 +17,8 @@
  */
 
 import { describe, it, expect, beforeEach } from "vitest";
-import { AppendOnlyLog } from "@/sdk/log.js";
-import type { ChatMessage } from "@/sdk/types.js";
+import { AppendOnlyLog } from "@/sdk/log";
+import type { ChatMessage } from "@/sdk/types";
 
 describe("AppendOnlyLog", () => {
   let log: AppendOnlyLog;

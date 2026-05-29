@@ -19,10 +19,10 @@
 // src/sdk/context.ts
 // ContextManager — decides when to fold history and performs chat()-based
 // compaction by summarizing older turns into a single assistant message.
-import type { DeepSeekClient } from "./client.js";
-import type { AppendOnlyLog } from "./log.js";
-import type { ChatMessage, ToolSpec, Usage } from "./types.js";
-import { healMessages, stripHallucinatedToolMarkup } from "./healing.js";
+import type { DeepSeekClient } from "@/sdk/client";
+import type { AppendOnlyLog } from "@/sdk/log";
+import type { ChatMessage, ToolSpec, Usage } from "@/sdk/types";
+import { healMessages, stripHallucinatedToolMarkup } from "@/sdk/healing";
 
 // ---------------------------------------------------------------------------
 // Constants

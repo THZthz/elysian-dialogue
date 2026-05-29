@@ -24,7 +24,7 @@
 // which handles all type conversions, constraint mappings, required
 // field detection, and wrapper unwrapping (optional/nullable/default).
 
-import type { ToolSpec } from "./types.js";
+import type { ToolSpec } from "@/sdk/types";
 
 // ---------------------------------------------------------------------------
 // Types

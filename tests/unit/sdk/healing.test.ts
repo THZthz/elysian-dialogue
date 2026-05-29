@@ -18,8 +18,8 @@
 
 // tests/unit/sdk/healing.test.ts
 import { describe, it, expect } from "vitest";
-import { healMessages } from "@/sdk/healing.js";
-import type { ChatMessage } from "@/sdk/types.js";
+import { healMessages } from "@/sdk/healing";
+import type { ChatMessage } from "@/sdk/types";
 
 describe("healMessages", () => {
   it("passes through clean messages unchanged", () => {

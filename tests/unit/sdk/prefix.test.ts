@@ -18,8 +18,8 @@
 
 // tests/unit/sdk/prefix.test.ts
 import { describe, it, expect } from "vitest";
-import { ImmutablePrefix } from "@/sdk/prefix.js";
-import type { ToolSpec, ChatMessage } from "@/sdk/types.js";
+import { ImmutablePrefix } from "@/sdk/prefix";
+import type { ToolSpec, ChatMessage } from "@/sdk/types";
 
 const systemPrompt = "You are a helpful assistant.";
 const toolSpecs: ToolSpec[] = [

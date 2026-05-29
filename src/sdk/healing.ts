@@ -19,7 +19,7 @@
 // src/sdk/healing.ts
 // Message healing pipeline — sanitises conversation history before sending to DeepSeek.
 // DeepSeek 400s on unpaired tool_calls / tool messages, missing thinking headers, etc.
-import type { ChatMessage } from "./types.js";
+import type { ChatMessage } from "@/sdk/types";
 
 export interface HealingOptions {
   /** Set to a thinking-capable model name to preserve/stamp reasoning_content.
