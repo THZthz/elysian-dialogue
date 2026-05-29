@@ -20,16 +20,16 @@
 // GameLoop — generator-based turn loop that streams model output, dispatches
 // tool calls, detects storms, and folds history via ContextManager.
 import { jsonrepair } from "jsonrepair";
-import type { DeepSeekClient } from "./client.js";
-import type { ImmutablePrefix } from "./prefix.js";
-import { AppendOnlyLog } from "./log.js";
-import { ContextManager } from "./context.js";
-import { healMessages } from "./healing.js";
+import type { DeepSeekClient } from "@/sdk/client";
+import type { ImmutablePrefix } from "@/sdk/prefix";
+import { AppendOnlyLog } from "@/sdk/log";
+import { ContextManager } from "@/sdk/context";
+import { healMessages } from "@/sdk/healing";
 import {
   buildCacheDiagnostic,
   prefixDiagnosticHashes,
   type CacheDiagnostic,
-} from "./diagnostics.js";
+} from "@/sdk/diagnostics";
 import type {
   ChatMessage,
   ChatOptions,
@@ -38,7 +38,7 @@ import type {
   GameLoopOptions,
   ReconfigurableOptions,
   Usage as UsageType,
-} from "./types.js";
+} from "@/sdk/types";
 
 // ---------------------------------------------------------------------------
 // Constants

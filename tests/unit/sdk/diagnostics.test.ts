@@ -22,8 +22,8 @@ import {
   buildCacheDiagnostic,
   prefixDiagnosticHashes,
   type CacheDiagnostic,
-} from "@/sdk/diagnostics.js";
-import { Usage } from "@/sdk/types.js";
+} from "@/sdk/diagnostics";
+import { Usage } from "@/sdk/types";
 
 describe("buildCacheDiagnostic", () => {
   const hashes = { system: "abc123", tools: "def456", fewShots: "ghi789" };

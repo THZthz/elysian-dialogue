@@ -20,28 +20,28 @@
 // DeepSeek API SDK — public entry point.
 // Re-exports every symbol that callers need.
 
-export { DeepSeekClient } from "./client.js";
-export type { DeepSeekClientOptions } from "./client.js";
+export { DeepSeekClient } from "@/sdk/client";
+export type { DeepSeekClientOptions } from "@/sdk/client";
 
-export { ImmutablePrefix } from "./prefix.js";
-export type { ImmutablePrefixOptions } from "./prefix.js";
+export { ImmutablePrefix } from "@/sdk/prefix";
+export type { ImmutablePrefixOptions } from "@/sdk/prefix";
 
-export { AppendOnlyLog, JsonlPersistence } from "./log.js";
+export { AppendOnlyLog, JsonlPersistence } from "@/sdk/log";
 
-export { healMessages, stripHallucinatedToolMarkup } from "./healing.js";
-export type { HealingOptions, HealingResult } from "./healing.js";
+export { healMessages, stripHallucinatedToolMarkup } from "@/sdk/healing";
+export type { HealingOptions, HealingResult } from "@/sdk/healing";
 
-export { ContextManager } from "./context.js";
-export type { ContextManagerDeps, PostUsageDecision, FoldResult } from "./context.js";
+export { ContextManager } from "@/sdk/context";
+export type { ContextManagerDeps, PostUsageDecision, FoldResult } from "@/sdk/context";
 
-export { createGameLoop } from "./loop.js";
+export { createGameLoop } from "@/sdk/loop";
 
-export { buildCacheDiagnostic, prefixDiagnosticHashes } from "./diagnostics.js";
-export type { CacheDiagnostic, PrefixDiagnosticHashes } from "./diagnostics.js";
+export { buildCacheDiagnostic, prefixDiagnosticHashes } from "@/sdk/diagnostics";
+export type { CacheDiagnostic, PrefixDiagnosticHashes } from "@/sdk/diagnostics";
 
-export { vercelToolToSpec } from "./bridge.js";
+export { vercelToolToSpec } from "@/sdk/bridge";
 
-export { Usage } from "./types.js";
+export { Usage } from "@/sdk/types";
 export type {
   ChatMessage,
   ToolCall,
@@ -55,4 +55,4 @@ export type {
   SessionPersistence,
   SessionMeta,
   ReconfigurableOptions,
-} from "./types.js";
+} from "@/sdk/types";

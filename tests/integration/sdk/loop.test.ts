@@ -17,11 +17,11 @@
  */
 
 import { describe, it, expect, vi } from "vitest";
-import { createGameLoop } from "@/sdk/loop.js";
-import { DeepSeekClient } from "@/sdk/client.js";
-import { ImmutablePrefix } from "@/sdk/prefix.js";
-import type { LoopEvent, ChatResponse, StreamChunk, ChatOptions } from "@/sdk/types.js";
-import { Usage } from "@/sdk/types.js";
+import { createGameLoop } from "@/sdk/loop";
+import { DeepSeekClient } from "@/sdk/client";
+import { ImmutablePrefix } from "@/sdk/prefix";
+import type { LoopEvent, ChatResponse, StreamChunk, ChatOptions } from "@/sdk/types";
+import { Usage } from "@/sdk/types";
 
 class FakeClient extends DeepSeekClient {
   _chunks: StreamChunk[] = [];

@@ -18,8 +18,8 @@
 
 // src/sdk/client.ts
 import { createParser, type EventSourceMessage } from "eventsource-parser";
-import type { ChatOptions, ChatResponse, StreamChunk, ToolCall, RawUsage } from "./types.js";
-import { Usage } from "./types.js";
+import type { ChatOptions, ChatResponse, StreamChunk, ToolCall, RawUsage } from "@/sdk/types";
+import { Usage } from "@/sdk/types";
 
 export interface DeepSeekClientOptions {
   apiKey: string;

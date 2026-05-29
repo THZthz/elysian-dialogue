@@ -18,7 +18,7 @@
 
 import * as fs from "node:fs";
 import * as path from "node:path";
-import type { ChatMessage, SessionMeta, SessionPersistence } from "./types.js";
+import type { ChatMessage, SessionMeta, SessionPersistence } from "@/sdk/types";
 
 const DEFAULT_WINDOW = 200;
 

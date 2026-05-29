@@ -17,11 +17,11 @@
  */
 
 import { describe, it, expect, vi } from "vitest";
-import { ContextManager } from "@/sdk/context.js";
-import { Usage } from "@/sdk/types.js";
-import type { AppendOnlyLog } from "@/sdk/log.js";
-import type { DeepSeekClient } from "@/sdk/client.js";
-import type { ChatMessage } from "@/sdk/types.js";
+import { ContextManager } from "@/sdk/context";
+import { Usage } from "@/sdk/types";
+import type { AppendOnlyLog } from "@/sdk/log";
+import type { DeepSeekClient } from "@/sdk/client";
+import type { ChatMessage } from "@/sdk/types";
 
 function mockLog(messages: ChatMessage[]): AppendOnlyLog {
   return {
