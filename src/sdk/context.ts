@@ -217,15 +217,28 @@ export class ContextManager {
       { role: "user", content: instruction },
     ];
 
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(new Error("fold-timeout")), FOLD_SUMMARY_TIMEOUT_MS);
+    // Wire turn abort → fold abort so Esc cancels a running fold immediately.
+    const turnSignal = this.deps.getAbortSignal();
+    if (turnSignal.aborted) return noop;
+
+    const foldCtrl = new AbortController();
+    let cleanupAbort = () => {};
+
+    const onAbort = () => foldCtrl.abort();
+    turnSignal.addEventListener("abort", onAbort, { once: true });
+    cleanupAbort = () => turnSignal.removeEventListener("abort", onAbort);
+
+    const timer = setTimeout(
+      () => foldCtrl.abort(new Error("fold-timeout")),
+      FOLD_SUMMARY_TIMEOUT_MS,
+    );
 
     try {
       const resp = await this.deps.client.chat({
         model: "deepseek-v4-flash",
         messages: msgs,
         thinking: "disabled",
-        signal: ctrl.signal,
+        signal: foldCtrl.signal,
       });
 
       const constraints = extractPinnedConstraints(this.deps.getSystemPrompt());
@@ -254,6 +267,7 @@ export class ContextManager {
       return noop;
     } finally {
       clearTimeout(timer);
+      cleanupAbort();
     }
   }
 }
