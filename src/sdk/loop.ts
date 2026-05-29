@@ -273,10 +273,14 @@ export function createGameLoop(opts: GameLoopOptions) {
     }
 
     let foldedThisTurn = false;
-    const previousToolCalls = new Set<string>(); // storm detection
     let turnSelfCorrected = false;
 
     for (let iter = 0; iter < maxIterPerTurn; iter++) {
+      // Storm detection: track (name + args) signatures for THIS iteration
+      // only. Resetting each iter lets the model re-attempt a call after
+      // getting new context, while still catching duplicate calls within a
+      // single response.
+      const previousToolCalls = new Set<string>();
       if (signal.aborted) {
         // On discard, truncate the log to what existed before this turn
         // started. compactInPlace calls persistence.rewrite() internally,
