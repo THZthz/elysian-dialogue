@@ -71,6 +71,23 @@ function repairToolCallArgs(tc: ToolCall): ToolCall {
   return tc;
 }
 
+/** Drop a trailing assistant-with-tool_calls before a forced exit so the next
+ *  API call doesn't 400 on unpaired tool_calls. Returns true if trimmed. */
+function trimTrailingToolCalls(log: AppendOnlyLog): boolean {
+  const entries = log.entries;
+  const tail = entries[entries.length - 1];
+  if (
+    tail &&
+    tail.role === "assistant" &&
+    Array.isArray(tail.tool_calls) &&
+    tail.tool_calls.length > 0
+  ) {
+    log.compactInPlace(entries.slice(0, -1));
+    return true;
+  }
+  return false;
+}
+
 // ---------------------------------------------------------------------------
 // streamModelResponse
 // ---------------------------------------------------------------------------
@@ -441,6 +458,7 @@ export function createGameLoop(opts: GameLoopOptions) {
             severity: "high",
             content: `Context exhausted at ${Math.round(decision.ratio * 100)}% — forcing summary.`,
           };
+          trimTrailingToolCalls(log);
           yield { turn, role: "done", content: acc.content };
           return;
         }
@@ -448,6 +466,7 @@ export function createGameLoop(opts: GameLoopOptions) {
     }
 
     // ── Max iterations reached ──
+    trimTrailingToolCalls(log);
     yield {
       turn,
       role: "warning",
