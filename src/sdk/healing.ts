@@ -171,6 +171,26 @@ function stripDroppableReasoning(
 // Public API
 // ---------------------------------------------------------------------------
 
+/** Strip hallucinated DSML / function_calls markup from model prose content.
+ *  Thinking-mode models may emit `<function_calls>` or `<|DSML|function_calls>`
+ *  markup even when tools are undefined. */
+const DSML_REGEX =
+  /<\|?DSML\|?\s*function_calls>[\s\S]*?<\/\|?DSML\|?\s*function_calls>/gi;
+const FUNC_CALLS_REGEX = /<function_calls>[\s\S]*?<\/function_calls>/gi;
+// Full-width "｜" is the form R1 emits in practice.
+const FULLWIDTH_DSML_REGEX =
+  /<｜DSML｜function_calls>[\s\S]*?<\/?｜DSML｜function_calls>/g;
+const LONE_OPEN_REGEX = /<｜DSML｜[\s\S]*$/g;
+
+export function stripHallucinatedToolMarkup(content: string): string {
+  return content
+    .replace(FULLWIDTH_DSML_REGEX, "")
+    .replace(DSML_REGEX, "")
+    .replace(FUNC_CALLS_REGEX, "")
+    .replace(LONE_OPEN_REGEX, "")
+    .trim();
+}
+
 export function healMessages(messages: ChatMessage[], opts: HealingOptions = {}): HealingResult {
   let result: HealingResult = {
     messages: [...messages],

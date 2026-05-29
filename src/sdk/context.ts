@@ -4,7 +4,7 @@
 import type { DeepSeekClient } from "./client.js";
 import type { AppendOnlyLog } from "./log.js";
 import type { ChatMessage, ToolSpec, Usage } from "./types.js";
-import { healMessages } from "./healing.js";
+import { healMessages, stripHallucinatedToolMarkup } from "./healing.js";
 
 // ---------------------------------------------------------------------------
 // Constants (mirrors DeepSeek-Reasonix context-manager.ts)
@@ -220,7 +220,7 @@ export class ContextManager {
 
       const summary: ChatMessage = {
         role: "assistant",
-        content: `[History summary]\n${resp.content.trim()}`,
+        content: `[History summary]\n${stripHallucinatedToolMarkup(resp.content)}`,
       };
       // In thinking mode, stamp empty reasoning_content to prevent 400
       // on the next API call — DeepSeek requires it on ALL assistant messages.
