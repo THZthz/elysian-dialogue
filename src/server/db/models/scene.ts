@@ -80,7 +80,9 @@ export class SceneModel {
     return this.parseScene(s);
   }
 
-  async create(input: CreateSceneInput): Promise<{ scene: SceneData; timeMismatchWarning?: string }> {
+  async create(
+    input: CreateSceneInput,
+  ): Promise<{ scene: SceneData; timeMismatchWarning?: string }> {
     const now = new Date().toISOString();
     const name = `scene_${await nextId(this.graph)}`;
 

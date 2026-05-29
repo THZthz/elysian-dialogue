@@ -52,14 +52,7 @@ describe("VectorStore", () => {
 
   it("delete removes a single point", () => {
     const vec = new Float32Array([1.0, 0.0]);
-    store.upsert(
-      "Note:Test",
-      "Note",
-      "node",
-      vec,
-      { indices: [], values: [] },
-      { name: "Test" },
-    );
+    store.upsert("Note:Test", "Note", "node", vec, { indices: [], values: [] }, { name: "Test" });
     expect(store.getAllByFilter("Note", "node")).toHaveLength(1);
     store.delete("Note:Test");
     expect(store.getAllByFilter("Note", "node")).toHaveLength(0);

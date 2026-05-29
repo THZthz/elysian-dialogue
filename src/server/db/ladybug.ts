@@ -66,8 +66,6 @@ export class LadybugClient {
     }
   }
 
-
-
   async mergeRelationship(
     srcLabel: string,
     srcKey: string,

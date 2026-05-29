@@ -91,8 +91,7 @@ function buildPlotTreeFromNodes(plots: PlotNode[]): string {
       if (node.brief) result += ` — ${node.brief}`;
       result += "\n";
 
-      const continuation = indent +
-        (soleRoot ? "" : last ? "    " : "│   ");
+      const continuation = indent + (soleRoot ? "" : last ? "    " : "│   ");
 
       if (node.triggerCondition) {
         result += `${continuation}▸ ${node.triggerCondition}\n`;

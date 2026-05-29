@@ -51,15 +51,13 @@ schemas via \`${TOOL_NAMES.GET_CONTEXT}\` (SCHEMA_DUMP).
     .enum(["DELETE"])
     .optional()
     .describe('Set to "DELETE" to remove the node and all its relationships. Omit for upsert.'),
-  match: z
-    .record(z.string(), z.string())
-    .describe(
-      `
+  match: z.record(z.string(), z.string()).describe(
+    `
 Key-value pairs to locate exactly one node. Used to find existing nodes for update, or as initial
 property values (merged with \`properties\`) when creating. For example: { name: 'Tavern' } for a
 Location, or { source_name: 'Guard', target_name: 'Player' } for a Disposition.
 `.trim(),
-    ),
+  ),
   properties: z
     .record(z.string(), z.unknown())
     .nullable()
@@ -331,8 +329,7 @@ Since \`metadata\` is tagged as "json" of node Character in SCHEMA_DUMP, you can
     );
     const created = result.rows[0]?.n as Record<string, unknown> | undefined;
     const v = visibleProps(created);
-    const propSummary =
-      Object.keys(v).length > 0 ? ` with keys: ${Object.keys(v).join(", ")}` : "";
+    const propSummary = Object.keys(v).length > 0 ? ` with keys: ${Object.keys(v).join(", ")}` : "";
     return `Node "${args.nodeLabel}" created${propSummary}.`;
   }, TOOL_NAMES.EDIT_NODE),
 });
