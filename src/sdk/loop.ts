@@ -190,11 +190,11 @@ export function createGameLoop(opts: GameLoopOptions) {
 
   // Heal messages loaded from persistence on resume — oversized tool results,
   // missing reasoning_content, unpaired tool calls would 400 the next API call.
-  if (log.totalLength > 0 && opts.persistence) {
+  if (log.totalLength > 0) {
     const loaded = log.toFullHistory();
     const healed = healMessages(loaded, {
       thinkingModeModel:
-        (opts.thinking ?? true) && opts.model ? opts.model : null,
+        (opts.thinking ?? true) ? (opts.model ?? "deepseek-v4-flash") : null,
     });
     if (healed.healedCount > 0) {
       log.compactInPlace(healed.messages);
