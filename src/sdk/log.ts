@@ -10,6 +10,7 @@ export class AppendOnlyLog {
   private _persistence: SessionPersistence | null;
   private _totalLength: number;
   private _version = 0;
+  private _fullHistoryCache: { version: number; messages: ChatMessage[] } | null = null;
 
   constructor(opts?: { windowSize?: number; persistence?: SessionPersistence }) {
     this._windowSize = opts?.windowSize ?? DEFAULT_WINDOW;
@@ -35,6 +36,7 @@ export class AppendOnlyLog {
       this._entries.shift();
     }
     this._version++;
+    this._fullHistoryCache = null;
     if (this._persistence) {
       try { this._persistence.append(message); } catch { /* best-effort */ }
     }
@@ -44,13 +46,36 @@ export class AppendOnlyLog {
     this._entries = [...replacement];
     this._totalLength = replacement.length;
     this._version++;
+    this._fullHistoryCache = null;
     if (this._persistence) {
       try { this._persistence.rewrite(replacement); } catch { /* best-effort */ }
     }
   }
 
   toFullHistory(): ChatMessage[] {
-    return this._entries.map((e) => ({ ...e }));
+    // Return cached result if the log version hasn't changed.
+    if (this._fullHistoryCache && this._fullHistoryCache.version === this._version) {
+      return this._fullHistoryCache.messages.map((e) => ({ ...e }));
+    }
+    let messages: ChatMessage[];
+    // If persistence is available and the in-memory window doesn't cover
+    // everything, try loading the full history from persistence.
+    if (this._persistence && this._totalLength > this._entries.length) {
+      try {
+        const loaded = this._persistence.load();
+        if (loaded.length > this._entries.length) {
+          messages = loaded;
+        } else {
+          messages = this._entries;
+        }
+      } catch {
+        messages = this._entries;
+      }
+    } else {
+      messages = this._entries;
+    }
+    this._fullHistoryCache = { version: this._version, messages };
+    return messages.map((e) => ({ ...e }));
   }
 
   get entries(): readonly ChatMessage[] { return this._entries; }
