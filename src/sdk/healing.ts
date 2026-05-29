@@ -117,8 +117,9 @@ function shrinkOversizedToolResults(messages: ChatMessage[]): {
 }
 
 // ---------------------------------------------------------------------------
-// Pass 3: stampMissingReasoning — add empty reasoning_content to assistant
-//         tool_calls messages in thinking mode (DeepSeek requires it).
+// Pass 3: stampMissingReasoning — add empty reasoning_content to ALL
+//         assistant messages in thinking mode (DeepSeek requires it on
+//         every assistant message, not just those with tool_calls).
 // ---------------------------------------------------------------------------
 
 function stampMissingReasoning(
@@ -130,8 +131,6 @@ function stampMissingReasoning(
   const out = messages.map((m) => {
     if (
       m.role === "assistant" &&
-      Array.isArray(m.tool_calls) &&
-      m.tool_calls.length > 0 &&
       m.reasoning_content === undefined
     ) {
       healed++;
