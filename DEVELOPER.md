@@ -1,7 +1,7 @@
 # Chorus — Developer Guide
 
 Cinematic dialogue engine with branching paths, skill checks, and LLM Game Master.
-**Stack:** TypeScript, Express, LadybugDB (graph), SQLite (vectors), Vercel AI SDK.
+**Stack:** TypeScript, Express, LadybugDB (graph), SQLite (vectors), DeepSeek API (custom SDK, migrating from Vercel AI SDK).
 
 ---
 
@@ -100,6 +100,12 @@ src/
 │   ├── events.ts                     # SSE event type definitions
 │   ├── sse.ts                        # SSE formatting helpers
 │   └── colors.ts                     # Chalk wrappers for console output
+│
+├── sdk/                              # DeepSeek API SDK (custom, replaces AI SDK providers)
+│   ├── types.ts                      # Shared types: ChatMessage, ToolCall, Usage, GameLoopOptions, etc.
+│   ├── client.ts                     # Stub — DeepSeekClient (Batch 2)
+│   ├── prefix.ts                     # Stub — ImmutablePrefix (Batch 2)
+│   └── log.ts                        # Stub — AppendOnlyLog (Batch 3)
 │
 └── types/                            # Frontend types
     └── dialogue.ts                   # Message, DialogueOption
