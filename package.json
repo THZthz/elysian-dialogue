@@ -7,7 +7,6 @@
     "server": "tsx src/server/main.ts",
     "server:dev": "tsx --watch src/server/main.ts",
     "console": "tsx src/console/main.ts",
-
     "lint": "tsc --noEmit",
     "add-license": "node scripts/add-license-header.mjs",
     "clean": "rm -rf dist",
@@ -30,6 +29,7 @@
     "better-sqlite3": "^12.10.0",
     "chalk": "^5.6.2",
     "dotenv": "^17.2.3",
+    "eventsource-parser": "^3.1.0",
     "express": "^4.21.2",
     "jsonrepair": "^3.14.0",
     "log-update": "^8.0.0",
