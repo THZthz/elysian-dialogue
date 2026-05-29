@@ -10,7 +10,7 @@ export type { ImmutablePrefixOptions } from "./prefix.js";
 
 export { AppendOnlyLog, JsonlPersistence } from "./log.js";
 
-export { healMessages } from "./healing.js";
+export { healMessages, stripHallucinatedToolMarkup } from "./healing.js";
 export type { HealingOptions, HealingResult } from "./healing.js";
 
 export { ContextManager } from "./context.js";
