@@ -18,6 +18,14 @@ const AGGRESSIVE_TAIL_FRACTION = 0.1;
 const FOLD_MIN_SAVINGS_FRACTION = 0.3;
 const FOLD_SUMMARY_TIMEOUT_MS = 15_000;
 
+/** Extract HIGH PRIORITY constraints / User memory / Project memory blocks
+ *  from the system prompt so they survive compaction. */
+function extractPinnedConstraints(systemPrompt: string): string {
+  const pattern =
+    /# (?:HIGH PRIORITY constraints|User memory|Project memory)[\s\S]*?(?=\n# |\n---|$)/g;
+  return Array.from(systemPrompt.matchAll(pattern), (m) => m[0]).join("\n\n");
+}
+
 const CONTEXT_TOKENS: Record<string, number> = {
   "deepseek-v4-flash": 131_072,
   "deepseek-v4-pro": 131_072,
@@ -201,8 +209,10 @@ export class ContextManager {
       "tool results still relevant, and any open todos. " +
       "Output plain prose only.";
 
+    const fewShots = this.deps.getFewShots?.() ?? [];
     const msgs: ChatMessage[] = [
       { role: "system", content: this.deps.getSystemPrompt() },
+      ...fewShots.map((m) => ({ ...m })),
       ...healed,
       { role: "user", content: instruction },
     ];
@@ -218,9 +228,13 @@ export class ContextManager {
         signal: ctrl.signal,
       });
 
+      const constraints = extractPinnedConstraints(this.deps.getSystemPrompt());
+      const constraintTail = constraints
+        ? `\n\n[PINNED CONSTRAINTS — preserved verbatim]\n\n${constraints}`
+        : "";
       const summary: ChatMessage = {
         role: "assistant",
-        content: `[History summary]\n${stripHallucinatedToolMarkup(resp.content)}`,
+        content: `[History summary]\n${stripHallucinatedToolMarkup(resp.content)}${constraintTail}`,
       };
       // In thinking mode, stamp empty reasoning_content to prevent 400
       // on the next API call — DeepSeek requires it on ALL assistant messages.
