@@ -288,6 +288,14 @@ export function createGameLoop(opts: GameLoopOptions) {
         // do not reappear on session resume.
         if (discardAbortRequested && turnStartLogIndex >= 0) {
           log.compactInPlace(log.toFullHistory().slice(0, turnStartLogIndex));
+        } else {
+          // Non-discard abort: append synthetic assistant message so the
+          // user can see the interruption and retry.
+          log.append({
+            role: "assistant",
+            content:
+              "[aborted by user — ask again or retry when ready]",
+          });
         }
         yield { turn, role: "done", content: "[aborted]" };
         return;
