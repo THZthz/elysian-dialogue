@@ -274,6 +274,7 @@ export function createGameLoop(opts: GameLoopOptions) {
 
     let foldedThisTurn = false;
     const previousToolCalls = new Set<string>(); // storm detection
+    let turnSelfCorrected = false;
 
     for (let iter = 0; iter < maxIterPerTurn; iter++) {
       if (signal.aborted) {
@@ -427,14 +428,34 @@ export function createGameLoop(opts: GameLoopOptions) {
         }
       }
 
-      // ── All calls suppressed → force summary ──
-      if (suppressedCount > 0 && suppressedCount === toolCalls.length) {
+      // ── All calls suppressed ──
+      const allSuppressed =
+        suppressedCount > 0 && suppressedCount === toolCalls.length;
+
+      if (allSuppressed && !turnSelfCorrected) {
+        // First all-suppressed: give model one self-correction chance.
+        // The assistant message already carries the original tool_calls in
+        // the log, and the for-loop above appended suppressed tool stubs for
+        // each call, so the model sees what was attempted and can recover.
+        turnSelfCorrected = true;
+        yield {
+          turn,
+          role: "warning",
+          severity: "low",
+          content: "All tool calls were repeat calls. Try a different approach.",
+        };
+        continue;
+      }
+
+      if (allSuppressed) {
+        // Second all-suppressed → model is truly stuck
         yield {
           turn,
           role: "warning",
           severity: "high",
-          content: "All tool calls suppressed — model is stuck in a loop.",
+          content: "All tool calls suppressed again — model is stuck in a loop.",
         };
+        trimTrailingToolCalls(log);
         yield { turn, role: "done", content: acc.content };
         return;
       }
