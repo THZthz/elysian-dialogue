@@ -28,7 +28,9 @@ interface VercelToolLike {
 /**
  * Check whether a value looks like a Zod v4 schema (has the toJSONSchema method).
  */
-function isZodSchema(value: unknown): value is { toJSONSchema: (params?: Record<string, unknown>) => Record<string, unknown> } {
+function isZodSchema(
+  value: unknown,
+): value is { toJSONSchema: (params?: Record<string, unknown>) => Record<string, unknown> } {
   return (
     value != null &&
     typeof value === "object" &&

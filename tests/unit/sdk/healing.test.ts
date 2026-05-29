@@ -74,9 +74,7 @@ describe("healMessages", () => {
       },
     ];
     const result = healMessages(msgs, { thinkingModeModel: "deepseek-v4-pro" });
-    const assistant = result.messages.find(
-      (m) => m.role === "assistant" && m.tool_calls,
-    );
+    const assistant = result.messages.find((m) => m.role === "assistant" && m.tool_calls);
     expect(assistant).toBeDefined();
     expect(assistant!.reasoning_content).toBe("");
   });
@@ -107,9 +105,9 @@ describe("healMessages", () => {
     const result = healMessages(msgs, {
       thinkingModeModel: "deepseek-v4-pro",
     });
-    expect(
-      result.messages.find((m) => m.role === "assistant")?.reasoning_content,
-    ).toBe("important reasoning");
+    expect(result.messages.find((m) => m.role === "assistant")?.reasoning_content).toBe(
+      "important reasoning",
+    );
   });
 
   it("truncates oversized tool results", () => {

@@ -64,13 +64,24 @@ export function getDeepSeekClient(): DeepSeekClient {
 export async function getPrefix(): Promise<ImmutablePrefix> {
   if (_cachedPrefix) return _cachedPrefix;
   const systemPrompt = await buildSystemPrompt();
-  const allTools = [queryWorld, searchWorld, manageSchema, editNode, editRelationship, editNote, editPlot, getContext];
+  const allTools = [
+    queryWorld,
+    searchWorld,
+    manageSchema,
+    editNode,
+    editRelationship,
+    editNote,
+    editPlot,
+    getContext,
+  ];
   const toolSpecs: ToolSpec[] = allTools.map((t: any) => vercelToolToSpec(t));
   _cachedPrefix = new ImmutablePrefix({ system: systemPrompt, toolSpecs });
   return _cachedPrefix;
 }
 
-export function resetPrefix(): void { _cachedPrefix = null; }
+export function resetPrefix(): void {
+  _cachedPrefix = null;
+}
 
 function createToolHandlers(
   dialogueStepTool: ReturnType<typeof createGenerateDialogueStepTool>,
@@ -85,7 +96,8 @@ function createToolHandlers(
     editNote: async (args: string) => (editNote as any).execute(JSON.parse(args)),
     editPlot: async (args: string) => (editPlot as any).execute(JSON.parse(args)),
     getContext: async (args: string) => (getContext as any).execute(JSON.parse(args)),
-    generateDialogueStep: async (args: string) => (dialogueStepTool.tool as any).execute(JSON.parse(args)),
+    generateDialogueStep: async (args: string) =>
+      (dialogueStepTool.tool as any).execute(JSON.parse(args)),
     manageScene: async (args: string) => (manageSceneTool as any).execute(JSON.parse(args)),
   };
 }
@@ -106,7 +118,9 @@ export async function generateTurn(
     const events = new TurnEventEmitter(res);
     const db = Database.getExisting();
 
-    console.log(`[generateTurn] historyLen=${history.length} userInput="${String(userInput).slice(0, 80)}"`);
+    console.log(
+      `[generateTurn] historyLen=${history.length} userInput="${String(userInput).slice(0, 80)}"`,
+    );
 
     res.writeHead(200, {
       "Content-Type": "text/event-stream",
@@ -119,13 +133,18 @@ export async function generateTurn(
 
     // ── Load turn state ──
     let turnNumber = 1;
-    try { turnNumber = await db.messages.getNextTurnNumber(); } catch { /* use default */ }
+    try {
+      turnNumber = await db.messages.getNextTurnNumber();
+    } catch {
+      /* use default */
+    }
 
     // ── Skill check ──
     const promptParts: string[] = [];
     if (check) {
       const rollResult = await performSkillCheck(check).catch((err) => {
-        console.error("[generateTurn] Skill check failed:", err); return null;
+        console.error("[generateTurn] Skill check failed:", err);
+        return null;
       });
       if (rollResult) {
         events.emitRollResult(rollResult);
@@ -133,14 +152,34 @@ export async function generateTurn(
         try {
           const activeScene = await db.scene.getActive();
           if (activeScene) {
-            await db.scene.appendRollLog(activeScene.name,
+            await db.scene.appendRollLog(
+              activeScene.name,
               `Rolled ${check.diceCount}d6 + ${check.skill}(${rollResult.statBonus}) | Total: ${rollResult.total} vs Difficulty: ${check.difficulty} | Result: ${rollResult.success ? "SUCCESS" : "FAILURE"}`,
-              { speaker: check.skill, rollResult: { skill: rollResult.skill as SkillName, difficulty: rollResult.difficulty, dice: rollResult.dice, total: rollResult.total, success: rollResult.success } });
+              {
+                speaker: check.skill,
+                rollResult: {
+                  skill: rollResult.skill as SkillName,
+                  difficulty: rollResult.difficulty,
+                  dice: rollResult.dice,
+                  total: rollResult.total,
+                  success: rollResult.success,
+                },
+              },
+            );
           }
-        } catch (err) { console.error("[generateTurn] failed to log roll:", err); }
-        promptParts.push("## SKILL CHECK RESULT", rollResult.narrativeSummary, "",
+        } catch (err) {
+          console.error("[generateTurn] failed to log roll:", err);
+        }
+        promptParts.push(
+          "## SKILL CHECK RESULT",
+          rollResult.narrativeSummary,
+          "",
           `The player ${rollResult.success ? "succeeded" : "failed"} this skill check.`,
-          `Narrate naturally via ${TOOL_NAMES.GENERATE_DIALOGUE}.`, "", "---", "");
+          `Narrate naturally via ${TOOL_NAMES.GENERATE_DIALOGUE}.`,
+          "",
+          "---",
+          "",
+        );
       }
     }
 
@@ -151,15 +190,21 @@ export async function generateTurn(
     try {
       const activeScene = await db.scene.getActive();
       if (activeScene) await db.scene.appendPlayerLog(activeScene.name, userInput);
-    } catch (err) { console.error("[generateTurn] failed to log player input:", err); }
+    } catch (err) {
+      console.error("[generateTurn] failed to log player input:", err);
+    }
 
     // ── First turn helper ──
     if (turnNumber === 1) {
-      promptParts.push("## BEGIN FIRST TURN",
+      promptParts.push(
+        "## BEGIN FIRST TURN",
         `This is first turn, you should call \`${TOOL_NAMES.GET_CONTEXT}\` with ["SCHEMA_DUMP", "CHARACTERS_BRIEF", "LOCATIONS_BRIEF", "OBJECTS_BRIEF", "PLOTS_BRIEF", "RELATIONSHIP_DUMP"].`,
         `Explore with \`${TOOL_NAMES.QUERY_WORLD}\`.`,
         `Check notes/plots by \`${TOOL_NAMES.SEARCH_WORLD}\`. Search note with "Opening Scene" recommended.`,
-        "", "---", "");
+        "",
+        "---",
+        "",
+      );
     }
 
     promptParts.push("Generate the narrative response following the output format.", "");
@@ -177,9 +222,12 @@ export async function generateTurn(
     const handlers = createToolHandlers(dialogueStepTool, manageSceneTool);
 
     const loop = createGameLoop({
-      client, prefix,
+      client,
+      prefix,
       model: process.env.DEEPSEEK_MODEL || "deepseek-v4-flash",
-      thinking: true, reasoningEffort: "high", maxIterPerTurn: MAX_GM_STEPS,
+      thinking: true,
+      reasoningEffort: "high",
+      maxIterPerTurn: MAX_GM_STEPS,
       runTool: async (name, args, signal) => {
         const handler = handlers[name as keyof typeof handlers];
         if (!handler) return { result: `Unknown tool: ${name}` };
@@ -222,23 +270,47 @@ export async function generateTurn(
               toolRawArgs += event.argsDelta;
               try {
                 const parsed = parsePartial(toolRawArgs) as Record<string, unknown>;
-                if (parsed.messages && Array.isArray(parsed.messages) && (parsed.messages as any[]).length > 0) {
+                if (
+                  parsed.messages &&
+                  Array.isArray(parsed.messages) &&
+                  (parsed.messages as any[]).length > 0
+                ) {
                   finalMessages = parsed.messages as Record<string, unknown>[];
                   hasEmittedStreaming = true;
-                  events.emitStreamingMessages((finalMessages as any[]).map((m: any) => ({
-                    speaker: m.speaker || "SYSTEM", type: m.type || "SYSTEM", text: m.text || "", metadata: m.metadata,
-                  })));
+                  events.emitStreamingMessages(
+                    (finalMessages as any[]).map((m: any) => ({
+                      speaker: m.speaker || "SYSTEM",
+                      type: m.type || "SYSTEM",
+                      text: m.text || "",
+                      metadata: m.metadata,
+                    })),
+                  );
                 }
                 if (parsed.options && Array.isArray(parsed.options)) {
                   finalOptions = (parsed.options as any[]).map((o: any) => ({
-                    text: o.text || "", hintBefore: o.hintBefore, hintAfter: o.hintAfter,
-                    check: o.check ? { skill: o.check.skill, difficulty: o.check.difficulty, difficultyText: o.check.difficultyText || "", diceCount: o.check.diceCount ?? 2,
-                      conditions: (o.check.conditions || []).map((c: any, ci: number) => ({ expression: c.expression, label: c.label, color: c.color, stepId: c.stepId || `step_res_${ci}` })),
-                    } : undefined,
+                    text: o.text || "",
+                    hintBefore: o.hintBefore,
+                    hintAfter: o.hintAfter,
+                    check: o.check
+                      ? {
+                          skill: o.check.skill,
+                          difficulty: o.check.difficulty,
+                          difficultyText: o.check.difficultyText || "",
+                          diceCount: o.check.diceCount ?? 2,
+                          conditions: (o.check.conditions || []).map((c: any, ci: number) => ({
+                            expression: c.expression,
+                            label: c.label,
+                            color: c.color,
+                            stepId: c.stepId || `step_res_${ci}`,
+                          })),
+                        }
+                      : undefined,
                   }));
                   if (finalOptions.length > 0) events.emitOptions(finalOptions);
                 }
-              } catch { /* Partial JSON not parseable yet */ }
+              } catch {
+                /* Partial JSON not parseable yet */
+              }
             }
           }
           break;
@@ -256,25 +328,44 @@ export async function generateTurn(
 
     // ── Post-turn ──
     const dialogueWasValid = dialogueStepTool.wasValid();
-    if (!dialogueWasValid) { finalMessages = []; finalOptions = []; }
+    if (!dialogueWasValid) {
+      finalMessages = [];
+      finalOptions = [];
+    }
 
     // Persist GM dialogue to scene log
     if (dialogueWasValid && finalMessages.length > 0) {
       try {
         const activeScene = await db.scene.getActive();
         if (activeScene) {
-          await db.scene.appendGMLog(activeScene.name,
-            finalMessages as Array<{ speaker: string; type: string; text: string; metadata?: Record<string, unknown> }>,
-            finalOptions.length > 0 ? (finalOptions as unknown as Record<string, unknown>) : undefined);
+          await db.scene.appendGMLog(
+            activeScene.name,
+            finalMessages as Array<{
+              speaker: string;
+              type: string;
+              text: string;
+              metadata?: Record<string, unknown>;
+            }>,
+            finalOptions.length > 0
+              ? (finalOptions as unknown as Record<string, unknown>)
+              : undefined,
+          );
         }
-      } catch (err) { console.error("[generateTurn] failed to log GM output:", err); }
+      } catch (err) {
+        console.error("[generateTurn] failed to log GM output:", err);
+      }
     }
 
     if (finalMessages.length === 0) {
       events.emitError("Failed to generate valid dialogue");
     } else {
       events.emitParsed(
-        finalMessages.map((m: any) => ({ speaker: m.speaker, type: m.type, text: m.text, metadata: m.metadata })),
+        finalMessages.map((m: any) => ({
+          speaker: m.speaker,
+          type: m.type,
+          text: m.text,
+          metadata: m.metadata,
+        })),
         finalOptions,
       );
       events.emitOptions(finalOptions);
@@ -286,16 +377,25 @@ export async function generateTurn(
       try {
         const activeScene = await db.scene.getActive();
         if (activeScene) await db.scene.saveOptions(activeScene.name, finalOptions);
-      } catch (err) { console.error("[generateTurn] failed to persist options:", err); }
+      } catch (err) {
+        console.error("[generateTurn] failed to persist options:", err);
+      }
     }
 
     // Save checkpoint
     try {
-      await db.checkpoint.save(turnNumber,
-        async () => { await Database.closeInstance(); },
-        async () => { await Database.getInstance(); },
+      await db.checkpoint.save(
+        turnNumber,
+        async () => {
+          await Database.closeInstance();
+        },
+        async () => {
+          await Database.getInstance();
+        },
       );
-    } catch (err) { console.error("[generateTurn] failed to save checkpoint:", err); }
+    } catch (err) {
+      console.error("[generateTurn] failed to save checkpoint:", err);
+    }
   } finally {
     generating = false;
   }

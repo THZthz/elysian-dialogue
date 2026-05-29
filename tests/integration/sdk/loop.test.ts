@@ -169,7 +169,10 @@ describe("createGameLoop", () => {
       ],
     ];
     multiChunkClient.stream = async function* (_opts) {
-      const chunks = chunkSets[callCount] ?? [{ contentDelta: "done", raw: {} }, { usage: new Usage(10, 2, 12, 0, 10), raw: {} }];
+      const chunks = chunkSets[callCount] ?? [
+        { contentDelta: "done", raw: {} },
+        { usage: new Usage(10, 2, 12, 0, 10), raw: {} },
+      ];
       callCount++;
       for (const c of chunks) yield c;
     };

@@ -109,7 +109,16 @@ describe("ContextManager", () => {
 
     it("includes tool specs in token estimate", () => {
       const msgs: ChatMessage[] = [];
-      const toolSpecs = [{ type: "function" as const, function: { name: "test", description: "a test tool", parameters: { type: "object", properties: { x: { type: "string" } } } } }];
+      const toolSpecs = [
+        {
+          type: "function" as const,
+          function: {
+            name: "test",
+            description: "a test tool",
+            parameters: { type: "object", properties: { x: { type: "string" } } },
+          },
+        },
+      ];
       const est = createManager().estimateTurnStart(msgs, toolSpecs, "deepseek-v4-flash");
       expect(est.estimateTokens).toBeGreaterThan(0);
     });

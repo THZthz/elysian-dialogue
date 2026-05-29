@@ -1,7 +1,7 @@
 # Chorus — Developer Guide
 
 Cinematic dialogue engine with branching paths, skill checks, and LLM Game Master.
-**Stack:** TypeScript, Express, LadybugDB (graph), SQLite (vectors), DeepSeek API (custom SDK, migrating from Vercel AI SDK).
+**Stack:** TypeScript, Express, LadybugDB (graph), SQLite (vectors), DeepSeek SDK + ai (tool definitions only).
 
 ---
 
@@ -68,9 +68,8 @@ src/
 │   │   └── reranker.ts               # Optional cross-encoder rerank
 │   │
 │   ├── llm/                          # Game Master AI
-│   │   ├── index.ts                  # generateTurn(): streamText orchestration
+│   │   ├── index.ts                  # generateTurn(): creates game loop, emits SSE, persists checkpoints
 │   │   ├── prompt.ts                 # System prompt: toolbox, turn rhythm, memory, plots
-│   │   ├── model.ts                  # Provider/model selection via env vars
 │   │   ├── events.ts                 # TurnEventEmitter — SSE event emission
 │   │   ├── sceneContext.ts           # Builds scene context, entity briefs, plot trees
 │   │   ├── conditionEvaluator.ts     # JS expression evaluation for skill checks
@@ -101,11 +100,17 @@ src/
 │   ├── sse.ts                        # SSE formatting helpers
 │   └── colors.ts                     # Chalk wrappers for console output
 │
-├── sdk/                              # DeepSeek API SDK (custom, replaces AI SDK providers)
-│   ├── types.ts                      # Shared types: ChatMessage, ToolCall, Usage, GameLoopOptions, etc.
-│   ├── client.ts                     # Stub — DeepSeekClient (Batch 2)
-│   ├── prefix.ts                     # Stub — ImmutablePrefix (Batch 2)
-│   └── log.ts                        # Stub — AppendOnlyLog (Batch 3)
+├── sdk/                              # DeepSeek API SDK (replaces AI SDK providers)
+│   ├── types.ts                      # Shared types: ChatMessage, ToolSpec, Usage, LoopEvent
+│   ├── client.ts                     # DeepSeekClient — HTTP, auth, SSE parsing
+│   ├── prefix.ts                     # ImmutablePrefix — cacheable request prefix
+│   ├── log.ts                        # AppendOnlyLog — message history + JSONL persistence
+│   ├── healing.ts                    # Message healing pipeline
+│   ├── diagnostics.ts                # Cache telemetry
+│   ├── context.ts                    # ContextManager — token estimation, fold decisions
+│   ├── loop.ts                       # createGameLoop() — generator turn loop
+│   ├── bridge.ts                     # Vercel tool() → ToolSpec converter
+│   └── index.ts                      # Re-exports
 │
 └── types/                            # Frontend types
     └── dialogue.ts                   # Message, DialogueOption
@@ -117,7 +122,7 @@ src/
 
 ### Two-process model
 
-**Server** (`src/server/`) — Express API on port 3000. Manages the LadybugDB graph database, vector store (better-sqlite3), LLM orchestration via Vercel AI SDK v6, and SSE event streaming.
+**Server** (`src/server/`) — Express API on port 3000. Manages the LadybugDB graph database, vector store (better-sqlite3), LLM orchestration via DeepSeek SDK + ai (tool definitions only), and SSE event streaming.
 
 **Console** (`src/console/`) — Interactive terminal client using `@inquirer/prompts`. Connects to server via SSE, renders markdown with chalk colors. Supports resume from saved game state.
 
@@ -131,8 +136,9 @@ Console (SSE client) ──POST /api/chat/stream──▶ Express API
                                                       │
                                     ┌─────────────────┼──────────────────┐
                                     ▼                 ▼                  ▼
-                              streamText()      buildSystemPrompt()   Tool definitions
-                              (AI SDK v6)      (src/server/llm/prompt.ts)
+                              createGameLoop()  buildSystemPrompt()   Tool definitions
+                              .step()           (src/server/llm/prompt.ts)  (via bridge.ts)
+                              (SDK generator)
                                     │
                               ┌─────┴──────┐
                               ▼            ▼
@@ -146,7 +152,8 @@ Console (SSE client) ──POST /api/chat/stream──▶ Express API
 |-------------------------------------|------------------------------------------------------------------------------------------------------------------|
 | `src/server/main.ts`                | Entry: starts Express, initializes Database singleton, seeds world                                               |
 | `src/server/api.ts`                 | All REST endpoints (`/chat/stream`, `/history`, `/game/current`, `/checkpoints`, `/reset`, `/debug/tools/:name`) |
-| `src/server/llm/index.ts`           | Core turn loop: builds prompt, calls `streamText()`, emits SSE, persists checkpoints                             |
+| `src/server/llm/index.ts`           | Core turn loop: builds prompt, calls `createGameLoop()`, emits SSE, persists checkpoints                             |
+| `src/sdk/loop.ts`                   | SDK turn loop: generator that yields LoopEvents, handles tool dispatch, cache diagnostics                           |
 | `src/server/llm/prompt.ts`          | System prompt template with full LadybugDB Cypher cookbook and workflow                                          |
 | `src/server/db/index.ts`            | `Database` singleton: owns LadybugClient, VectorStore, SchemaRegistry, HybridSearcher, domain models             |
 | `src/server/db/schema.ts`           | `SchemaRegistry`: all predefined node/rel type definitions, DDL generation, `embedded` tag for vector indexing   |
@@ -171,11 +178,17 @@ The GM is given 10 tools (defined in `src/server/llm/tools/`), each with a speci
 - **`generateDialogueStep`** — streaming output tool: produces messages and dialogue options for the player
 - **`manageScene`** — scene transitions with time tracking, location/character changes
 
-### `prepareStep` nudging system
+### SDK turn loop
 
-`generateTurn()` uses `streamText()`'s `prepareStep` callback to nudge the GM to call `generateDialogueStep`:
-- After 4-6 steps without calling `generateDialogueStep`, injects reminder messages
-- Once `generateDialogueStep` passes validation, a `stopWhen` condition ends the turn immediately — no post-dialogue persistence phase
+`generateTurn()` calls `createGameLoop()` — a generator-based turn loop that replaces the old `streamText()`/`prepareStep` nudge system:
+
+- **Generator loop**: `createGameLoop()` returns an async generator that yields `LoopEvent` objects (tool_call, content_delta, usage, complete, error). The caller iterates with `for await (const event of gameLoop)`, dispatching events to the SSE emitter.
+- **ImmutablePrefix**: The system prompt and initial messages are wrapped in an `ImmutablePrefix` to enable prompt caching — the prefix hash is included in API requests so the provider only recomputes from the first differing token.
+- **Tool definitions via bridge.ts**: The 10 tool files use `tool()` from `ai` for schema definitions, converted to `ToolSpec` format via the bridge for API requests. Tool dispatch uses an injected `runTool` callback, keeping the SDK provider-agnostic.
+- **Streaming dialogue**: As `tool_call_delta` events arrive for `generateDialogueStep` arguments, `parsePartial` accumulates and parses the JSON to emit progressive `content` events for real-time player display.
+- **Nudge via `onIterStart`**: Instead of `prepareStep` callbacks, the `onIterStart` hook injects reminder messages when the GM has been processing for several iterations without calling `generateDialogueStep`.
+- **ContextManager**: Token estimation (4 chars/token heuristic) triggers automatic history folding at 75% (soft fold — summarize oldest turns), 78% (restore from fold), and 80% (hard limit) of the context window.
+- **Cache diagnostics**: `loop.getCacheDiagnostics()` exposes cache hit/miss tokens and estimated cost savings for monitoring.
 
 ### Database: LadybugDB (not Neo4j)
 

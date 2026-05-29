@@ -67,13 +67,21 @@ describe("ImmutablePrefix", () => {
   it("fingerprint changes when tool is added", () => {
     const prefix = new ImmutablePrefix({ system: systemPrompt, toolSpecs });
     const fp1 = prefix.fingerprint;
-    prefix.addTool({ type: "function", function: { name: "delete", description: "Delete", parameters: {} } });
+    prefix.addTool({
+      type: "function",
+      function: { name: "delete", description: "Delete", parameters: {} },
+    });
     expect(prefix.fingerprint).not.toBe(fp1);
   });
 
   it("addTool returns false for duplicate name", () => {
     const prefix = new ImmutablePrefix({ system: systemPrompt, toolSpecs });
-    expect(prefix.addTool({ type: "function", function: { name: "search", description: "Dup", parameters: {} } })).toBe(false);
+    expect(
+      prefix.addTool({
+        type: "function",
+        function: { name: "search", description: "Dup", parameters: {} },
+      }),
+    ).toBe(false);
   });
 
   it("fingerprint changes when tool is removed", () => {

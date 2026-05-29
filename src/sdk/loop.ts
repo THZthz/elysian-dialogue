@@ -7,7 +7,11 @@ import type { ImmutablePrefix } from "./prefix.js";
 import { AppendOnlyLog } from "./log.js";
 import { ContextManager } from "./context.js";
 import { healMessages } from "./healing.js";
-import { buildCacheDiagnostic, prefixDiagnosticHashes, type CacheDiagnostic } from "./diagnostics.js";
+import {
+  buildCacheDiagnostic,
+  prefixDiagnosticHashes,
+  type CacheDiagnostic,
+} from "./diagnostics.js";
 import type {
   ChatMessage,
   ChatOptions,
@@ -127,8 +131,7 @@ async function* streamModelResponse(
       if (d.id) cur.id = d.id;
       if (d.name) cur.function.name = (cur.function.name ?? "") + d.name;
       if (d.argumentsDelta) {
-        cur.function.arguments =
-          (cur.function.arguments ?? "") + d.argumentsDelta;
+        cur.function.arguments = (cur.function.arguments ?? "") + d.argumentsDelta;
       }
       acc.toolCalls.set(d.index, cur);
 
@@ -227,11 +230,7 @@ export function createGameLoop(opts: GameLoopOptions) {
 
     // ── Turn-start fold check ──
     const messages = buildMessages();
-    const tsEstimate = context.estimateTurnStart(
-      messages,
-      prefix.toolSpecs,
-      model,
-    );
+    const tsEstimate = context.estimateTurnStart(messages, prefix.toolSpecs, model);
     if (tsEstimate.ratio > TURN_START_FOLD_THRESHOLD) {
       yield {
         turn,
@@ -411,11 +410,7 @@ export function createGameLoop(opts: GameLoopOptions) {
 
       // ── Context check ──
       if (acc.usage) {
-        const decision = context.decideAfterUsage(
-          acc.usage,
-          model,
-          foldedThisTurn,
-        );
+        const decision = context.decideAfterUsage(acc.usage, model, foldedThisTurn);
         if (decision.kind === "fold" && !foldedThisTurn) {
           foldedThisTurn = true;
           yield {
@@ -453,9 +448,10 @@ export function createGameLoop(opts: GameLoopOptions) {
     turnAbort.abort();
   }
 
-  function clearLog(opts?: {
-    rebuildSystem?: boolean;
-  }): { dropped: number; systemRebuilt: boolean } {
+  function clearLog(opts?: { rebuildSystem?: boolean }): {
+    dropped: number;
+    systemRebuilt: boolean;
+  } {
     const dropped = log.length;
     log.persistence?.archive();
     log.compactInPlace([]);

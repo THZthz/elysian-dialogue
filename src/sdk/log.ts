@@ -38,7 +38,11 @@ export class AppendOnlyLog {
     this._version++;
     this._fullHistoryCache = null;
     if (this._persistence) {
-      try { this._persistence.append(message); } catch { /* best-effort */ }
+      try {
+        this._persistence.append(message);
+      } catch {
+        /* best-effort */
+      }
     }
   }
 
@@ -48,7 +52,11 @@ export class AppendOnlyLog {
     this._version++;
     this._fullHistoryCache = null;
     if (this._persistence) {
-      try { this._persistence.rewrite(replacement); } catch { /* best-effort */ }
+      try {
+        this._persistence.rewrite(replacement);
+      } catch {
+        /* best-effort */
+      }
     }
   }
 
@@ -78,11 +86,21 @@ export class AppendOnlyLog {
     return messages.map((e) => ({ ...e }));
   }
 
-  get entries(): readonly ChatMessage[] { return this._entries; }
-  get length(): number { return this._entries.length; }
-  get totalLength(): number { return this._totalLength; }
-  get version(): number { return this._version; }
-  get persistence(): SessionPersistence | null { return this._persistence; }
+  get entries(): readonly ChatMessage[] {
+    return this._entries;
+  }
+  get length(): number {
+    return this._entries.length;
+  }
+  get totalLength(): number {
+    return this._totalLength;
+  }
+  get version(): number {
+    return this._version;
+  }
+  get persistence(): SessionPersistence | null {
+    return this._persistence;
+  }
 }
 
 export class JsonlPersistence implements SessionPersistence {
@@ -98,32 +116,62 @@ export class JsonlPersistence implements SessionPersistence {
   load(): ChatMessage[] {
     try {
       const raw = fs.readFileSync(this.filePath, "utf8");
-      return raw.split("\n").filter((line) => line.trim()).map((line) => JSON.parse(line) as ChatMessage);
-    } catch { return []; }
+      return raw
+        .split("\n")
+        .filter((line) => line.trim())
+        .map((line) => JSON.parse(line) as ChatMessage);
+    } catch {
+      return [];
+    }
   }
 
   append(message: ChatMessage): void {
-    try { fs.appendFileSync(this.filePath, JSON.stringify(message) + "\n"); } catch { /* disk full */ }
+    try {
+      fs.appendFileSync(this.filePath, JSON.stringify(message) + "\n");
+    } catch {
+      /* disk full */
+    }
   }
 
   rewrite(messages: ChatMessage[]): void {
-    try { fs.writeFileSync(this.filePath, messages.map((m) => JSON.stringify(m)).join("\n") + "\n"); } catch { /* disk full */ }
+    try {
+      fs.writeFileSync(this.filePath, messages.map((m) => JSON.stringify(m)).join("\n") + "\n");
+    } catch {
+      /* disk full */
+    }
   }
 
   archive(): string | null {
     try {
       const archivePath = this.filePath + ".archived";
       if (fs.existsSync(this.filePath)) fs.renameSync(this.filePath, archivePath);
-      this.saveMeta({ totalCostUsd: 0, cacheHitTokens: 0, cacheMissTokens: 0, totalCompletionTokens: 0, turnCount: 0, lastPromptTokens: 0 });
+      this.saveMeta({
+        totalCostUsd: 0,
+        cacheHitTokens: 0,
+        cacheMissTokens: 0,
+        totalCompletionTokens: 0,
+        turnCount: 0,
+        lastPromptTokens: 0,
+      });
       return archivePath;
-    } catch { return null; }
+    } catch {
+      return null;
+    }
   }
 
   loadMeta(): SessionMeta | null {
-    try { return JSON.parse(fs.readFileSync(this.metaPath, "utf8")) as SessionMeta; } catch { return null; }
+    try {
+      return JSON.parse(fs.readFileSync(this.metaPath, "utf8")) as SessionMeta;
+    } catch {
+      return null;
+    }
   }
 
   saveMeta(meta: SessionMeta): void {
-    try { fs.writeFileSync(this.metaPath, JSON.stringify(meta, null, 2)); } catch { /* disk full */ }
+    try {
+      fs.writeFileSync(this.metaPath, JSON.stringify(meta, null, 2));
+    } catch {
+      /* disk full */
+    }
   }
 }

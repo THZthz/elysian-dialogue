@@ -1,12 +1,6 @@
 // src/sdk/client.ts
 import { createParser, type EventSourceMessage } from "eventsource-parser";
-import type {
-  ChatOptions,
-  ChatResponse,
-  StreamChunk,
-  ToolCall,
-  RawUsage,
-} from "./types.js";
+import type { ChatOptions, ChatResponse, StreamChunk, ToolCall, RawUsage } from "./types.js";
 import { Usage } from "./types.js";
 
 export interface DeepSeekClientOptions {
@@ -133,8 +127,12 @@ export class DeepSeekClient {
       if (!resp.ok) {
         throw new Error(`DeepSeek ${resp.status}: ${await resp.text()}`);
       }
-      const data = await resp.json() as Record<string, unknown>;
-      const choice = (data.choices as Array<Record<string, unknown>>)?.[0]?.message as Record<string, unknown> ?? {};
+      const data = (await resp.json()) as Record<string, unknown>;
+      const choice =
+        ((data.choices as Array<Record<string, unknown>>)?.[0]?.message as Record<
+          string,
+          unknown
+        >) ?? {};
       return {
         content: (choice.content as string) ?? "",
         reasoningContent: (choice.reasoning_content as string) ?? null,
@@ -187,8 +185,13 @@ export class DeepSeekClient {
         }
         try {
           const json = JSON.parse(ev.data) as Record<string, unknown>;
-          const delta = (json.choices as Array<Record<string, unknown>>)?.[0]?.delta as Record<string, unknown> ?? {};
-          const finishReason = (json.choices as Array<Record<string, unknown>>)?.[0]?.finish_reason as string | undefined;
+          const delta =
+            ((json.choices as Array<Record<string, unknown>>)?.[0]?.delta as Record<
+              string,
+              unknown
+            >) ?? {};
+          const finishReason = (json.choices as Array<Record<string, unknown>>)?.[0]
+            ?.finish_reason as string | undefined;
           const chunk: StreamChunk = { raw: json, finishReason };
           if (typeof delta.content === "string" && delta.content.length > 0) {
             chunk.contentDelta = delta.content;
@@ -196,13 +199,20 @@ export class DeepSeekClient {
           if (typeof delta.reasoning_content === "string" && delta.reasoning_content.length > 0) {
             chunk.reasoningDelta = delta.reasoning_content;
           }
-          if (Array.isArray(delta.tool_calls) && (delta.tool_calls as Array<Record<string, unknown>>).length > 0) {
+          if (
+            Array.isArray(delta.tool_calls) &&
+            (delta.tool_calls as Array<Record<string, unknown>>).length > 0
+          ) {
             const tc = (delta.tool_calls as Array<Record<string, unknown>>)[0]!;
             chunk.toolCallDelta = {
               index: (tc.index as number) ?? 0,
               id: tc.id as string | undefined,
-              name: tc.function ? (tc.function as Record<string, unknown>).name as string : undefined,
-              argumentsDelta: tc.function ? (tc.function as Record<string, unknown>).arguments as string : undefined,
+              name: tc.function
+                ? ((tc.function as Record<string, unknown>).name as string)
+                : undefined,
+              argumentsDelta: tc.function
+                ? ((tc.function as Record<string, unknown>).arguments as string)
+                : undefined,
             };
           }
           if (json.usage || isUsageObject(json)) {

@@ -111,9 +111,23 @@ export interface ChatResponse {
 export type LoopEvent =
   | { turn: number; role: "assistant_delta"; content: string }
   | { turn: number; role: "reasoning_delta"; content: string }
-  | { turn: number; role: "tool_call_delta"; toolName: string; argsChars: number; argsDelta?: string; index: number }
+  | {
+      turn: number;
+      role: "tool_call_delta";
+      toolName: string;
+      argsChars: number;
+      argsDelta?: string;
+      index: number;
+    }
   | { turn: number; role: "tool_result"; toolCallId: string; name: string; result: string }
-  | { turn: number; role: "assistant_final"; content: string; reasoning: string | null; usage: Usage; cacheHitRatio: number }
+  | {
+      turn: number;
+      role: "assistant_final";
+      content: string;
+      reasoning: string | null;
+      usage: Usage;
+      cacheHitRatio: number;
+    }
   | { turn: number; role: "warning"; severity: "low" | "high"; content: string }
   | { turn: number; role: "error"; content: string; error: string; retryable: boolean }
   | { turn: number; role: "done"; content: string };

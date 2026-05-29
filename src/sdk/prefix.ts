@@ -33,18 +33,13 @@ export class ImmutablePrefix {
   }
 
   toMessages(): ChatMessage[] {
-    return [
-      { role: "system", content: this.system },
-      ...this.fewShots.map((m) => ({ ...m })),
-    ];
+    return [{ role: "system", content: this.system }, ...this.fewShots.map((m) => ({ ...m }))];
   }
 
   tools(): readonly ToolSpec[] {
     if (this._frozenToolsCache) return this._frozenToolsCache;
     const frozen = Object.freeze(
-      this._toolSpecs.map(
-        (t) => Object.freeze({ ...t, function: { ...t.function } }) as ToolSpec,
-      ),
+      this._toolSpecs.map((t) => Object.freeze({ ...t, function: { ...t.function } }) as ToolSpec),
     );
     this._frozenToolsCache = frozen as unknown as ToolSpec[];
     return this._frozenToolsCache;

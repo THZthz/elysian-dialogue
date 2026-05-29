@@ -5,7 +5,9 @@ import type { ChatMessage } from "@/sdk/types.js";
 describe("AppendOnlyLog", () => {
   let log: AppendOnlyLog;
 
-  beforeEach(() => { log = new AppendOnlyLog(); });
+  beforeEach(() => {
+    log = new AppendOnlyLog();
+  });
 
   it("starts empty", () => {
     expect(log.length).toBe(0);
@@ -57,8 +59,13 @@ describe("AppendOnlyLog", () => {
     const persisted: ChatMessage[] = [{ role: "user", content: "preloaded" }];
     const persistence = {
       load: () => persisted,
-      append: (m: ChatMessage) => { persisted.push(m); },
-      rewrite: (ms: ChatMessage[]) => { persisted.length = 0; persisted.push(...ms); },
+      append: (m: ChatMessage) => {
+        persisted.push(m);
+      },
+      rewrite: (ms: ChatMessage[]) => {
+        persisted.length = 0;
+        persisted.push(...ms);
+      },
       archive: () => null,
       loadMeta: () => null,
       saveMeta: () => {},

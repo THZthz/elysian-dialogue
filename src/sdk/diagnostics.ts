@@ -33,18 +33,9 @@ export function prefixDiagnosticHashes(opts: {
   fewShots: ReadonlyArray<unknown>;
 }): PrefixDiagnosticHashes {
   return {
-    system: createHash("sha256")
-      .update(opts.system)
-      .digest("hex")
-      .slice(0, 12),
-    tools: createHash("sha256")
-      .update(JSON.stringify(opts.toolSpecs))
-      .digest("hex")
-      .slice(0, 12),
-    fewShots: createHash("sha256")
-      .update(JSON.stringify(opts.fewShots))
-      .digest("hex")
-      .slice(0, 12),
+    system: createHash("sha256").update(opts.system).digest("hex").slice(0, 12),
+    tools: createHash("sha256").update(JSON.stringify(opts.toolSpecs)).digest("hex").slice(0, 12),
+    fewShots: createHash("sha256").update(JSON.stringify(opts.fewShots)).digest("hex").slice(0, 12),
   };
 }
 

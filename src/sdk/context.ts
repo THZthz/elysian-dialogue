@@ -41,11 +41,7 @@ function estimateRequestTokens(
   let total = 0;
   for (const m of messages) {
     total += countTokensBounded(typeof m.content === "string" ? m.content : "");
-    if (
-      m.role === "assistant" &&
-      Array.isArray(m.tool_calls) &&
-      m.tool_calls.length > 0
-    ) {
+    if (m.role === "assistant" && Array.isArray(m.tool_calls) && m.tool_calls.length > 0) {
       total += countTokensBounded(JSON.stringify(m.tool_calls));
     }
     if (typeof m.reasoning_content === "string") {
@@ -157,8 +153,7 @@ export class ContextManager {
     opts?: { keepRecentTokens?: number; requireTailBoundary?: boolean },
   ): Promise<FoldResult> {
     const ctxMax = resolveContextTokens(model);
-    const tailBudget =
-      opts?.keepRecentTokens ?? Math.floor(ctxMax * FOLD_TAIL_FRACTION);
+    const tailBudget = opts?.keepRecentTokens ?? Math.floor(ctxMax * FOLD_TAIL_FRACTION);
     const all = this.deps.log.toFullHistory();
     const noop: FoldResult = {
       folded: false,
@@ -171,14 +166,8 @@ export class ContextManager {
     // Per-message token estimate — includes tool_calls JSON so heavy
     // tool-call arguments don't slip through the tail-budget check.
     const tokenCounts = all.map((m) => {
-      let n = countTokensBounded(
-        typeof m.content === "string" ? m.content : "",
-      );
-      if (
-        m.role === "assistant" &&
-        Array.isArray(m.tool_calls) &&
-        m.tool_calls.length > 0
-      ) {
+      let n = countTokensBounded(typeof m.content === "string" ? m.content : "");
+      if (m.role === "assistant" && Array.isArray(m.tool_calls) && m.tool_calls.length > 0) {
         n += countTokensBounded(JSON.stringify(m.tool_calls));
       }
       return n;
@@ -219,10 +208,7 @@ export class ContextManager {
     ];
 
     const ctrl = new AbortController();
-    const timer = setTimeout(
-      () => ctrl.abort(new Error("fold-timeout")),
-      FOLD_SUMMARY_TIMEOUT_MS,
-    );
+    const timer = setTimeout(() => ctrl.abort(new Error("fold-timeout")), FOLD_SUMMARY_TIMEOUT_MS);
 
     try {
       const resp = await this.deps.client.chat({

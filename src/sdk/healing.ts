@@ -32,16 +32,10 @@ function healPairs(messages: ChatMessage[]): {
   // Drop assistant messages with tool_calls that have no follow-up tool response.
   for (let i = out.length - 1; i >= 0; i--) {
     const msg = out[i]!;
-    if (
-      msg.role === "assistant" &&
-      Array.isArray(msg.tool_calls) &&
-      msg.tool_calls.length > 0
-    ) {
+    if (msg.role === "assistant" && Array.isArray(msg.tool_calls) && msg.tool_calls.length > 0) {
       const hasResponse = out.some(
         (m, j) =>
-          j > i &&
-          m.role === "tool" &&
-          msg.tool_calls!.some((tc) => tc.id === m.tool_call_id),
+          j > i && m.role === "tool" && msg.tool_calls!.some((tc) => tc.id === m.tool_call_id),
       );
       if (!hasResponse) {
         out.splice(i, 1);
@@ -78,15 +72,9 @@ function shrinkOversizedToolResults(messages: ChatMessage[]): {
   let healed = 0;
   let tokensSaved = 0;
   const out = messages.map((m) => {
-    if (
-      m.role === "tool" &&
-      typeof m.content === "string" &&
-      m.content.length > MAX_RESULT_CHARS
-    ) {
+    if (m.role === "tool" && typeof m.content === "string" && m.content.length > MAX_RESULT_CHARS) {
       healed++;
-      tokensSaved += Math.ceil(
-        (m.content.length - MAX_RESULT_CHARS) / 4,
-      );
+      tokensSaved += Math.ceil((m.content.length - MAX_RESULT_CHARS) / 4);
       return {
         ...m,
         content: m.content.slice(0, MAX_RESULT_CHARS) + "\n\n[truncated]",
@@ -110,10 +98,7 @@ function stampMissingReasoning(
   if (!opts.thinkingModeModel) return { messages, healed: 0 };
   let healed = 0;
   const out = messages.map((m) => {
-    if (
-      m.role === "assistant" &&
-      m.reasoning_content === undefined
-    ) {
+    if (m.role === "assistant" && m.reasoning_content === undefined) {
       healed++;
       return { ...m, reasoning_content: "" };
     }
@@ -154,10 +139,7 @@ function stripDroppableReasoning(
 // Public API
 // ---------------------------------------------------------------------------
 
-export function healMessages(
-  messages: ChatMessage[],
-  opts: HealingOptions = {},
-): HealingResult {
+export function healMessages(messages: ChatMessage[], opts: HealingOptions = {}): HealingResult {
   let result: HealingResult = {
     messages: [...messages],
     healedCount: 0,
