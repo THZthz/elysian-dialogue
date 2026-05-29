@@ -7,7 +7,7 @@ import type { ImmutablePrefix } from "./prefix.js";
 import { AppendOnlyLog } from "./log.js";
 import { ContextManager } from "./context.js";
 import { healMessages } from "./healing.js";
-import { buildCacheDiagnostic, type CacheDiagnostic } from "./diagnostics.js";
+import { buildCacheDiagnostic, prefixDiagnosticHashes, type CacheDiagnostic } from "./diagnostics.js";
 import type {
   ChatMessage,
   ChatOptions,
@@ -275,11 +275,11 @@ export function createGameLoop(opts: GameLoopOptions) {
         turn,
         model,
         usage: acc.usage,
-        prefix: {
-          system: prefix.fingerprint,
-          tools: prefix.fingerprint,
-          fewShots: prefix.fingerprint,
-        },
+        prefix: prefixDiagnosticHashes({
+          system: prefix.system,
+          toolSpecs: toolsSnap,
+          fewShots: prefix.fewShots,
+        }),
         previous: prevDiag,
       });
       cacheDiagnostics.push(diag);
