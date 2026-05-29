@@ -81,15 +81,3 @@ export async function teardownTestDb(_db?: Database): Promise<void> {
   await Database.closeInstance();
   if (testDir) fs.rmSync(testDir, { recursive: true, force: true });
 }
-
-export async function resetDb(): Promise<void> {
-  await Database.getExisting().reset();
-}
-
-export async function exec(
-  query: string,
-  params?: Record<string, unknown>,
-): Promise<Record<string, unknown>[]> {
-  const result = await Database.getExisting().graph.query(query, params);
-  return result.rows;
-}

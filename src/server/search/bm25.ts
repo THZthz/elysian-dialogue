@@ -276,7 +276,7 @@ const ENGLISH_STOP_WORDS = [
   "yourself",
 ];
 
-export const STOP_WORDS: Set<string> = new Set(ENGLISH_STOP_WORDS);
+const STOP_WORDS: Set<string> = new Set(ENGLISH_STOP_WORDS);
 
 const STEMMER_CACHE_MAX = 10000;
 const stemmerCache = new Map<string, string>();
@@ -285,7 +285,7 @@ const stemmerCache = new Map<string, string>();
  * Porter Stemmer — reduces words to their root form.
  * "running" → "run", "adventurers" → "adventur"
  */
-export function porterStemmer(word: string): string {
+function porterStemmer(word: string): string {
   if (!word || word.length <= 2) return word;
   if (/[一-鿿㐀-䶿豈-﫿]/.test(word)) return word;
 

@@ -98,21 +98,6 @@ export function getReranker(): Reranker | null {
 
 // ── Shared post-processing helper ──
 
-export function extractSearchTexts<T>(items: T[], kind: string): Array<T & { text: string }> {
-  const registry = getSchemaRegistry();
-
-  return items.map((item) => {
-    const obj = item as Record<string, unknown>;
-    const text = registry.getEmbeddingText(kind, obj);
-    if (!text) {
-      const fallback =
-        (obj.content as string) || (obj.description as string) || (obj.name as string) || "";
-      return { ...item, text: fallback };
-    }
-    return { ...item, text };
-  });
-}
-
 export async function applyRerank<T>(
   query: string,
   items: Array<T & { text: string }>,

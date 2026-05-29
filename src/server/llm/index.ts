@@ -53,7 +53,7 @@ export function isGenerating(): boolean {
 let _cachedClient: DeepSeekClient | null = null;
 let _cachedPrefix: ImmutablePrefix | null = null;
 
-export function getDeepSeekClient(): DeepSeekClient {
+function getDeepSeekClient(): DeepSeekClient {
   if (_cachedClient) return _cachedClient;
   const apiKey = process.env.DEEPSEEK_API_KEY;
   if (!apiKey) throw new Error("DEEPSEEK_API_KEY is required.");
@@ -77,10 +77,6 @@ export async function getPrefix(): Promise<ImmutablePrefix> {
   const toolSpecs: ToolSpec[] = allTools.map((t: any) => vercelToolToSpec(t));
   _cachedPrefix = new ImmutablePrefix({ system: systemPrompt, toolSpecs });
   return _cachedPrefix;
-}
-
-export function resetPrefix(): void {
-  _cachedPrefix = null;
 }
 
 function createToolHandlers(

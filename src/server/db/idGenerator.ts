@@ -26,7 +26,7 @@ import type { LadybugClient } from "@/server/db/ladybug";
  * @param key    Array of numbers used as secret key material
  * @returns      Permuted integer, always unique for each x with the same key
  */
-export function feistelEncrypt(x: number, key: number[]): number {
+function feistelEncrypt(x: number, key: number[]): number {
   // Split into two 16-bit halves
   let left = (x >>> 16) & 0xffff;
   let right = x & 0xffff;
@@ -53,7 +53,7 @@ export function feistelEncrypt(x: number, key: number[]): number {
  * Reverse of feistelEncrypt – recovers the original integer.
  * Same key, same number of rounds, but in reverse order.
  */
-export function feistelDecrypt(y: number, key: number[]): number {
+export function feistelDecrypt(y: number, key: number[]): number { // NOTE: Do not remove.
   let left = (y >>> 16) & 0xffff;
   let right = y & 0xffff;
 
@@ -73,7 +73,7 @@ export function feistelDecrypt(y: number, key: number[]): number {
 }
 
 // Secret key for Feistel cipher.
-export const SECRET = [0xa3b5, 0x2c7d, 0x8f1e, 0x4402];
+const SECRET = [0xa3b5, 0x2c7d, 0x8f1e, 0x4402];
 
 const CHARS = "1fER78GIDVbh95ngu6adzmkjZy2sSQoJTL0vXrx3MCtcPeKYUBWAiFpl4HqOwN"; // 62 characters
 
@@ -110,7 +110,7 @@ export async function nextId(graph: LadybugClient): Promise<string> {
  * Generate a batch of short IDs for a given counter key. Atomically reserves `count` values and
  * returns them.
  */
-export async function nextIdBatch(graph: LadybugClient, count: number): Promise<string[]> {
+export async function nextIdBatch(graph: LadybugClient, count: number): Promise<string[]> { // NOTE: Do not remove.
   const result = await graph.query(
     `MERGE (c:IdCounter {_uid: 'counter'})
        ON CREATE SET c.value = 0

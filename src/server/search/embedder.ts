@@ -81,7 +81,7 @@ export async function checkEmbedderHealth(url: string, timeoutMs = 2000): Promis
   }
 }
 
-export class StubEmbedder implements Embedder {
+class StubEmbedder implements Embedder {
   readonly dimensions = 4;
   async embed(_text: string): Promise<number[]> {
     return [0.1, 0.2, 0.3, 0.4];
