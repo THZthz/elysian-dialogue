@@ -18,6 +18,38 @@ export interface HealingResult {
 const MAX_RESULT_CHARS = 80_000;
 
 // ---------------------------------------------------------------------------
+// Pass 0: stampMissingIds — stamp IDs on tool_calls that lack them.
+//         DeepSeek 400s on tool_calls without `id`.
+// ---------------------------------------------------------------------------
+
+let _stampSeq = 0;
+
+function stampMissingIds(messages: ChatMessage[]): {
+  messages: ChatMessage[];
+  healed: number;
+} {
+  let healed = 0;
+  const out = messages.map((m) => {
+    if (
+      m.role === "assistant" &&
+      Array.isArray(m.tool_calls) &&
+      m.tool_calls.length > 0
+    ) {
+      const stamped = m.tool_calls.map((tc) => {
+        if (!tc.id) {
+          healed++;
+          return { ...tc, id: `z-ext-${Date.now()}-${_stampSeq++}` };
+        }
+        return tc;
+      });
+      return { ...m, tool_calls: stamped };
+    }
+    return m;
+  });
+  return { messages: out, healed };
+}
+
+// ---------------------------------------------------------------------------
 // Pass 1: healPairs — drop dangling tool_calls without matching tool responses;
 //         inject synthetic assistants before orphan tool responses.
 // ---------------------------------------------------------------------------
@@ -145,6 +177,10 @@ export function healMessages(messages: ChatMessage[], opts: HealingOptions = {})
     healedCount: 0,
     tokensSaved: 0,
   };
+
+  const pass0 = stampMissingIds(result.messages);
+  result.messages = pass0.messages;
+  result.healedCount += pass0.healed;
 
   const pass1 = healPairs(result.messages);
   result.messages = pass1.messages;
