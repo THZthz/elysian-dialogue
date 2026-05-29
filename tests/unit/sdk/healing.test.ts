@@ -35,7 +35,7 @@ describe("healMessages", () => {
     expect(result.healedCount).toBeGreaterThan(0);
   });
 
-  it("pairs orphan tool responses with synthetic assistant entries", () => {
+  it("drops orphan tool responses with no matching assistant", () => {
     const msgs: ChatMessage[] = [
       { role: "user", content: "search" },
       {
@@ -47,7 +47,8 @@ describe("healMessages", () => {
       { role: "user", content: "next" },
     ];
     const result = healMessages(msgs);
-    expect(result.messages.some((m) => m.role === "assistant")).toBe(true);
+    expect(result.messages.some((m) => m.role === "assistant")).toBe(false);
+    expect(result.messages.some((m) => m.role === "tool")).toBe(false);
     expect(result.healedCount).toBeGreaterThan(0);
   });
 

@@ -50,39 +50,20 @@ function healPairs(messages: ChatMessage[]): {
     }
   }
 
-  // Inject synthetic assistant entries before orphan tool responses.
-  for (let i = 0; i < out.length; i++) {
-    const msg = out[i]!;
-    if (msg.role === "tool" && msg.tool_call_id) {
-      const hasPrior = out.some(
-        (m, j) =>
-          j < i &&
-          m.role === "assistant" &&
-          Array.isArray(m.tool_calls) &&
-          m.tool_calls!.some((tc) => tc.id === msg.tool_call_id),
-      );
-      if (!hasPrior) {
-        out.splice(i, 0, {
-          role: "assistant",
-          content: null,
-          tool_calls: [
-            {
-              id: msg.tool_call_id,
-              type: "function" as const,
-              function: {
-                name: msg.name ?? "unknown",
-                arguments: "{}",
-              },
-            },
-          ],
-        });
-        healed++;
-        i++; // skip the injected message
-      }
-    }
-  }
-
-  return { messages: out, healed };
+  // Drop orphan tool responses with no matching assistant.
+  // DeepSeek 400s on tool messages without a prior assistant.tool_calls.
+  const out2 = out.filter((m, i) => {
+    if (m.role !== "tool" || !m.tool_call_id) return true;
+    return out.some(
+      (prev, j) =>
+        j < i &&
+        prev.role === "assistant" &&
+        Array.isArray(prev.tool_calls) &&
+        prev.tool_calls!.some((tc) => tc.id === m.tool_call_id),
+    );
+  });
+  if (out2.length < out.length) healed += out.length - out2.length;
+  return { messages: out2, healed };
 }
 
 // ---------------------------------------------------------------------------
