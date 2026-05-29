@@ -169,10 +169,7 @@ export function createGameLoop(opts: GameLoopOptions) {
     : new AppendOnlyLog();
   const runTool = opts.runTool;
   const onIterStart = opts.onIterStart;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const rebuildSystem = (opts as any).rebuildSystem as
-    | (() => string)
-    | undefined;
+  const rebuildSystem = opts.rebuildSystem;
 
   let model = opts.model ?? "deepseek-v4-flash";
   let thinking = opts.thinking ?? true;

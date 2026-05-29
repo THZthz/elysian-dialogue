@@ -165,5 +165,6 @@ export interface GameLoopOptions {
   maxIterPerTurn?: number;
   runTool: (name: string, args: string, signal: AbortSignal) => Promise<ToolResult>;
   onIterStart?: (iter: number, log: AppendOnlyLog) => void;
+  rebuildSystem?: () => string;
   persistence?: SessionPersistence;
 }

@@ -16,14 +16,11 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { streamText, stepCountIs, NoSuchToolError, type ModelMessage } from "ai";
 import { parse as parsePartial } from "partial-json";
-import { jsonrepair } from "jsonrepair";
 import type { Response } from "express";
 import type { Message, DialogueOption } from "@/types/dialogue";
 import { TurnEventEmitter } from "@/server/llm/events";
 import { buildSystemPrompt, MAX_GM_STEPS } from "@/server/llm/prompt";
-import { getModel } from "@/server/llm/model";
 import { Database } from "@/server/db";
 import { queryWorld } from "@/server/llm/tools/queryWorld";
 import { searchWorld } from "@/server/llm/tools/searchWorld";
@@ -37,12 +34,60 @@ import { createGenerateDialogueStepTool } from "@/server/llm/tools/generateDialo
 import { createManageSceneTool } from "@/server/llm/tools/manageScene";
 import { performSkillCheck } from "@/server/llm/rollSkillCheck";
 import { type SkillName, TOOL_NAMES } from "@/shared/constants";
-import { DeepSeekLanguageModelOptions } from "@ai-sdk/deepseek";
+import {
+  DeepSeekClient,
+  ImmutablePrefix,
+  createGameLoop,
+  vercelToolToSpec,
+  type ToolSpec,
+} from "@/sdk";
 
 let generating = false;
 
 export function isGenerating(): boolean {
   return generating;
+}
+
+// ── SDK Integration ──
+
+let _cachedClient: DeepSeekClient | null = null;
+let _cachedPrefix: ImmutablePrefix | null = null;
+
+export function getDeepSeekClient(): DeepSeekClient {
+  if (_cachedClient) return _cachedClient;
+  const apiKey = process.env.DEEPSEEK_API_KEY;
+  if (!apiKey) throw new Error("DEEPSEEK_API_KEY is required.");
+  _cachedClient = new DeepSeekClient({ apiKey });
+  return _cachedClient;
+}
+
+export async function getPrefix(): Promise<ImmutablePrefix> {
+  if (_cachedPrefix) return _cachedPrefix;
+  const systemPrompt = await buildSystemPrompt();
+  const allTools = [queryWorld, searchWorld, manageSchema, editNode, editRelationship, editNote, editPlot, getContext];
+  const toolSpecs: ToolSpec[] = allTools.map((t: any) => vercelToolToSpec(t));
+  _cachedPrefix = new ImmutablePrefix({ system: systemPrompt, toolSpecs });
+  return _cachedPrefix;
+}
+
+export function resetPrefix(): void { _cachedPrefix = null; }
+
+function createToolHandlers(
+  dialogueStepTool: ReturnType<typeof createGenerateDialogueStepTool>,
+  manageSceneTool: ReturnType<typeof createManageSceneTool>,
+) {
+  return {
+    queryWorld: async (args: string) => (queryWorld as any).execute(JSON.parse(args)),
+    searchWorld: async (args: string) => (searchWorld as any).execute(JSON.parse(args)),
+    manageSchema: async (args: string) => (manageSchema as any).execute(JSON.parse(args)),
+    editNode: async (args: string) => (editNode as any).execute(JSON.parse(args)),
+    editRelationship: async (args: string) => (editRelationship as any).execute(JSON.parse(args)),
+    editNote: async (args: string) => (editNote as any).execute(JSON.parse(args)),
+    editPlot: async (args: string) => (editPlot as any).execute(JSON.parse(args)),
+    getContext: async (args: string) => (getContext as any).execute(JSON.parse(args)),
+    generateDialogueStep: async (args: string) => (dialogueStepTool.tool as any).execute(JSON.parse(args)),
+    manageScene: async (args: string) => (manageSceneTool as any).execute(JSON.parse(args)),
+  };
 }
 
 export async function generateTurn(
@@ -58,12 +103,10 @@ export async function generateTurn(
   generating = true;
 
   try {
-    const systemPrompt = await buildSystemPrompt();
     const events = new TurnEventEmitter(res);
+    const db = Database.getExisting();
 
-    console.log(
-      `[generateTurn] historyLen=${history.length} userInput="${String(userInput).slice(0, 80)}"`,
-    );
+    console.log(`[generateTurn] historyLen=${history.length} userInput="${String(userInput).slice(0, 80)}"`);
 
     res.writeHead(200, {
       "Content-Type": "text/event-stream",
@@ -74,503 +117,185 @@ export async function generateTurn(
 
     events.startStep(`step_${Date.now()}`);
 
-    const db = Database.getExisting();
-
-    // Persist player input to the active scene's log
-    try {
-      const activeScene = await db.scene.getActive();
-      if (activeScene) {
-        await db.scene.appendPlayerLog(activeScene.name, userInput);
-      }
-    } catch (err) {
-      console.error("[generateTurn] failed to log player input to scene:", err);
-    }
-
-    // Load previous GM conversation messages for multi-turn continuity
-    let previousMessages: ModelMessage[] = [];
+    // ── Load turn state ──
     let turnNumber = 1;
-    try {
-      previousMessages = (await db.messages.loadGMMessages()) as ModelMessage[];
-      turnNumber = await db.messages.getNextTurnNumber();
-    } catch (err) {
-      console.error("[generateTurn] Failed to load GM messages, starting fresh:", err);
-    }
+    try { turnNumber = await db.messages.getNextTurnNumber(); } catch { /* use default */ }
 
-    const includeHistory = false; // Intentionally kept `false`, GM should know it from the previous generateDialogueStep
-    const historyWindow = 10;
-    let historyParts: string[] = [];
-    if (includeHistory) {
-      historyParts.push(
-        `## DIALOGUE HISTORY (Last ${historyWindow})`,
-        history
-          .slice(-historyWindow)
-          .map((m) => `${m.speaker} (${m.type}): ${m.text}`)
-          .join("\n"),
-        "",
-        "---",
-        "",
-      );
-    }
-
-    const actionParts: string[] = [
-      "## PLAYER ACTION",
-      `The player just said/did: "${userInput}"`,
-      "",
-      "---",
-      "",
-    ];
-
-    let skillCheckParts: string[] = [];
+    // ── Skill check ──
+    const promptParts: string[] = [];
     if (check) {
-      // Auto-perform the skill check server-side
-      let rollResult: Awaited<ReturnType<typeof performSkillCheck>> | null = null;
-      try {
-        rollResult = await performSkillCheck(check);
-      } catch (err) {
-        console.error("[generateTurn] Skill check failed:", err);
-      }
-
+      const rollResult = await performSkillCheck(check).catch((err) => {
+        console.error("[generateTurn] Skill check failed:", err); return null;
+      });
       if (rollResult) {
-        // Emit SSE event for console rendering
         events.emitRollResult(rollResult);
-
-        // Persist ROLL message
-        const rollText = [
-          `Rolled ${check.diceCount}d6 + ${check.skill}(${rollResult.statBonus})`,
-          `Dice: [${rollResult.dice.join(", ")}]`,
-          `Total: ${rollResult.total} vs Difficulty: ${check.difficulty}`,
-          `Result: ${rollResult.success ? "SUCCESS" : "FAILURE"}`,
-        ].join(" | ");
-
-        // Persist roll result to scene log instead of Message node
+        // Persist roll to scene
         try {
           const activeScene = await db.scene.getActive();
           if (activeScene) {
-            await db.scene.appendRollLog(activeScene.name, rollText, {
-              speaker: check.skill,
-              rollResult: {
-                skill: rollResult.skill as SkillName,
-                difficulty: rollResult.difficulty,
-                dice: rollResult.dice,
-                total: rollResult.total,
-                success: rollResult.success,
-              },
-            });
+            await db.scene.appendRollLog(activeScene.name,
+              `Rolled ${check.diceCount}d6 + ${check.skill}(${rollResult.statBonus}) | Total: ${rollResult.total} vs Difficulty: ${check.difficulty} | Result: ${rollResult.success ? "SUCCESS" : "FAILURE"}`,
+              { speaker: check.skill, rollResult: { skill: rollResult.skill as SkillName, difficulty: rollResult.difficulty, dice: rollResult.dice, total: rollResult.total, success: rollResult.success } });
           }
-        } catch (err) {
-          console.error("[generateTurn] failed to log roll to scene:", err);
-        }
-
-        // Inject the result into the prompt — GM narrates, no tool call needed
-        skillCheckParts.push(
-          "## SKILL CHECK RESULT",
-          rollResult.narrativeSummary,
-          "",
+        } catch (err) { console.error("[generateTurn] failed to log roll:", err); }
+        promptParts.push("## SKILL CHECK RESULT", rollResult.narrativeSummary, "",
           `The player ${rollResult.success ? "succeeded" : "failed"} this skill check.`,
-          `Narrate the ${rollResult.success ? "success" : "failure"} naturally via ${TOOL_NAMES.GENERATE_DIALOGUE}.${rollResult.success ? " The player's skill shines through." : " Make the failure interesting but keep the story moving."}`,
-          "",
-          "---",
-          "",
-        );
+          `Narrate naturally via ${TOOL_NAMES.GENERATE_DIALOGUE}.`, "", "---", "");
       }
     }
 
-    const firstTurnHelperParts: string[] = [];
+    // ── Player action ──
+    promptParts.push("## PLAYER ACTION", `The player just said/did: "${userInput}"`, "", "---", "");
+
+    // Persist player input to scene log
+    try {
+      const activeScene = await db.scene.getActive();
+      if (activeScene) await db.scene.appendPlayerLog(activeScene.name, userInput);
+    } catch (err) { console.error("[generateTurn] failed to log player input:", err); }
+
+    // ── First turn helper ──
     if (turnNumber === 1) {
-      let notesCount = -1;
-      try {
-        const r = await db.graph.query(`MATCH (n:\`Note\`) RETURN count(n) AS cnt`);
-        notesCount = (r.rows[0]?.cnt as number) ?? 0;
-      } catch {
-        /* Ignore */
-      }
-
-      firstTurnHelperParts.push(
-        "## BEGIN FIRST TURN",
+      promptParts.push("## BEGIN FIRST TURN",
         `This is first turn, you should call \`${TOOL_NAMES.GET_CONTEXT}\` with ["SCHEMA_DUMP", "CHARACTERS_BRIEF", "LOCATIONS_BRIEF", "OBJECTS_BRIEF", "PLOTS_BRIEF", "RELATIONSHIP_DUMP"].`,
-        "",
-        `Explore with \`${TOOL_NAMES.QUERY_WORLD}\ (note: should combine multiple structural-similar Cypher query into one).`,
-        "",
-        `Check any notes or plots by \`${TOOL_NAMES.SEARCH_WORLD}\`. Note is linked to Characters, Objects, Locations, Scenes and Plots, you can use this. Also, search note with "Opening Scene" is recommended.${notesCount >= 0 ? ` Currently the database has ${notesCount} note(s).` : ""}`,
-        "",
-        "---",
-        "",
-      );
+        `Explore with \`${TOOL_NAMES.QUERY_WORLD}\`.`,
+        `Check notes/plots by \`${TOOL_NAMES.SEARCH_WORLD}\`. Search note with "Opening Scene" recommended.`,
+        "", "---", "");
     }
 
-    const promptText = [
-      ...historyParts,
-      ...actionParts,
-      ...skillCheckParts,
-      ...firstTurnHelperParts,
-      "Generate the narrative response following the output format.",
-      "",
-    ].join("\n");
+    promptParts.push("Generate the narrative response following the output format.", "");
+    const promptText = promptParts.join("\n");
 
-    const { model } = getModel();
-
-    let finalMessages: Record<string, unknown>[] = [];
-    let finalOptions: DialogueOption[] = [];
-
+    // ── Set up SDK loop ──
+    const prefix = await getPrefix();
+    const client = getDeepSeekClient();
     const dialogueStepTool = createGenerateDialogueStepTool();
     const manageSceneTool = createManageSceneTool(events);
-
-    const allTools = {
-      queryWorld,
-      searchWorld,
-      manageSchema,
-      editNode,
-      editRelationship,
-      editNote,
-      editPlot,
-      getContext,
-      generateDialogueStep: dialogueStepTool.tool,
-      manageScene: manageSceneTool,
-    };
-
-    let streamError: string | null = null;
-
-    // If a system message is already cached in previous GM messages, reuse it
-    // to avoid re-injecting the (potentially large) system prompt every turn.
-    const cachedSystemIdx = previousMessages.findIndex((m) => m.role === "system");
-    const hasCachedSystem = cachedSystemIdx >= 0;
-    if (hasCachedSystem) {
-      const cachedContent = (previousMessages[cachedSystemIdx] as any).content;
-      if (cachedContent !== systemPrompt) {
-        console.warn(
-          `[generateTurn] Cached system prompt differs from fresh build (len: cached=${cachedContent?.length ?? 0} fresh=${systemPrompt.length}). Using cached.`,
-        );
-      }
-    }
-
     dialogueStepTool.resetForTurn();
 
-    const nudgeMessages: string[] = [];
+    let dialogueStepCalled = false;
+    let nudgeCount = 0;
+    const handlers = createToolHandlers(dialogueStepTool, manageSceneTool);
 
-    const result = streamText({
-      model,
-      system: hasCachedSystem ? undefined : systemPrompt,
-      messages: [...previousMessages, { role: "user" as const, content: promptText }],
-      tools: allTools,
-      providerOptions: {
-        deepseek: {
-          thinking: { type: "enabled" },
-          reasoningEffort: "xhigh",
-        } satisfies DeepSeekLanguageModelOptions,
+    const loop = createGameLoop({
+      client, prefix,
+      model: process.env.DEEPSEEK_MODEL || "deepseek-v4-flash",
+      thinking: true, reasoningEffort: "high", maxIterPerTurn: MAX_GM_STEPS,
+      runTool: async (name, args, signal) => {
+        const handler = handlers[name as keyof typeof handlers];
+        if (!handler) return { result: `Unknown tool: ${name}` };
+        const result = await handler(args);
+        if (name === TOOL_NAMES.GENERATE_DIALOGUE) {
+          dialogueStepCalled = true;
+          nudgeCount = 0;
+          if (dialogueStepTool.wasValid()) return { result, turnComplete: true };
+        }
+        return { result };
       },
-      stopWhen: [
-        stepCountIs(MAX_GM_STEPS),
-        () => dialogueStepTool.wasValid(),
-      ],
-      prepareStep: (
-        (nudgeState: { count: number }) =>
-        ({ steps, messages }) => {
-          const dialogueCalled = steps.some((s) =>
-            s.toolCalls?.some((tc) => tc.toolName === TOOL_NAMES.GENERATE_DIALOGUE),
-          );
-          const dialogueValid = dialogueStepTool.wasValid();
-          console.log(
-            `[prepareStep] stepNumber=${steps.length} nudgeStateCount=${nudgeState.count} dialogueCalled=${dialogueCalled} dialogueValid=${dialogueValid} stepToolNames=${JSON.stringify(steps.map((s) => s.toolCalls?.map((tc) => tc.toolName)))}`,
-          );
-
-          // ── Correction in progress: dialogue called but not yet valid ──
-          if (dialogueCalled) {
-            nudgeState.count = 0;
-            return undefined;
-          }
-
-          // ── Phase 1: pre-dialogue — nudge to call generateDialogueStep ──
-          // Don't nudge until step 4 — let the GM work without interruption early on
-          if ((turnNumber == 1 && steps.length < 6) || (turnNumber > 1 && steps.length < 4)) {
-            return undefined;
-          }
-
-          // Collect tool names preserving order
-          const allToolsUsed: string[] = [];
-          for (const s of steps) {
-            const names = s.toolCalls?.map((tc) => tc.toolName) ?? [];
-            for (const name of names) allToolsUsed.push(name);
-          }
-
-          // Group consecutive identical tool names
-          const grouped: string[] = [];
-          let i = 0;
-          while (i < allToolsUsed.length) {
-            const current = allToolsUsed[i];
-            let runLen = 1;
-            while (i + runLen < allToolsUsed.length && allToolsUsed[i + runLen] === current) {
-              runLen++;
-            }
-            grouped.push(runLen > 1 ? `${current} (${runLen} times)` : current);
-            i += runLen;
-          }
-
-          nudgeState.count++;
-          const prefix = nudgeState.count === 1 ? "Reminder:" : "ERROR:";
-          const toolList = grouped.length > 0 ? ` You called [${grouped.join(", ")}] but` : " You";
-          const errorMsg = `${prefix}${toolList} have not yet called ${TOOL_NAMES.GENERATE_DIALOGUE}. The player cannot see any response. You MUST call ${TOOL_NAMES.GENERATE_DIALOGUE} now.`;
-
-          nudgeMessages.push(errorMsg);
-          return { messages: [...messages, { role: "user" as const, content: errorMsg }] };
-        }
-      )({ count: 0 }),
-      experimental_repairToolCall: async ({ toolCall, error }) => {
-        if (NoSuchToolError.isInstance(error)) {
-          return null;
-        }
-        try {
-          const inputStr =
-            typeof toolCall.input === "string" ? toolCall.input : JSON.stringify(toolCall.input);
-          const repaired = jsonrepair(inputStr);
-          console.log(`[repairToolCall] repaired ${toolCall.toolName} JSON`);
-          return { ...toolCall, input: repaired };
-        } catch (e) {
-          console.warn(`[repairToolCall] jsonrepair failed for ${toolCall.toolName}:`, e);
-          return null;
-        }
+      onIterStart: (iter, log) => {
+        const minIter = turnNumber === 1 ? 6 : 4;
+        if (iter < minIter || dialogueStepCalled) return;
+        nudgeCount++;
+        const prefix_ = nudgeCount === 1 ? "Reminder:" : "ERROR:";
+        const msg = `${prefix_} You have not yet called ${TOOL_NAMES.GENERATE_DIALOGUE}. The player cannot see any response. You MUST call ${TOOL_NAMES.GENERATE_DIALOGUE} now.`;
+        log.append({ role: "user", content: msg });
       },
+      rebuildSystem: () => buildSystemPrompt() as unknown as string,
     });
 
+    // ── Stream events to SSE ──
+    let finalMessages: Record<string, unknown>[] = [];
+    let finalOptions: DialogueOption[] = [];
     let toolRawArgs = "";
-    let dialogueToolId: string | null = null;
     let hasEmittedStreaming = false;
-    try {
-      for await (const chunk of result.fullStream) {
-        switch (chunk.type) {
-          case "tool-input-start":
-            if (chunk.toolName === TOOL_NAMES.GENERATE_DIALOGUE) {
+
+    for await (const event of loop.step(promptText)) {
+      switch (event.role) {
+        case "tool_call_delta":
+          if (event.toolName === TOOL_NAMES.GENERATE_DIALOGUE) {
+            if (event.argsDelta) {
+              // New dialogue call → reset streaming
               if (hasEmittedStreaming) {
                 events.emitStreamingReset();
+                hasEmittedStreaming = false;
               }
-              dialogueToolId = chunk.id;
-              toolRawArgs = "";
-              hasEmittedStreaming = false;
-            }
-            break;
-          case "tool-input-delta":
-            if (chunk.id === dialogueToolId) {
-              toolRawArgs += chunk.delta;
+              // Accumulate args across deltas
+              toolRawArgs += event.argsDelta;
               try {
-                const parsed = parsePartial(toolRawArgs);
-                if (
-                  parsed.messages &&
-                  Array.isArray(parsed.messages) &&
-                  parsed.messages.length > 0
-                ) {
-                  finalMessages = parsed.messages;
+                const parsed = parsePartial(toolRawArgs) as Record<string, unknown>;
+                if (parsed.messages && Array.isArray(parsed.messages) && (parsed.messages as any[]).length > 0) {
+                  finalMessages = parsed.messages as Record<string, unknown>[];
                   hasEmittedStreaming = true;
-                  events.emitStreamingMessages(
-                    finalMessages.map((m: any) => ({
-                      speaker: m.speaker || "SYSTEM",
-                      type: m.type || "SYSTEM",
-                      text: m.text || "",
-                      metadata: m.metadata,
-                    })),
-                  );
+                  events.emitStreamingMessages((finalMessages as any[]).map((m: any) => ({
+                    speaker: m.speaker || "SYSTEM", type: m.type || "SYSTEM", text: m.text || "", metadata: m.metadata,
+                  })));
                 }
                 if (parsed.options && Array.isArray(parsed.options)) {
-                  finalOptions = parsed.options.map((o: any) => ({
-                    text: o.text || "",
-                    hintBefore: o.hintBefore,
-                    hintAfter: o.hintAfter,
-                    check: o.check
-                      ? {
-                          skill: o.check.skill,
-                          difficulty: o.check.difficulty,
-                          difficultyText: o.check.difficultyText || "",
-                          diceCount: o.check.diceCount ?? 2,
-                          conditions: (o.check.conditions || []).map((c: any, ci: number) => ({
-                            expression: c.expression,
-                            label: c.label,
-                            color: c.color,
-                            stepId: c.stepId || `step_res_${ci}`,
-                          })),
-                        }
-                      : undefined,
+                  finalOptions = (parsed.options as any[]).map((o: any) => ({
+                    text: o.text || "", hintBefore: o.hintBefore, hintAfter: o.hintAfter,
+                    check: o.check ? { skill: o.check.skill, difficulty: o.check.difficulty, difficultyText: o.check.difficultyText || "", diceCount: o.check.diceCount ?? 2,
+                      conditions: (o.check.conditions || []).map((c: any, ci: number) => ({ expression: c.expression, label: c.label, color: c.color, stepId: c.stepId || `step_res_${ci}` })),
+                    } : undefined,
                   }));
-                  if (finalOptions.length > 0) {
-                    events.emitOptions(finalOptions);
-                  }
+                  if (finalOptions.length > 0) events.emitOptions(finalOptions);
                 }
-              } catch {
-                // Partial JSON not parseable yet — fine
-              }
+              } catch { /* Partial JSON not parseable yet */ }
             }
-            break;
-          case "error":
-            streamError =
-              chunk.error instanceof Error
-                ? chunk.error.message
-                : String(chunk.error ?? "Unknown stream error");
-            console.error(`[generateTurn] stream error: ${streamError}`);
-            break;
-          case "tool-call":
-            if (chunk.toolName === TOOL_NAMES.GENERATE_DIALOGUE) {
-              let args: Record<string, unknown> | null = null;
-              if (typeof chunk.input === "string" && chunk.input.trim()) {
-                const repaired = chunk.input.replace(/\]\s*\}\s*,\s*"/g, '], "');
-                try {
-                  args = parsePartial(repaired) as Record<string, unknown>;
-                } catch {
-                  try {
-                    args = parsePartial(chunk.input) as Record<string, unknown>;
-                  } catch {
-                    console.warn("[generateTurn] parsePartial recovery failed");
-                  }
-                }
-              } else if (chunk.input && typeof chunk.input === "object") {
-                args = chunk.input as Record<string, unknown>;
-              }
-              if (args) {
-                // If this is a correction, merge with stored state to get the full
-                // messages/options for display (the LLM sends only the corrected items).
-                const merged = dialogueStepTool.mergeCorrection(args as any);
-                const effectiveArgs = merged ?? args;
-
-                if (
-                  effectiveArgs.messages &&
-                  Array.isArray(effectiveArgs.messages) &&
-                  effectiveArgs.messages.length > 0
-                ) {
-                  finalMessages = effectiveArgs.messages as Record<string, unknown>[];
-                }
-                if (
-                  effectiveArgs.options &&
-                  Array.isArray(effectiveArgs.options) &&
-                  effectiveArgs.options.length > 0
-                ) {
-                  finalOptions = (effectiveArgs.options as Record<string, unknown>[]).map(
-                    (o, i) => ({
-                      id: (o.id as string) || `opt_${i}`,
-                      text: (o.text as string) || "",
-                      selectionMessage: o.selectionMessage as string | undefined,
-                      hintBefore: o.hintBefore as string | undefined,
-                      hintAfter: o.hintAfter as string | undefined,
-                      check: o.check
-                        ? {
-                            skill: (o.check as any).skill as SkillName,
-                            difficulty: (o.check as any).difficulty as number,
-                            difficultyText: ((o.check as any).difficultyText as string) || "",
-                            diceCount: ((o.check as any).diceCount as number) ?? 2,
-                            conditions: (((o.check as any).conditions as any[]) || []).map(
-                              (c: any, ci: number) => ({
-                                expression: c.expression as string,
-                                label: c.label as string | undefined,
-                                color: c.color as string | undefined,
-                                stepId: (c.stepId as string) || `step_res_${ci}`,
-                              }),
-                            ),
-                          }
-                        : undefined,
-                    }),
-                  );
-                }
-              }
-            }
-            break;
-        }
+          }
+          break;
+        case "assistant_final":
+          console.log(`[generateTurn] cacheHitRatio: ${(event.cacheHitRatio * 100).toFixed(1)}%`);
+          break;
+        case "error":
+          events.emitError(event.error);
+          break;
+        case "warning":
+          console.warn(`[generateTurn] ${event.content}`);
+          break;
       }
-    } catch (error: unknown) {
-      const err = error instanceof Error ? error : new Error(String(error));
-      events.emitError(err.message);
-      events.finish();
-      return;
     }
 
-    // Persist this turn's messages for multi-turn continuity
-    try {
-      const response = await result.response;
-      await db.messages.saveGMMessages(response.messages as ModelMessage[], turnNumber);
-    } catch (err) {
-      console.error("[generateTurn] Failed to save GM messages:", err);
-    }
-
-    // If no dialogue tool passed validation, discard any invalid partial content
-    // captured during streaming (e.g. when MAX_GM_STEPS fallthrough occurs)
+    // ── Post-turn ──
     const dialogueWasValid = dialogueStepTool.wasValid();
-    if (!dialogueWasValid) {
-      finalMessages = [];
-      finalOptions = [];
-    }
+    if (!dialogueWasValid) { finalMessages = []; finalOptions = []; }
 
-    // Persist GM dialogue output to the active scene's log
+    // Persist GM dialogue to scene log
     if (dialogueWasValid && finalMessages.length > 0) {
       try {
         const activeScene = await db.scene.getActive();
         if (activeScene) {
-          await db.scene.appendGMLog(
-            activeScene.name,
-            finalMessages as Array<{
-              speaker: string;
-              type: string;
-              text: string;
-              metadata?: Record<string, unknown>;
-            }>,
-            finalOptions.length > 0
-              ? (finalOptions as unknown as Record<string, unknown>)
-              : undefined,
-          );
+          await db.scene.appendGMLog(activeScene.name,
+            finalMessages as Array<{ speaker: string; type: string; text: string; metadata?: Record<string, unknown> }>,
+            finalOptions.length > 0 ? (finalOptions as unknown as Record<string, unknown>) : undefined);
         }
-      } catch (err) {
-        console.error("[generateTurn] failed to log GM output to scene:", err);
-      }
+      } catch (err) { console.error("[generateTurn] failed to log GM output:", err); }
     }
 
     if (finalMessages.length === 0) {
-      const msg = streamError
-        ? `Generation failed: ${streamError}`
-        : "Failed to generate valid dialogue";
-      events.emitError(msg);
-      events.finish();
-      return;
+      events.emitError("Failed to generate valid dialogue");
+    } else {
+      events.emitParsed(
+        finalMessages.map((m: any) => ({ speaker: m.speaker, type: m.type, text: m.text, metadata: m.metadata })),
+        finalOptions,
+      );
+      events.emitOptions(finalOptions);
     }
-
-    const messages: Message[] = finalMessages.map((m: any, i) => ({
-      id: `msg_${Date.now()}_${i}`,
-      speaker: m.speaker || "SYSTEM",
-      type: (m.type as Message["type"]) || "SYSTEM",
-      text: m.text || "",
-      metadata: m.metadata,
-    }));
-
-    events.emitParsed(
-      messages.map((m) => ({
-        speaker: m.speaker,
-        type: m.type,
-        text: m.text,
-        metadata: m.metadata,
-      })),
-      finalOptions,
-    );
-    events.emitOptions(finalOptions);
     events.finish();
 
-    // Persist current options so the player can resume from this point
+    // Persist options
     if (finalOptions.length > 0) {
       try {
         const activeScene = await db.scene.getActive();
-        if (activeScene) {
-          await db.scene.saveOptions(activeScene.name, finalOptions);
-        }
-      } catch (err) {
-        console.error("[generateTurn] failed to persist options:", err);
-      }
+        if (activeScene) await db.scene.saveOptions(activeScene.name, finalOptions);
+      } catch (err) { console.error("[generateTurn] failed to persist options:", err); }
     }
 
-    // Save checkpoint at end of successful turn (blocking so next turn doesn't start mid-save)
+    // Save checkpoint
     try {
-      await db.checkpoint.save(
-        turnNumber,
-        async () => {
-          await Database.closeInstance();
-        },
-        async () => {
-          await Database.getInstance();
-        },
+      await db.checkpoint.save(turnNumber,
+        async () => { await Database.closeInstance(); },
+        async () => { await Database.getInstance(); },
       );
-    } catch (err) {
-      console.error("[generateTurn] failed to save checkpoint:", err);
-    }
+    } catch (err) { console.error("[generateTurn] failed to save checkpoint:", err); }
   } finally {
     generating = false;
   }
