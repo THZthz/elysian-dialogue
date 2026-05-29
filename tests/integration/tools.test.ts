@@ -646,6 +646,7 @@ describe("editRelationship", () => {
   // auto-expire the previous relationship of the same type+source. Without this,
   // a character can have multiple active LOCATED_AT relationships.
   it.skip("creating a new LOCATED_AT auto-expires the previous one", async () => {
+    const db = getTestDb();
     // First LOCATED_AT
     await exec(editRelationship, {
       relationshipType: "LOCATED_AT",
@@ -665,7 +666,6 @@ describe("editRelationship", () => {
       targetMatch: { name: "Forest" },
       properties: { brief: "walking through the woods" },
     });
-    const db = getTestDb();
     // The first LOCATED_AT should now have valid_at != null
     const check = await db.graph.query(
       `MATCH (src:Character {name: "RelAlice"})-[r:LOCATED_AT]->(tgt:Location {name: "Tavern"}) RETURN r.valid_at AS valid_at`,

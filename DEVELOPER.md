@@ -167,9 +167,9 @@ The GM is given 10 tools (defined in `src/server/llm/tools/`), each with a speci
 
 ### `prepareStep` nudging system
 
-`generateTurn()` uses `streamText()`'s `prepareStep` callback to nudge the GM through a two-phase workflow:
-1. **Pre-dialogue phase**: after 4-6 steps without calling `generateDialogueStep`, injects reminder messages
-2. **Post-dialogue phase**: after valid dialogue, nudges to persist world state, then end the turn
+`generateTurn()` uses `streamText()`'s `prepareStep` callback to nudge the GM to call `generateDialogueStep`:
+- After 4-6 steps without calling `generateDialogueStep`, injects reminder messages
+- Once `generateDialogueStep` passes validation, a `stopWhen` condition ends the turn immediately — no post-dialogue persistence phase
 
 ### Database: LadybugDB (not Neo4j)
 

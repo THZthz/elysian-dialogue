@@ -357,13 +357,13 @@ async function executeAndPersist(
     }
     return (
       (isCorrection ? `Correction applied — ` : `Dialogue successfully streamed — `) +
-      `${persisted} message(s) persisted, ${(args.options ?? []).length} option(s) received. You should consider persisting world state now.`
+      `${persisted} message(s) persisted, ${(args.options ?? []).length} option(s) received. Your turn is complete.`
     );
   }
 
   return (
     (isCorrection ? "Correction applied — " : "Dialogue successfully streamed — ") +
-    `${(args.messages ?? []).length} message(s) received, ${(args.options ?? []).length} option(s) received. You should consider persisting world state now.`
+    `${(args.messages ?? []).length} message(s) received, ${(args.options ?? []).length} option(s) received. Your turn is complete.`
   );
 }
 
@@ -378,7 +378,8 @@ export function createGenerateDialogueStepTool(persistMessage?: PersistMessageFn
     description: `
 ## Brief
 SPEAK to the player. Each turn must include a valid call here.
-After speaking, persist world state changes, then reply with brief text to end your turn.
+Once this call passes validation, your turn ends immediately —
+	no further tool calls or text replies are needed.
 
 During correction (isCorrection: true), you may call this multiple times until
 validation passes — the turn continues.

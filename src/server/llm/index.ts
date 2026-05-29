@@ -258,48 +258,20 @@ export async function generateTurn(
           reasoningEffort: "xhigh",
         } satisfies DeepSeekLanguageModelOptions,
       },
-      stopWhen: [stepCountIs(MAX_GM_STEPS)],
+      stopWhen: [
+        stepCountIs(MAX_GM_STEPS),
+        () => dialogueStepTool.wasValid(),
+      ],
       prepareStep: (
-        (nudgeState: { count: number; dialogueDone: boolean; postDialogueCount: number }) =>
+        (nudgeState: { count: number }) =>
         ({ steps, messages }) => {
           const dialogueCalled = steps.some((s) =>
             s.toolCalls?.some((tc) => tc.toolName === TOOL_NAMES.GENERATE_DIALOGUE),
           );
           const dialogueValid = dialogueStepTool.wasValid();
           console.log(
-            `[prepareStep] stepNumber=${steps.length} nudgeStateCount=${nudgeState.count} dialogueCalled=${dialogueCalled} dialogueValid=${dialogueValid} postDialogueCount=${nudgeState.postDialogueCount} stepToolNames=${JSON.stringify(steps.map((s) => s.toolCalls?.map((tc) => tc.toolName)))}`,
+            `[prepareStep] stepNumber=${steps.length} nudgeStateCount=${nudgeState.count} dialogueCalled=${dialogueCalled} dialogueValid=${dialogueValid} stepToolNames=${JSON.stringify(steps.map((s) => s.toolCalls?.map((tc) => tc.toolName)))}`,
           );
-
-          // ── Phase 2: dialogue was valid — guide toward persistence & completion ──
-          if (dialogueValid) {
-            nudgeState.dialogueDone = true;
-            nudgeState.postDialogueCount++;
-
-            // Let the GM work for 1 step after dialogue without interruption
-            if (nudgeState.postDialogueCount <= 1) {
-              return undefined;
-            }
-
-            // Gentle nudge: persist world state
-            if (nudgeState.postDialogueCount === 2) {
-              const msg =
-                `You've spoken to the player via ${TOOL_NAMES.GENERATE_DIALOGUE}. ` +
-                "Now persist any world state changes (movement — UPDATE relationships with valid_at, items, dispositions, plot flags). " +
-                "When done, reply with a brief text (no tool call) to end your turn.";
-              nudgeMessages.push(msg);
-              return { messages: [...messages, { role: "user" as const, content: msg }] };
-            }
-
-            // Stronger nudge: finish up
-            if (nudgeState.postDialogueCount >= 3) {
-              const msg =
-                "If you've finished persisting world state, reply with a brief text (no tool call) to end your turn. The player is waiting.";
-              nudgeMessages.push(msg);
-              return { messages: [...messages, { role: "user" as const, content: msg }] };
-            }
-
-            return undefined;
-          }
 
           // ── Correction in progress: dialogue called but not yet valid ──
           if (dialogueCalled) {
@@ -341,7 +313,7 @@ export async function generateTurn(
           nudgeMessages.push(errorMsg);
           return { messages: [...messages, { role: "user" as const, content: errorMsg }] };
         }
-      )({ count: 0, dialogueDone: false, postDialogueCount: 0 }),
+      )({ count: 0 }),
       experimental_repairToolCall: async ({ toolCall, error }) => {
         if (NoSuchToolError.isInstance(error)) {
           return null;
