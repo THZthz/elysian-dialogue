@@ -170,6 +170,20 @@ export function createGameLoop(opts: GameLoopOptions) {
   const log = opts.sessionName
     ? new AppendOnlyLog({ persistence: opts.persistence })
     : new AppendOnlyLog();
+
+  // Heal messages loaded from persistence on resume — oversized tool results,
+  // missing reasoning_content, unpaired tool calls would 400 the next API call.
+  if (log.totalLength > 0 && opts.persistence) {
+    const loaded = log.toFullHistory();
+    const healed = healMessages(loaded, {
+      thinkingModeModel:
+        (opts.thinking ?? true) && opts.model ? opts.model : null,
+    });
+    if (healed.healedCount > 0) {
+      log.compactInPlace(healed.messages);
+    }
+  }
+
   const runTool = opts.runTool;
   const onIterStart = opts.onIterStart;
   const rebuildSystem = opts.rebuildSystem;
