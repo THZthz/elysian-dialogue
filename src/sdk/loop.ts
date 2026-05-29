@@ -195,12 +195,28 @@ export function createGameLoop(opts: GameLoopOptions) {
     getFewShots: () => prefix.fewShots,
   });
 
+  // Healing cache — avoids recomputing the expensive 4-pass healing
+  // pipeline every time buildMessages() is called (2-3x per iteration).
+  // Invalidated by log version bumps from append/compactInPlace.
+  let _healedCache: ChatMessage[] | null = null;
+  let _healedVersion = -1;
+
   function buildMessages(): ChatMessage[] {
+    if (_healedCache && _healedVersion === log.version) {
+      return [...prefix.toMessages(), ..._healedCache];
+    }
     const raw = log.toFullHistory();
     const healed = healMessages(raw, {
       thinkingModeModel: thinking ? model : null,
     });
-    return [...prefix.toMessages(), ...healed.messages];
+    if (healed.healedCount > 0) {
+      // Persist healed state so the same break isn't re-noticed on every
+      // buildMessages() call or session resume.
+      log.compactInPlace(healed.messages);
+    }
+    _healedCache = healed.messages;
+    _healedVersion = log.version;
+    return [...prefix.toMessages(), ..._healedCache];
   }
 
   async function* step(userInput: string): AsyncGenerator<LoopEvent> {
@@ -442,6 +458,8 @@ export function createGameLoop(opts: GameLoopOptions) {
     const dropped = log.length;
     log.persistence?.archive();
     log.compactInPlace([]);
+    _healedCache = null;
+    _healedVersion = -1;
     turn = 0;
     let systemRebuilt = false;
     if (opts?.rebuildSystem && rebuildSystem) {
