@@ -91,6 +91,10 @@ export interface ContextManagerDeps {
   /** Fired when the message log was rewritten by fold; lets the loop drop
    *  session-scoped caches whose validity rested on the elided history. */
   onLogRewrite?: () => void;
+  /** Returns true when the loop is configured for thinking mode.
+   *  Used to stamp reasoning_content on synthetic fold summaries so the
+   *  next API call doesn't 400. */
+  isThinkingMode?: () => boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -228,10 +232,15 @@ export class ContextManager {
         signal: ctrl.signal,
       });
 
-      const summary = {
-        role: "assistant" as const,
+      const summary: ChatMessage = {
+        role: "assistant",
         content: `[History summary]\n${resp.content.trim()}`,
       };
+      // In thinking mode, stamp empty reasoning_content to prevent 400
+      // on the next API call — DeepSeek requires it on ALL assistant messages.
+      if (this.deps.isThinkingMode?.()) {
+        summary.reasoning_content = "";
+      }
       const replacement = [summary, ...tail];
       this.deps.log.compactInPlace(replacement);
       this.deps.onLogRewrite?.();

@@ -192,6 +192,8 @@ This project uses **LadybugDB** (`@ladybugdb/core`), an embedded, schema-first, 
 
 The full Cypher cookbook is embedded in the system prompt at `src/server/llm/prompt.ts`.
 
+Read CYPHER.md if doing Cypher-intensive jobs or confused about syntax in LadybugDB.
+
 ### Vector search pipeline
 
 1. `llama-server` (port 8080) provides embeddings via `Qwen3-Embedding-0.6B`
