@@ -250,6 +250,10 @@ export function createGameLoop(opts: GameLoopOptions) {
 
     for (let iter = 0; iter < maxIterPerTurn; iter++) {
       if (signal.aborted) {
+        // On discard, truncate the log to what existed before this turn
+        // started. compactInPlace calls persistence.rewrite() internally,
+        // so the on-disk session file is also updated — discarded messages
+        // do not reappear on session resume.
         if (discardAbortRequested && turnStartLogIndex >= 0) {
           log.compactInPlace(log.toFullHistory().slice(0, turnStartLogIndex));
         }
