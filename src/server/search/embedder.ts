@@ -81,6 +81,16 @@ export async function checkEmbedderHealth(url: string, timeoutMs = 2000): Promis
   }
 }
 
+export class StubEmbedder implements Embedder {
+  readonly dimensions = 4;
+  async embed(_text: string): Promise<number[]> {
+    return [0.1, 0.2, 0.3, 0.4];
+  }
+  async embedBatch(texts: string[]): Promise<number[][]> {
+    return texts.map(() => [0.1, 0.2, 0.3, 0.4]);
+  }
+}
+
 let embedder: Embedder | null = null;
 
 export function setEmbedder(e: Embedder): void {
@@ -90,10 +100,23 @@ export function setEmbedder(e: Embedder): void {
 export function getEmbedder(): Embedder {
   if (embedder) return embedder;
 
+  // initEmbedder() should be called during startup. If not, fall back to stub
+  // so the server can function (with degraded search) without llama-server.
+  console.warn("[embedder] not initialized — using StubEmbedder (4d)");
+  embedder = new StubEmbedder();
+  return embedder;
+}
+
+export async function initEmbedder(): Promise<void> {
   const url = process.env.LLAMA_EMBED_URL || "http://localhost:8080/v1/embeddings";
   const dims = parseInt(process.env.EMBEDDING_DIMENSIONS || "1024", 10);
 
-  embedder = new LlamaEmbedder(url, dims);
-  console.log(`[embedder] ${dims}d at ${url}`);
-  return embedder;
+  const healthy = await checkEmbedderHealth(url);
+  if (healthy) {
+    embedder = new LlamaEmbedder(url, dims);
+    console.log(`[embedder] ${dims}d at ${url}`);
+  } else {
+    embedder = new StubEmbedder();
+    console.log("[embedder] server unavailable, using StubEmbedder (4d)");
+  }
 }

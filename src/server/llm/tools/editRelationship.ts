@@ -19,7 +19,7 @@
 import { tool } from "ai";
 import { z } from "zod";
 import { Database } from "@/server/db";
-import { SchemaRegistry, type RelTypeDef } from "@/server/db/schema";
+import { SchemaRegistry, type RelTypeDef, getSchemaRegistry } from "@/server/db/schema";
 import { extractInternalAndUnknownKeys, wrapSafe } from "@/server/llm/tools/shared";
 import { getEmbedder } from "@/server/search/embedder";
 import { encodeSparse } from "@/server/search/sparseEncoder";
@@ -133,12 +133,12 @@ sub-locations nested within a larger location (e.g., a basement inside a tavern)
   inputSchema,
   execute: wrapSafe(async (args: z.infer<typeof inputSchema>) => {
     const db = Database.getExisting();
-    const schema = SchemaRegistry.getInstance();
+    const registry = getSchemaRegistry();
 
     // Validate relationship type (supports pipe-delimited source/target labels)
-    const relDef = findRelType(schema, args.relationshipType, args.sourceLabel, args.targetLabel);
+    const relDef = findRelType(registry, args.relationshipType, args.sourceLabel, args.targetLabel);
     if (!relDef) {
-      const available = schema
+      const available = registry
         .getAllRelTypes()
         .filter((r) => !r.name.startsWith("_"))
         .map((r) => `${r.name} (${r.sourceLabel || "?"}→${r.targetLabel || "?"})`)

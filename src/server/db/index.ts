@@ -22,7 +22,7 @@ import { VectorStore } from "@/server/db/vectorstore";
 import { SchemaRegistry } from "@/server/db/schema";
 import { CheckpointManager } from "@/server/db/checkpoint";
 import { HybridSearcher } from "@/server/search/hybridSearch";
-import { getEmbedder } from "@/server/search/embedder";
+import { getEmbedder, initEmbedder } from "@/server/search/embedder";
 import { MessageModel } from "@/server/db/models/messages";
 import { EntityModel } from "@/server/db/models/entities";
 import { NoteModel } from "@/server/db/models/notes";
@@ -33,7 +33,7 @@ export class Database {
   readonly graph: LadybugClient;
   readonly vectors: VectorStore;
   readonly schema: SchemaRegistry;
-  readonly search: HybridSearcher;
+  search!: HybridSearcher;
   readonly checkpoint: CheckpointManager;
 
   messages!: MessageModel;
@@ -53,7 +53,6 @@ export class Database {
     this.graph = new LadybugClient(graphPath);
     this.vectors = new VectorStore(vectorPath);
     this.schema = SchemaRegistry.getInstance();
-    this.search = new HybridSearcher(this.vectors, getEmbedder());
     this.checkpoint = new CheckpointManager(graphPath, vectorPath, checkpointDir);
   }
 
@@ -110,7 +109,9 @@ export class Database {
     }
 
     // Wire domain models
+    await initEmbedder();
     const embedder = getEmbedder();
+    this.search = new HybridSearcher(this.vectors, embedder);
     this.messages = new MessageModel(this.graph);
     this.entities = new EntityModel(this.graph, this.vectors, embedder);
     this.notes = new NoteModel(this.graph, this.vectors, embedder);
