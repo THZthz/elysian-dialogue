@@ -32,6 +32,7 @@ import { getContext } from "@/server/llm/tools/getContext";
 import { manageSchema } from "@/server/llm/tools/manageSchema";
 import { createGenerateDialogueStepTool } from "@/server/llm/tools/generateDialogueStep";
 import { createManageSceneTool } from "@/server/llm/tools/manageScene";
+import { enrichResult } from "@/server/llm/tools/enrichment";
 import { performSkillCheck } from "@/server/llm/rollSkillCheck";
 import { type SkillName, TOOL_NAMES } from "@/shared/constants";
 import {
@@ -227,7 +228,8 @@ export async function generateTurn(
       runTool: async (name, args, signal) => {
         const handler = handlers[name as keyof typeof handlers];
         if (!handler) return { result: `Unknown tool: ${name}` };
-        const result = await handler(args);
+        const rawResult = await handler(args);
+        const result = await enrichResult(name, args, rawResult);
         if (name === TOOL_NAMES.GENERATE_DIALOGUE) {
           dialogueStepCalled = true;
           nudgeCount = 0;
