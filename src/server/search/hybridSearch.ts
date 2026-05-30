@@ -106,7 +106,7 @@ export class HybridSearcher {
       bm25Scores.push({ idx: i, score: bm25.scoreDocument(queryTokens, i) });
     }
 
-    // 5. Compute RRF scores and fuse (matching VectFox's proportional RRF decay)
+    // 5. Compute RRF scores and fuse
     const rrfScores = new Map<number, number>();
     const denseRanks = [...denseScores].sort((a, b) => b.score - a.score);
     const bm25Ranks = [...bm25Scores].sort((a, b) => b.score - a.score);
@@ -122,7 +122,7 @@ export class HybridSearcher {
 
     const maxRawRrf = fusedOrder.length > 0 ? (rrfScores.get(fusedOrder[0]) ?? 0) : 0;
 
-    // 6. Build results with post-RRF display scores (from VectFox hybrid-search.js)
+    // 6. Build results with post-RRF display scores
     const topCandidates = fusedOrder.slice(0, fetchLimit).map((idx) => {
       const c = candidates[idx];
       const vectorScore = denseScores[idx].score;

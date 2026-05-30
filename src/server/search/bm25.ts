@@ -17,8 +17,7 @@
  */
 
 /**
- * BM25+ keyword scorer ported from VectFox's client-side A1/A2 path.
- * English-only — no CJK tokenizer WASM dependencies.
+ * BM25+ keyword scorer. English-only — no CJK tokenizer WASM dependencies.
  */
 
 const ENGLISH_STOP_WORDS = [
