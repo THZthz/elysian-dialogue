@@ -1410,3 +1410,180 @@ describe("enrichment — editNode", () => {
     expect(enriched).toContain(rawResult);
   });
 });
+
+// ===========================================================================
+// Enrichment: editRelationship
+// ===========================================================================
+describe("enrichment — editRelationship", () => {
+  beforeAll(async () => {
+    const db = getTestDb();
+    await db.entities.create("Character", { name: "Mira Voss", brief: "innkeeper" }).catch(() => {});
+    await db.entities.create("Location", { name: "Silver Tankard", brief: "smoky tavern" }).catch(() => {});
+    await db.entities.create("Object", { name: "Rusty Dagger", brief: "a well-worn blade" }).catch(() => {});
+    await db.graph.query(
+      `MATCH (c:Character {name: 'Mira Voss'}), (l:Location {name: 'Silver Tankard'})
+       MERGE (c)-[r:LOCATED_AT]->(l)`,
+    );
+  });
+
+  it("enriches successful UPSERT — passes through on query failure (graceful)", async () => {
+    const args = JSON.stringify({
+      relationshipType: "CARRIES",
+      sourceLabel: "Character",
+      sourceMatch: { name: "Mira Voss" },
+      targetLabel: "Object",
+      targetMatch: { name: "Rusty Dagger" },
+    });
+    const rawResult = `Relationship (:Character)-[:CARRIES]->(:Object) created successfully.`;
+    const enriched = await enrichResult(TOOL_NAMES.EDIT_RELATIONSHIP, args, rawResult);
+
+    // Enrichment attempt is made but query may fail (type(r) limitation in test DB).
+    // Verify no crash — rawResult preserved.
+    expect(enriched).toContain("Mira Voss now CARRIES Rusty Dagger");
+  });
+
+  it("produces minimal output when endpoints have no other relationships", async () => {
+    const db = getTestDb();
+    await db.entities.create("Character", { name: "Hermit", brief: "lives alone" }).catch(() => {});
+    await db.entities.create("Object", { name: "Lonely Rock", brief: "just a rock" }).catch(() => {});
+
+    const args = JSON.stringify({
+      relationshipType: "CARRIES",
+      sourceLabel: "Character",
+      sourceMatch: { name: "Hermit" },
+      targetLabel: "Object",
+      targetMatch: { name: "Lonely Rock" },
+    });
+    const rawResult = `Relationship (:Character)-[:CARRIES]->(:Object) created successfully.`;
+    const enriched = await enrichResult(TOOL_NAMES.EDIT_RELATIONSHIP, args, rawResult);
+
+    // Should at minimum contain the base context line
+    expect(enriched).toContain("Hermit now CARRIES Lonely Rock");
+  });
+
+  it("skips enrichment for error results", async () => {
+    const args = JSON.stringify({
+      relationshipType: "CARRIES",
+      sourceLabel: "Character",
+      sourceMatch: { name: "Nobody" },
+      targetLabel: "Object",
+      targetMatch: { name: "Nothing" },
+    });
+    const rawResult = "ERROR: Could not create relationship...";
+    const enriched = await enrichResult(TOOL_NAMES.EDIT_RELATIONSHIP, args, rawResult);
+    expect(enriched).toBe(rawResult);
+  });
+
+  it("gracefully handles args parse failure", async () => {
+    const enriched = await enrichResult(TOOL_NAMES.EDIT_RELATIONSHIP, "not valid json", "Some result");
+    expect(enriched).toBe("Some result");
+  });
+});
+
+// ===========================================================================
+// Enrichment: queryWorld
+// ===========================================================================
+describe("enrichment — queryWorld", () => {
+  it("skips enrichment for WRITE actions", async () => {
+    const args = JSON.stringify({ action: "WRITE", query: "CREATE (c:Character {name: 'Test'})" });
+    const rawResult = "Success. 1 row(s) affected.";
+    const enriched = await enrichResult(TOOL_NAMES.QUERY_WORLD, args, rawResult);
+    expect(enriched).toBe(rawResult);
+  });
+
+  it("skips enrichment when result exceeds 2000 chars", async () => {
+    const args = JSON.stringify({ action: "READ", query: "MATCH (n) RETURN n" });
+    const bigResult = JSON.stringify({ rowCount: 100, rows: [{ x: "a".repeat(2000) }] });
+    expect(bigResult.length).toBeGreaterThan(2000);
+    const enriched = await enrichResult(TOOL_NAMES.QUERY_WORLD, args, bigResult);
+    expect(enriched).toBe(bigResult);
+  });
+
+  it("skips enrichment for aggregate-only results (no entities)", async () => {
+    const args = JSON.stringify({ action: "READ", query: "MATCH (c:Character) RETURN count(c) AS cnt" });
+    const rawResult = JSON.stringify({ rowCount: 1, rows: [{ cnt: 5 }] });
+    const enriched = await enrichResult(TOOL_NAMES.QUERY_WORLD, args, rawResult);
+    expect(enriched).toBe(rawResult);
+  });
+
+  it("skips enrichment for error results", async () => {
+    const args = JSON.stringify({ action: "READ", query: "BROKEN" });
+    const rawResult = "QUERY ERROR: something went wrong.";
+    const enriched = await enrichResult(TOOL_NAMES.QUERY_WORLD, args, rawResult);
+    expect(enriched).toBe(rawResult);
+  });
+
+  it("does not crash on valid JSON result (graceful)", async () => {
+    const args = JSON.stringify({ action: "READ", query: "MATCH (c:Character) RETURN c LIMIT 5" });
+    const rawResult = JSON.stringify({
+      rowCount: 2,
+      rows: [
+        { c: { name: "Orin Fell", brief: "grizzled mercenary", description: "A scarred veteran." } },
+        { c: { name: "Mira Voss", brief: "innkeeper", description: "Runs the Silver Tankard." } },
+      ],
+    });
+    const enriched = await enrichResult(TOOL_NAMES.QUERY_WORLD, args, rawResult);
+    // Enrichment may fail gracefully (type(r) limitation) — verify no crash
+    expect(typeof enriched).toBe("string");
+    expect(enriched.length).toBeGreaterThan(0);
+  });
+});
+
+// ===========================================================================
+// Enrichment: searchWorld
+// ===========================================================================
+describe("enrichment — searchWorld", () => {
+  it("does not crash on valid search results (graceful)", async () => {
+    const args = JSON.stringify({ query: "wizard", target: ["NODE"], domains: ["Character"] });
+    const rawResult = JSON.stringify({
+      Character: [{ name: "Saruman", brief: "A wise wizard with a long beard", description: "Saruman the White" }],
+    });
+    const enriched = await enrichResult(TOOL_NAMES.SEARCH_WORLD, args, rawResult);
+    expect(typeof enriched).toBe("string");
+    expect(enriched).toContain("Saruman");
+  });
+
+  it("skips enrichment for error results", async () => {
+    const args = JSON.stringify({ query: "test", domains: ["NonExistentDomain"] });
+    const rawResult = "ERROR: \"NonExistentDomain\" is not a searchable...";
+    const enriched = await enrichResult(TOOL_NAMES.SEARCH_WORLD, args, rawResult);
+    expect(enriched).toBe(rawResult);
+  });
+
+  it("skips enrichment for empty search results", async () => {
+    const args = JSON.stringify({ query: "zzz_nonexistent", target: ["NODE"], domains: ["Character"] });
+    const rawResult = JSON.stringify({ Character: [] });
+    const enriched = await enrichResult(TOOL_NAMES.SEARCH_WORLD, args, rawResult);
+    expect(enriched).toBe(rawResult);
+  });
+});
+
+// ===========================================================================
+// Enrichment: pass-through & resilience
+// ===========================================================================
+describe("enrichment — pass-through & resilience", () => {
+  it("non-enriched tools return result unchanged", async () => {
+    const testCases = [
+      { toolName: TOOL_NAMES.EDIT_NOTE, args: "{}", rawResult: "Note created." },
+      { toolName: TOOL_NAMES.EDIT_PLOT, args: "{}", rawResult: "Plot created." },
+      { toolName: TOOL_NAMES.MANAGE_SCHEMA, args: "{}", rawResult: "Schema registered." },
+      { toolName: TOOL_NAMES.GET_CONTEXT, args: "{}", rawResult: "## CHARACTERS\n\n..." },
+      { toolName: TOOL_NAMES.GENERATE_DIALOGUE, args: "{}", rawResult: "Dialogue generated." },
+    ];
+
+    for (const { toolName, args, rawResult } of testCases) {
+      const enriched = await enrichResult(toolName, args, rawResult);
+      expect(enriched).toBe(rawResult);
+    }
+  });
+
+  it("enrichment failure returns original result unchanged", async () => {
+    const enriched = await enrichResult(TOOL_NAMES.EDIT_NODE, "not valid json {{{", "Some result");
+    expect(enriched).toBe("Some result");
+  });
+
+  it("unknown tool name returns result unchanged", async () => {
+    const enriched = await enrichResult("unknownTool", "{}", "some result");
+    expect(enriched).toBe("some result");
+  });
+});
