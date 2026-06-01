@@ -239,7 +239,11 @@ Since \`metadata\` is tagged as "json" of node Character in SCHEMA_DUMP, you can
         const n = (row.n || row) as Record<string, unknown>;
         const matchVal = String(n[matchKey] ?? "");
         found.add(matchVal);
-        lines.push(JSON.stringify(n, null, 2));
+        const visible: Record<string, unknown> = {};
+        for (const [k, v] of Object.entries(n)) {
+          if (!k.startsWith("_")) visible[k] = v;
+        }
+        lines.push(JSON.stringify(visible, null, 2));
       }
 
       const notFound = values.filter((v) => !found.has(v));
