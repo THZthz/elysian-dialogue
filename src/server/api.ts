@@ -23,8 +23,8 @@ import { Database } from "@/server/db";
 import { SchemaRegistry } from "@/server/db/schema";
 import { queryWorld } from "@/server/llm/tools/queryWorld";
 import { searchWorld } from "@/server/llm/tools/searchWorld";
-import { editNode } from "@/server/llm/tools/editNode";
-import { editRelationship } from "@/server/llm/tools/editRelationship";
+import { manageNode } from "@/server/llm/tools/manageNode";
+import { manageRelationship } from "@/server/llm/tools/manageRelationship";
 import { editNote } from "@/server/llm/tools/editNote";
 import { editPlot } from "@/server/llm/tools/editPlot";
 import { manageSchema } from "@/server/llm/tools/manageSchema";
@@ -35,8 +35,8 @@ import { seedDatabase } from "@/server/stories/seed";
 const debugToolRegistry: Record<string, { execute: (args: any) => Promise<string> }> = {
   queryWorld: queryWorld as any,
   searchWorld: searchWorld as any,
-  editNode: editNode as any,
-  editRelationship: editRelationship as any,
+  manageNode: manageNode as any,
+  manageRelationship: manageRelationship as any,
   manageSchema: manageSchema as any,
   editNote: editNote as any,
   editPlot: editPlot as any,
