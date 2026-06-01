@@ -54,7 +54,7 @@ export function wrapSafe<T>(
 }
 
 /**
- * Especially used in editNode and editRelationship.
+ * Especially used in manageNode and manageRelationship.
  * @param schemaProps
  * @param hasSchema
  * @param props
