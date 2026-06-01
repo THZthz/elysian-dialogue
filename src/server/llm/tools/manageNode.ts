@@ -48,7 +48,7 @@ const inputSchema = z.object({
 	`.trim(),
   ),
   action: z.enum(["READ", "UPSERT", "DELETE"]).describe("READ to look up nodes, UPSERT to create or update, DELETE to remove."),
-  match: z.record(z.string(), z.union(z.array(z.string()), z.string())).describe(
+  match: z.record(z.string(), z.union([z.array(z.string()), z.string()])).describe(
     `
 	Key-value pairs to locate nodes. Values can be strings or string arrays (for READ batch lookup).
 	For UPSERT/DELETE: multi-key AND semantics, values must be strings.
