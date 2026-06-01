@@ -126,8 +126,13 @@ export class Database {
 
   async reset(): Promise<void> {
     await this.close();
-    if (fs.existsSync(this.graphPath)) fs.unlinkSync(this.graphPath);
-    if (fs.existsSync(this.vectorPath)) fs.unlinkSync(this.vectorPath);
+    // Delete main files and their WAL/SHM companions to avoid
+    // "Database ID does not match" errors on re-creation
+    for (const path of [this.graphPath, this.vectorPath]) {
+      if (fs.existsSync(path)) fs.unlinkSync(path);
+      if (fs.existsSync(path + ".wal")) fs.unlinkSync(path + ".wal");
+      if (fs.existsSync(path + "-shm")) fs.unlinkSync(path + "-shm");
+    }
     Database.instance = null;
     SchemaRegistry.resetInstance();
     await Database.getInstance({

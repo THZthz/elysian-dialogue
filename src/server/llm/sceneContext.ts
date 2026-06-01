@@ -258,6 +258,7 @@ export async function buildPlotsBrief(): Promise<string> {
     "```",
     tree,
     "```",
+    "",
   ];
   return lines.join("\n");
 }
@@ -342,29 +343,40 @@ export async function buildRelationshipDump(): Promise<string> {
     internalNames.add(name);
   }
 
+  const internalLabels = new Set(schema.getInternalTypeNames());
+
   const results: RelRow[] = [];
   for (const relDef of schema.getAllRelTypes()) {
     if (internalNames.has(relDef.name)) continue;
+    if (internalLabels.has(relDef.sourceLabel) || internalLabels.has(relDef.targetLabel)) continue;
     try {
       const isTemporal = schema.isTemporalRelType(relDef);
       const whereClause = isTemporal ? " WHERE r.valid_at IS NULL" : "";
       const r = await db.graph.query(
         `MATCH (a)-[r:\`${relDef.name}\`]->(b)${whereClause}
          RETURN label(a) AS sourceLabel, COALESCE(a.name, a._uid) AS sourceName,
-                type(r) AS type, properties(r) AS props,
+                '${relDef.name}' AS type, r.brief AS brief,
                 label(b) AS targetLabel, COALESCE(b.name, b._uid) AS targetName
          LIMIT 200`,
       );
       for (const row of r.rows) {
-        if (
-          !internalNames.has(row.sourceLabel as string) &&
-          !internalNames.has(row.targetLabel as string)
-        ) {
-          results.push(row as unknown as RelRow);
+        const sLabel = row.sourceLabel as string;
+        const tLabel = row.targetLabel as string;
+        if (!internalNames.has(sLabel) && !internalNames.has(tLabel)) {
+          const props: Record<string, unknown> = {};
+          if (row.brief != null) props.description = row.brief;
+          results.push({
+            sourceLabel: sLabel,
+            sourceName: row.sourceName as string,
+            type: row.type as string,
+            targetLabel: tLabel,
+            targetName: row.targetName as string,
+            props,
+          });
         }
       }
-    } catch {
-      /* table may not exist yet */
+    } catch (err) {
+      console.warn(`[buildRelationshipDump] query failed for ${relDef.name}:`, err instanceof Error ? err.message : String(err));
     }
   }
 

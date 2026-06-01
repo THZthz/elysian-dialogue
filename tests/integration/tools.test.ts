@@ -1863,7 +1863,11 @@ describe("enrichment — pass-through & resilience", () => {
   });
 
   it("enrichment failure returns original result unchanged", async () => {
-    const enriched = await enrichResult(TOOL_NAMES.MANAGE_NODE, "not valid json {{{", "Some result");
+    const enriched = await enrichResult(
+      TOOL_NAMES.MANAGE_NODE,
+      "not valid json {{{",
+      "Some result",
+    );
     expect(enriched).toBe("Some result");
   });
 

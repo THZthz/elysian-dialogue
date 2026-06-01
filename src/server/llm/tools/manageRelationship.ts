@@ -76,11 +76,15 @@ const inputSchema = z.object({
     .describe(
       `The relationship type (e.g. 'LOCATED_AT', 'CARRIES', 'LOCATED_IN', or GM-defined). Must be registered in the world schema and writable. Use Disposition nodes for character attitudes instead of relationships. Discover available types via \`${TOOL_NAMES.GET_CONTEXT}\` SCHEMA_DUMP.`,
     ),
-  action: z.enum(["READ", "UPSERT"]).describe("READ to look up relationships, UPSERT to create or update."),
+  action: z
+    .enum(["READ", "UPSERT"])
+    .describe("READ to look up relationships, UPSERT to create or update."),
   sourceLabel: z
     .string()
     .optional()
-    .describe("Label of the source node (e.g. 'Character', 'Object', 'Location'). Required for UPSERT and most READ modes."),
+    .describe(
+      "Label of the source node (e.g. 'Character', 'Object', 'Location'). Required for UPSERT and most READ modes.",
+    ),
   sourceMatch: z
     .record(z.string(), z.union([z.array(z.string()), z.string()]))
     .optional()
@@ -182,14 +186,21 @@ sub-locations nested within a larger location (e.g., a basement inside a tavern)
         return "ERROR: targetLabel is required when targetMatch is provided.";
       }
 
-      const safeType = args.relationshipType ? args.relationshipType.replace(/[^A-Za-z0-9_]/g, "_") : null;
+      const safeType = args.relationshipType
+        ? args.relationshipType.replace(/[^A-Za-z0-9_]/g, "_")
+        : null;
 
       // Determine which relationship types to query.
       // If safeType is known, just that one. Otherwise iterate over all registered types
       // matching the source/target constraints (type(r) is unavailable in this LadybugDB version).
       const typesToQuery: Array<{ name: string; def: RelTypeDef }> = [];
       if (safeType) {
-        const def = findRelType(registry, args.relationshipType!, args.sourceLabel ?? "", args.targetLabel ?? "");
+        const def = findRelType(
+          registry,
+          args.relationshipType!,
+          args.sourceLabel ?? "",
+          args.targetLabel ?? "",
+        );
         if (def) {
           typesToQuery.push({ name: args.relationshipType!, def });
         }
@@ -309,22 +320,31 @@ sub-locations nested within a larger location (e.g., a basement inside a tavern)
     // ── UPSERT ──
     if (!args.sourceLabel) return "ERROR: sourceLabel is required for UPSERT.";
     if (!args.targetLabel) return "ERROR: targetLabel is required for UPSERT.";
-    if (!args.sourceMatch || Object.keys(args.sourceMatch).length === 0) return "ERROR: sourceMatch is required for UPSERT.";
-    if (!args.targetMatch || Object.keys(args.targetMatch).length === 0) return "ERROR: targetMatch is required for UPSERT.";
+    if (!args.sourceMatch || Object.keys(args.sourceMatch).length === 0)
+      return "ERROR: sourceMatch is required for UPSERT.";
+    if (!args.targetMatch || Object.keys(args.targetMatch).length === 0)
+      return "ERROR: targetMatch is required for UPSERT.";
 
     // Reject array values
     for (const [k, v] of Object.entries(args.sourceMatch)) {
-      if (Array.isArray(v)) return `ERROR: sourceMatch key "${k}" has an array value. Arrays are only allowed for READ.`;
+      if (Array.isArray(v))
+        return `ERROR: sourceMatch key "${k}" has an array value. Arrays are only allowed for READ.`;
     }
     for (const [k, v] of Object.entries(args.targetMatch)) {
-      if (Array.isArray(v)) return `ERROR: targetMatch key "${k}" has an array value. Arrays are only allowed for READ.`;
+      if (Array.isArray(v))
+        return `ERROR: targetMatch key "${k}" has an array value. Arrays are only allowed for READ.`;
     }
 
     if (args.action === "UPSERT") {
       if (!args.relationshipType) return "ERROR: relationshipType is required for UPSERT.";
 
       // Validate relationship type
-      const relDef = findRelType(registry, args.relationshipType, args.sourceLabel ?? "", args.targetLabel ?? "");
+      const relDef = findRelType(
+        registry,
+        args.relationshipType,
+        args.sourceLabel ?? "",
+        args.targetLabel ?? "",
+      );
       if (!relDef) {
         const available = registry
           .getAllRelTypes()
@@ -419,7 +439,11 @@ sub-locations nested within a larger location (e.g., a basement inside a tavern)
             } catch {
               /* unparseable — overwrite */
             }
-          } else if (existingRaw && typeof existingRaw === "object" && !Array.isArray(existingRaw)) {
+          } else if (
+            existingRaw &&
+            typeof existingRaw === "object" &&
+            !Array.isArray(existingRaw)
+          ) {
             parsed = existingRaw as Record<string, unknown>;
           }
           propertiesToSet[key] = { ...parsed, ...incoming };
@@ -452,7 +476,12 @@ sub-locations nested within a larger location (e.g., a basement inside a tavern)
           if (Object.keys(args.properties).some((k) => embeddedNames.has(k))) {
             const merged = { ...existingRel, ...args.properties };
             const embedder = getEmbedder();
-            relNameText = getRelEmbeddingNameText(args.relationshipType, merged, srcVal as string, tgtVal as string);
+            relNameText = getRelEmbeddingNameText(
+              args.relationshipType,
+              merged,
+              srcVal as string,
+              tgtVal as string,
+            );
             const contentText = getRelEmbeddingContentText(relDef, merged);
             if (contentText) {
               try {
@@ -541,7 +570,12 @@ sub-locations nested within a larger location (e.g., a basement inside a tavern)
       let nameText: string | null = null;
 
       if (wantsEmbedding) {
-        nameText = getRelEmbeddingNameText(args.relationshipType, createProps, srcVal as string, tgtVal as string);
+        nameText = getRelEmbeddingNameText(
+          args.relationshipType,
+          createProps,
+          srcVal as string,
+          tgtVal as string,
+        );
         const contentText = getRelEmbeddingContentText(relDef, createProps);
 
         const embedder = getEmbedder();

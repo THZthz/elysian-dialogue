@@ -89,7 +89,8 @@ function createToolHandlers(
     searchWorld: async (args: string) => (searchWorld as any).execute(JSON.parse(args)),
     manageSchema: async (args: string) => (manageSchema as any).execute(JSON.parse(args)),
     manageNode: async (args: string) => (manageNode as any).execute(JSON.parse(args)),
-    manageRelationship: async (args: string) => (manageRelationship as any).execute(JSON.parse(args)),
+    manageRelationship: async (args: string) =>
+      (manageRelationship as any).execute(JSON.parse(args)),
     editNote: async (args: string) => (editNote as any).execute(JSON.parse(args)),
     editPlot: async (args: string) => (editPlot as any).execute(JSON.parse(args)),
     getContext: async (args: string) => (getContext as any).execute(JSON.parse(args)),

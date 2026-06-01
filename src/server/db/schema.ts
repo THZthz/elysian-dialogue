@@ -96,7 +96,7 @@ function generateRelDDL(def: RelTypeDef): string {
   return `CREATE REL TABLE \`${def.name}\` (FROM \`${def.sourceLabel}\` TO \`${def.targetLabel}\`${cols.length > 0 ? ", " + cols.join(", ") : ""});`;
 }
 
-// WARNING: The schema description should be useful since it will be used by GM, which has no prior knowledge.
+// WARNING: The schema description should be useful since it will be used by GM, who has no prior knowledge.
 
 const CREATED_AT_PROP: any = {
   name: "_created_at",
@@ -116,8 +116,7 @@ const ENTITY_PROPS: NodePropertyDef[] = [
   { name: "description", description: "Full description.", tags: ["string", "embedded"] },
   {
     name: "metadata",
-    description:
-      "JSON: { stats, conditions, opinions, aliases }. Fully optional. \`stats\` (skill→value) is for player only.",
+    description: `JSON: { stats, conditions, opinions, aliases }. Fully optional. \`stats\` (skill→value) is for player only.`,
     tags: ["json"],
   },
   CREATED_AT_PROP,
@@ -168,12 +167,12 @@ const PREDEFINED_NODES: NodeTypeDef[] = [
         description: "Unique plot name.",
         tags: ["string", "unique", "embedded"],
       },
+      { name: "brief", description: "One-line summary.", tags: ["string", "embedded"] },
       {
         name: "description",
         description: "Full plot descriptions.",
         tags: ["string", "embedded"],
       },
-      { name: "brief", description: "One-line summary.", tags: ["string", "embedded"] },
       {
         name: "status",
         description: "Plot lifecycle: PENDING → ACTIVE → COMPLETED/ABANDONED.",
@@ -188,8 +187,7 @@ const PREDEFINED_NODES: NodeTypeDef[] = [
   {
     name: "Disposition",
     category: "PREDEFINED",
-    description:
-      "A Character's disposition toward a target entity. Stored as a NODE (not a relationship). Match via (npc:Character)-[:HAS_DISPOSITION]->(d:Disposition {target_name: '...'}).",
+    description: `A Character's disposition toward a target entity. Stored as a NODE (not a relationship). Match via (npc:Character)-[:HAS_DISPOSITION]->(d:Disposition {target_name: '...'}).`,
     properties: [
       { name: "_uid", description: "UUID.", tags: ["string", "unique"] },
       {
@@ -207,8 +205,7 @@ const PREDEFINED_NODES: NodeTypeDef[] = [
   {
     name: "Scene",
     category: "PREDEFINED",
-    description:
-      "A narrative scene tracking time, location, characters, log, and dialogue options. Active scene has end_time IS NULL.",
+    description: `A narrative scene tracking time, location, characters, log, and dialogue options. Active scene has end_time IS NULL.`,
     properties: [
       {
         name: "name",
@@ -250,8 +247,8 @@ const PREDEFINED_NODES: NodeTypeDef[] = [
     description: "Singleton game session",
     properties: [
       { name: "_uid", description: "UUID", tags: ["string", "unique"] },
-      { name: "_created_at", description: "Creation timestamp", tags: ["string"] },
-      { name: "_updated_at", description: "Update timestamp", tags: ["string"] },
+      CREATED_AT_PROP,
+      UPDATED_AT_PROP,
     ],
   },
   {

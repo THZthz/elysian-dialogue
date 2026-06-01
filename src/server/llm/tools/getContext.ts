@@ -167,17 +167,23 @@ Pull pre-built context from the world. Nothing is auto-loaded — you choose wha
       RELATIONSHIP_DUMP: buildRelationshipDump,
     };
 
-    // TODO: Rewrite in Promise.all?
+    const tasks: Promise<void>[] = [];
     const results: string[] = [];
-    for (const type of sections) {
-      try {
-        const section = await builders[type]();
-        if (section) results.push(section);
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        results.push(`## ${type}\n\nError: ${msg}\n`);
-      }
+    for (let i = 0; i < sections.length; i++) {
+      const type = sections[i];
+      tasks.push(
+        builders[type]()
+          .then((section) => {
+            results[i] = section;
+          })
+          .catch((err) => {
+            const msg = err instanceof Error ? err.message : String(err);
+            results[i] = `## ${type}\n\nError: ${msg}\n`;
+          }),
+      );
     }
+
+    await Promise.all(tasks);
 
     return results.join("\n");
   }, TOOL_NAMES.GET_CONTEXT),

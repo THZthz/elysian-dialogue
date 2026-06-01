@@ -47,7 +47,9 @@ const inputSchema = z.object({
 	schemas via \`${TOOL_NAMES.GET_CONTEXT}\` (SCHEMA_DUMP).
 	`.trim(),
   ),
-  action: z.enum(["READ", "UPSERT", "DELETE"]).describe("READ to look up nodes, UPSERT to create or update, DELETE to remove."),
+  action: z
+    .enum(["READ", "UPSERT", "DELETE"])
+    .describe("READ to look up nodes, UPSERT to create or update, DELETE to remove."),
   match: z.record(z.string(), z.union([z.array(z.string()), z.string()])).describe(
     `
 	Key-value pairs to locate nodes. Values can be strings or string arrays (for READ batch lookup).
@@ -85,7 +87,8 @@ function validateMatchForAction(
 
   // UPSERT / DELETE: reject array values
   for (const [k, v] of Object.entries(match)) {
-    if (Array.isArray(v)) return `match key "${k}" has an array value. Arrays are only allowed for READ.`;
+    if (Array.isArray(v))
+      return `match key "${k}" has an array value. Arrays are only allowed for READ.`;
   }
   return null;
 }
@@ -260,7 +263,10 @@ Since \`metadata\` is tagged as "json" of node Character in SCHEMA_DUMP, you can
       if (internalErr) return `ERROR: ${internalErr}`;
 
       if (useModel) {
-        const deleted = await db.entities.delete(args.nodeLabel as EntityLabel, args.match as Record<string, string>);
+        const deleted = await db.entities.delete(
+          args.nodeLabel as EntityLabel,
+          args.match as Record<string, string>,
+        );
         return deleted > 0
           ? `Node "${args.nodeLabel}" matched by ${JSON.stringify(args.match)} deleted.`
           : `ERROR: No "${args.nodeLabel}" node found matching ${JSON.stringify(args.match)}.`;
@@ -392,7 +398,8 @@ Since \`metadata\` is tagged as "json" of node Character in SCHEMA_DUMP, you can
       );
       const created = result.rows[0]?.n as Record<string, unknown> | undefined;
       const v = visibleProps(created);
-      const propSummary = Object.keys(v).length > 0 ? ` with keys: ${Object.keys(v).join(", ")}` : "";
+      const propSummary =
+        Object.keys(v).length > 0 ? ` with keys: ${Object.keys(v).join(", ")}` : "";
       return `Node "${args.nodeLabel}" created${propSummary}.`;
     }
 
