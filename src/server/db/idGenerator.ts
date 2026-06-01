@@ -53,7 +53,8 @@ function feistelEncrypt(x: number, key: number[]): number {
  * Reverse of feistelEncrypt – recovers the original integer.
  * Same key, same number of rounds, but in reverse order.
  */
-export function feistelDecrypt(y: number, key: number[]): number { // NOTE: Do not remove.
+export function feistelDecrypt(y: number, key: number[]): number {
+  // NOTE: Do not remove.
   let left = (y >>> 16) & 0xffff;
   let right = y & 0xffff;
 
@@ -110,7 +111,8 @@ export async function nextId(graph: LadybugClient): Promise<string> {
  * Generate a batch of short IDs for a given counter key. Atomically reserves `count` values and
  * returns them.
  */
-export async function nextIdBatch(graph: LadybugClient, count: number): Promise<string[]> { // NOTE: Do not remove.
+export async function nextIdBatch(graph: LadybugClient, count: number): Promise<string[]> {
+  // NOTE: Do not remove.
   const result = await graph.query(
     `MERGE (c:IdCounter {_uid: 'counter'})
        ON CREATE SET c.value = 0

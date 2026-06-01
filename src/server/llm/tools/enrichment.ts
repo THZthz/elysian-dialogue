@@ -35,7 +35,10 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
 
 // ── Helpers ──
 
-function buildWhereClause(match: Record<string, string>): { where: string; params: Record<string, unknown> } {
+function buildWhereClause(match: Record<string, string>): {
+  where: string;
+  params: Record<string, unknown>;
+} {
   const params: Record<string, unknown> = {};
   const parts = Object.entries(match).map(([key, value], i) => {
     const pName = `mk${i}`;
@@ -114,7 +117,10 @@ function formatEntityContext(rows: EnrichmentRow[], entityName: string): string 
           clauses.push(`${type} ${r.otherName}`);
         }
       } else {
-        const shown = group.slice(0, 3).map((r) => r.otherName).join(", ");
+        const shown = group
+          .slice(0, 3)
+          .map((r) => r.otherName)
+          .join(", ");
         clauses.push(`${type} ${shown}, ${type}(${group.length - 3} more)`);
       }
     }
@@ -141,7 +147,10 @@ function formatEntityContext(rows: EnrichmentRow[], entityName: string): string 
           inClauses.push(`${r.otherName} is ${type} ${entityName}`);
         }
       } else {
-        const shown = group.slice(0, 3).map((r) => r.otherName).join(", ");
+        const shown = group
+          .slice(0, 3)
+          .map((r) => r.otherName)
+          .join(", ");
         inClauses.push(`${shown} and ${group.length - 3} others are ${type} ${entityName}`);
       }
     }
@@ -165,10 +174,7 @@ function formatEntityContext(rows: EnrichmentRow[], entityName: string): string 
   return output;
 }
 
-async function enrichEntityBatch(
-  db: Database,
-  entities: EntityBatchEntry[],
-): Promise<string> {
+async function enrichEntityBatch(db: Database, entities: EntityBatchEntry[]): Promise<string> {
   if (entities.length === 0) return "";
 
   const rows: { label: string; name: string; brief: string | null; relCounts: string }[] = [];
@@ -186,7 +192,13 @@ async function enrichEntityBatch(
         2000,
       );
 
-      const row = result.rows[0] as { _label: string; brief: string | null; rels: Array<{ relType: string; targetName: string }> } | undefined;
+      const row = result.rows[0] as
+        | {
+            _label: string;
+            brief: string | null;
+            rels: Array<{ relType: string; targetName: string }>;
+          }
+        | undefined;
       if (!row) continue;
 
       // Count relationships by type
@@ -195,9 +207,7 @@ async function enrichEntityBatch(
         if (!r.relType) continue;
         byType.set(r.relType, (byType.get(r.relType) || 0) + 1);
       }
-      const relCounts = [...byType.entries()]
-        .map(([t, c]) => `${t}(${c})`)
-        .join(", ");
+      const relCounts = [...byType.entries()].map(([t, c]) => `${t}(${c})`).join(", ");
 
       rows.push({
         label: row._label,
@@ -241,7 +251,10 @@ async function editNodeEnricher(args: string, result: string): Promise<string> {
     const entityName = match.name || Object.values(match)[0];
     return formatEntityContext(rows, entityName);
   } catch (err) {
-    console.warn("[enrichment] editNode enrichment failed:", err instanceof Error ? err.message : String(err));
+    console.warn(
+      "[enrichment] editNode enrichment failed:",
+      err instanceof Error ? err.message : String(err),
+    );
     return "";
   }
 }
@@ -293,7 +306,10 @@ async function editRelationshipEnricher(args: string, result: string): Promise<s
 
     return partList.join("\n");
   } catch (err) {
-    console.warn("[enrichment] editRelationship enrichment failed:", err instanceof Error ? err.message : String(err));
+    console.warn(
+      "[enrichment] editRelationship enrichment failed:",
+      err instanceof Error ? err.message : String(err),
+    );
     return "";
   }
 }
@@ -344,7 +360,10 @@ async function queryWorldEnricher(args: string, result: string): Promise<string>
     const db = Database.getExisting();
     return await enrichEntityBatch(db, entities.slice(0, 10));
   } catch (err) {
-    console.warn("[enrichment] queryWorld enrichment failed:", err instanceof Error ? err.message : String(err));
+    console.warn(
+      "[enrichment] queryWorld enrichment failed:",
+      err instanceof Error ? err.message : String(err),
+    );
     return "";
   }
 }
@@ -379,7 +398,10 @@ async function searchWorldEnricher(_args: string, result: string): Promise<strin
     const db = Database.getExisting();
     return await enrichEntityBatch(db, entities.slice(0, 10));
   } catch (err) {
-    console.warn("[enrichment] searchWorld enrichment failed:", err instanceof Error ? err.message : String(err));
+    console.warn(
+      "[enrichment] searchWorld enrichment failed:",
+      err instanceof Error ? err.message : String(err),
+    );
     return "";
   }
 }
@@ -395,7 +417,11 @@ const ENRICHERS: Record<string, Enricher> = {
 
 // ── Dispatch ──
 
-export async function enrichResult(toolName: string, args: string, rawResult: string): Promise<string> {
+export async function enrichResult(
+  toolName: string,
+  args: string,
+  rawResult: string,
+): Promise<string> {
   const enricher = ENRICHERS[toolName];
   if (!enricher) return rawResult;
 
@@ -404,7 +430,10 @@ export async function enrichResult(toolName: string, args: string, rawResult: st
     if (!enrichment) return rawResult;
     return rawResult + enrichment;
   } catch (err) {
-    console.warn(`[enrichment] enrichResult failed for ${toolName}:`, err instanceof Error ? err.message : String(err));
+    console.warn(
+      `[enrichment] enrichResult failed for ${toolName}:`,
+      err instanceof Error ? err.message : String(err),
+    );
     return rawResult;
   }
 }

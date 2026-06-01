@@ -271,7 +271,9 @@ export class SceneModel {
   }
 
   async modify(input: ModifySceneInput): Promise<SceneData | null> {
-    const scene = input.scene_name ? await this.getByName(input.scene_name) : await this.getActiveRaw();
+    const scene = input.scene_name
+      ? await this.getByName(input.scene_name)
+      : await this.getActiveRaw();
     if (!scene) return null;
 
     const now = new Date().toISOString();

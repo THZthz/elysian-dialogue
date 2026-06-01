@@ -1439,18 +1439,24 @@ describe("generateDialogueStep", () => {
 describe("enrichment — editNode", () => {
   beforeAll(async () => {
     const db = getTestDb();
-    await db.entities.create("Character", {
-      name: "Orin Fell",
-      brief: "grizzled mercenary",
-    }).catch(() => {});
-    await db.entities.create("Location", {
-      name: "Silver Tankard",
-      brief: "smoky tavern",
-    }).catch(() => {});
-    await db.entities.create("Object", {
-      name: "Rusty Dagger",
-      brief: "a well-worn blade",
-    }).catch(() => {});
+    await db.entities
+      .create("Character", {
+        name: "Orin Fell",
+        brief: "grizzled mercenary",
+      })
+      .catch(() => {});
+    await db.entities
+      .create("Location", {
+        name: "Silver Tankard",
+        brief: "smoky tavern",
+      })
+      .catch(() => {});
+    await db.entities
+      .create("Object", {
+        name: "Rusty Dagger",
+        brief: "a well-worn blade",
+      })
+      .catch(() => {});
     // Set up relationships
     await db.graph.query(
       `MATCH (c:Character {name: 'Orin Fell'}), (l:Location {name: 'Silver Tankard'})
@@ -1497,7 +1503,7 @@ describe("enrichment — editNode", () => {
       match: { name: "NoSuchCharacter" },
       properties: { brief: "test" },
     });
-    const rawResult = "ERROR: No \"Character\" node found matching...";
+    const rawResult = 'ERROR: No "Character" node found matching...';
     const enriched = await enrichResult(TOOL_NAMES.EDIT_NODE, args, rawResult);
 
     expect(enriched).toBe(rawResult);
@@ -1543,9 +1549,15 @@ describe("enrichment — editNode", () => {
 describe("enrichment — editRelationship", () => {
   beforeAll(async () => {
     const db = getTestDb();
-    await db.entities.create("Character", { name: "Mira Voss", brief: "innkeeper" }).catch(() => {});
-    await db.entities.create("Location", { name: "Silver Tankard", brief: "smoky tavern" }).catch(() => {});
-    await db.entities.create("Object", { name: "Rusty Dagger", brief: "a well-worn blade" }).catch(() => {});
+    await db.entities
+      .create("Character", { name: "Mira Voss", brief: "innkeeper" })
+      .catch(() => {});
+    await db.entities
+      .create("Location", { name: "Silver Tankard", brief: "smoky tavern" })
+      .catch(() => {});
+    await db.entities
+      .create("Object", { name: "Rusty Dagger", brief: "a well-worn blade" })
+      .catch(() => {});
     await db.graph.query(
       `MATCH (c:Character {name: 'Mira Voss'}), (l:Location {name: 'Silver Tankard'})
        MERGE (c)-[r:LOCATED_AT]->(l)`,
@@ -1571,7 +1583,9 @@ describe("enrichment — editRelationship", () => {
   it("produces minimal output when endpoints have no other relationships", async () => {
     const db = getTestDb();
     await db.entities.create("Character", { name: "Hermit", brief: "lives alone" }).catch(() => {});
-    await db.entities.create("Object", { name: "Lonely Rock", brief: "just a rock" }).catch(() => {});
+    await db.entities
+      .create("Object", { name: "Lonely Rock", brief: "just a rock" })
+      .catch(() => {});
 
     const args = JSON.stringify({
       relationshipType: "CARRIES",
@@ -1601,7 +1615,11 @@ describe("enrichment — editRelationship", () => {
   });
 
   it("gracefully handles args parse failure", async () => {
-    const enriched = await enrichResult(TOOL_NAMES.EDIT_RELATIONSHIP, "not valid json", "Some result");
+    const enriched = await enrichResult(
+      TOOL_NAMES.EDIT_RELATIONSHIP,
+      "not valid json",
+      "Some result",
+    );
     expect(enriched).toBe("Some result");
   });
 });
@@ -1626,7 +1644,10 @@ describe("enrichment — queryWorld", () => {
   });
 
   it("skips enrichment for aggregate-only results (no entities)", async () => {
-    const args = JSON.stringify({ action: "READ", query: "MATCH (c:Character) RETURN count(c) AS cnt" });
+    const args = JSON.stringify({
+      action: "READ",
+      query: "MATCH (c:Character) RETURN count(c) AS cnt",
+    });
     const rawResult = JSON.stringify({ rowCount: 1, rows: [{ cnt: 5 }] });
     const enriched = await enrichResult(TOOL_NAMES.QUERY_WORLD, args, rawResult);
     expect(enriched).toBe(rawResult);
@@ -1644,7 +1665,9 @@ describe("enrichment — queryWorld", () => {
     const rawResult = JSON.stringify({
       rowCount: 2,
       rows: [
-        { c: { name: "Orin Fell", brief: "grizzled mercenary", description: "A scarred veteran." } },
+        {
+          c: { name: "Orin Fell", brief: "grizzled mercenary", description: "A scarred veteran." },
+        },
         { c: { name: "Mira Voss", brief: "innkeeper", description: "Runs the Silver Tankard." } },
       ],
     });
@@ -1662,7 +1685,13 @@ describe("enrichment — searchWorld", () => {
   it("does not crash on valid search results (graceful)", async () => {
     const args = JSON.stringify({ query: "wizard", target: ["NODE"], domains: ["Character"] });
     const rawResult = JSON.stringify({
-      Character: [{ name: "Saruman", brief: "A wise wizard with a long beard", description: "Saruman the White" }],
+      Character: [
+        {
+          name: "Saruman",
+          brief: "A wise wizard with a long beard",
+          description: "Saruman the White",
+        },
+      ],
     });
     const enriched = await enrichResult(TOOL_NAMES.SEARCH_WORLD, args, rawResult);
     expect(typeof enriched).toBe("string");
@@ -1671,13 +1700,17 @@ describe("enrichment — searchWorld", () => {
 
   it("skips enrichment for error results", async () => {
     const args = JSON.stringify({ query: "test", domains: ["NonExistentDomain"] });
-    const rawResult = "ERROR: \"NonExistentDomain\" is not a searchable...";
+    const rawResult = 'ERROR: "NonExistentDomain" is not a searchable...';
     const enriched = await enrichResult(TOOL_NAMES.SEARCH_WORLD, args, rawResult);
     expect(enriched).toBe(rawResult);
   });
 
   it("skips enrichment for empty search results", async () => {
-    const args = JSON.stringify({ query: "zzz_nonexistent", target: ["NODE"], domains: ["Character"] });
+    const args = JSON.stringify({
+      query: "zzz_nonexistent",
+      target: ["NODE"],
+      domains: ["Character"],
+    });
     const rawResult = JSON.stringify({ Character: [] });
     const enriched = await enrichResult(TOOL_NAMES.SEARCH_WORLD, args, rawResult);
     expect(enriched).toBe(rawResult);
