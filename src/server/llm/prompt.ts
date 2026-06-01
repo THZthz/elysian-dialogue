@@ -58,8 +58,8 @@ A Scene tracks time, location, and characters. The active scene is identified by
 
 Tools to use:
 - \`${TOOL_NAMES.MANAGE_SCHEMA}\` (if new types needed)
-- \`${TOOL_NAMES.EDIT_NODE}\`
-- \`${TOOL_NAMES.EDIT_RELATIONSHIP}\`
+- \`${TOOL_NAMES.MANAGE_NODE}\`
+- \`${TOOL_NAMES.MANAGE_RELATIONSHIP}\`
 - \`${TOOL_NAMES.EDIT_PLOT}\`
 - \`${TOOL_NAMES.EDIT_NOTE}\`
 - \`${TOOL_NAMES.QUERY_WORLD}\` (WRITE)
@@ -87,14 +87,14 @@ LadybugDB uses a **structured property graph model** — schema-first, strongly-
 
 | Tool | Maps to | Use for |
 |------|---------|---------|
-| \`${TOOL_NAMES.EDIT_NODE}\` | UPSERT / DELETE | Single-node UPSERT or DELETE. Handles JSON partial merge, embeddings, and schema validation automatically. |
-| \`${TOOL_NAMES.EDIT_RELATIONSHIP}\` | UPSERT on rels | Single-relationship UPSERT. Auto-sets temporal props (\`created_at\`, \`valid_at\`) on create, JSON partial merge on update. |
+| \`${TOOL_NAMES.MANAGE_NODE}\` | READ / UPSERT / DELETE | Single-node READ, UPSERT, or DELETE. Handles JSON partial merge, embeddings, and schema validation automatically. |
+| \`${TOOL_NAMES.MANAGE_RELATIONSHIP}\` | READ / UPSERT | Single-relationship READ or UPSERT. Auto-sets temporal props (\`created_at\`, \`valid_at\`) on create, JSON partial merge on update. |
 | \`${TOOL_NAMES.MANAGE_SCHEMA}\` | CREATE NODE/REL TABLE | Register new node labels and relationship types before use. Generates the DDL. |
 | \`${TOOL_NAMES.QUERY_WORLD}\` | Raw Cypher | Multi-hop traversals, aggregations, bulk operations, or anything spanning multiple nodes/rels. |
 | \`${TOOL_NAMES.GET_CONTEXT}\` (SCHEMA_DUMP) | — | Discover registered types, property schemas, and tags. |
 | \`${TOOL_NAMES.SEARCH_WORLD}\` | — | Hybrid vector search (dense + sparse + rerank). Not Cypher-based. |
 
-**Prefer \`${TOOL_NAMES.EDIT_NODE}\` and \`${TOOL_NAMES.EDIT_RELATIONSHIP}\`** for single-entity mutations — they handle embedding updates, JSON partial merge, and schema validation automatically. Reach for \`${TOOL_NAMES.QUERY_WORLD}\` when you need traversals, aggregations, or multi-node operations.
+**Prefer \`${TOOL_NAMES.MANAGE_NODE}\` and \`${TOOL_NAMES.MANAGE_RELATIONSHIP}\`** for single-entity read/mutations — they handle embedding updates, JSON partial merge, and schema validation automatically. Reach for \`${TOOL_NAMES.QUERY_WORLD}\` when you need traversals, aggregations, or multi-node operations.
 
 ### Property Conventions
 - \`brief\` is for one-liners, \`description\` is for full text. Default to brief to save context — fetch description when you need detail.
@@ -109,7 +109,7 @@ LadybugDB uses a **structured property graph model** — schema-first, strongly-
 - Predefined types (Character, Object, Location, Plot, Note, Disposition, etc.) are already registered.
 - For new types, call \`${TOOL_NAMES.MANAGE_SCHEMA}\` first — it creates the actual node/relationship tables.
 - Schema dump shows types from the registry with property schemas and tags.
-- Properties tagged \`json\` receive automatic partial merge on update in both \`${TOOL_NAMES.EDIT_NODE}\` and \`${TOOL_NAMES.EDIT_RELATIONSHIP}\`.
+- Properties tagged \`json\` receive automatic partial merge on update in both \`${TOOL_NAMES.MANAGE_NODE}\` and \`${TOOL_NAMES.MANAGE_RELATIONSHIP}\`.
 
 ### Query Rules
 
