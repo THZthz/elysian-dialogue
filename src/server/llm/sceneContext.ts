@@ -425,7 +425,7 @@ export async function buildRelationshipDump(history = false): Promise<string> {
         const desc = r.props?.description ? ` — "${r.props.description}"` : "";
         if (history) {
           const created = r.props.createdAt ? ` [${r.props.createdAt}` : "";
-          const valid = r.props.validAt ? `→${r.props.validAt}] (expired)` : (r.props.createdAt ? "→now]" : "");
+          const valid = r.props.validAt != null ? `→${r.props.validAt}] (expired)` : (r.props.createdAt ? "→now]" : "");
           const range = created || valid ? ` ${created}${valid}` : "";
           lines.push(`- ${r.sourceName} → ${r.targetName}${range}${desc}`);
         } else {

@@ -257,7 +257,11 @@ sub-locations nested within a larger location (e.g., a basement inside a tavern)
         };
       };
 
-      const temporalTypes = new Set(["LOCATED_AT", "LOCATED_IN", "CARRIES", "HAS_DISPOSITION"]);
+      const temporalTypes = new Set(
+        registry.getAllRelTypes()
+          .filter((r) => isTemporalRel(r))
+          .map((r) => r.name),
+      );
       const allRows: Array<{
         relType: string;
         props: Record<string, unknown>;
