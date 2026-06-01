@@ -345,10 +345,13 @@ export async function buildRelationshipDump(history = false): Promise<string> {
 
   const internalLabels = new Set(schema.getInternalTypeNames());
 
+  const seenRelTypes = new Set<string>();
   const results: RelRow[] = [];
   for (const relDef of schema.getAllRelTypes()) {
     if (internalNames.has(relDef.name)) continue;
     if (internalLabels.has(relDef.sourceLabel) || internalLabels.has(relDef.targetLabel)) continue;
+    if (seenRelTypes.has(relDef.name)) continue;
+    seenRelTypes.add(relDef.name);
     try {
       const isTemporal = schema.isTemporalRelType(relDef);
       const whereClause = isTemporal ? (history ? "" : " WHERE r.valid_at IS NULL") : "";
