@@ -17,7 +17,7 @@
  */
 
 import { Database } from "@/server/db";
-import { SchemaRegistry } from "@/server/db/schema";
+import { SchemaRegistry, RelTypeDef } from "@/server/db/schema";
 
 // ── Time helpers ──
 
@@ -327,7 +327,7 @@ interface RelRow {
   props: Record<string, unknown>;
 }
 
-export async function buildRelationshipDump(): Promise<string> {
+export async function buildRelationshipDump(history = false): Promise<string> {
   const db = Database.getExisting();
   const schema = SchemaRegistry.getInstance();
   const internalNames = new Set(schema.getInternalTypeNames());
@@ -351,11 +351,14 @@ export async function buildRelationshipDump(): Promise<string> {
     if (internalLabels.has(relDef.sourceLabel) || internalLabels.has(relDef.targetLabel)) continue;
     try {
       const isTemporal = schema.isTemporalRelType(relDef);
-      const whereClause = isTemporal ? " WHERE r.valid_at IS NULL" : "";
+      const whereClause = isTemporal ? (history ? "" : " WHERE r.valid_at IS NULL") : "";
+      const temporalCols = history && isTemporal
+        ? ", r.created_at AS createdAt, r.valid_at AS validAt"
+        : "";
       const r = await db.graph.query(
         `MATCH (a)-[r:\`${relDef.name}\`]->(b)${whereClause}
          RETURN label(a) AS sourceLabel, COALESCE(a.name, a._uid) AS sourceName,
-                '${relDef.name}' AS type, r.brief AS brief,
+                '${relDef.name}' AS type, r.brief AS brief${temporalCols},
                 label(b) AS targetLabel, COALESCE(b.name, b._uid) AS targetName
          LIMIT 200`,
       );
@@ -365,6 +368,8 @@ export async function buildRelationshipDump(): Promise<string> {
         if (!internalNames.has(sLabel) && !internalNames.has(tLabel)) {
           const props: Record<string, unknown> = {};
           if (row.brief != null) props.description = row.brief;
+          if (history && row.createdAt != null) props.createdAt = row.createdAt;
+          if (history && row.validAt != null) props.validAt = row.validAt;
           results.push({
             sourceLabel: sLabel,
             sourceName: row.sourceName as string,
@@ -402,7 +407,13 @@ export async function buildRelationshipDump(): Promise<string> {
           seen.add(tgt);
           const occupants = group
             .filter((o) => o.targetName === tgt)
-            .map((o) => o.sourceName)
+            .map((o) => {
+              if (history && o.props.createdAt != null) {
+                const validStr = o.props.validAt != null ? String(o.props.validAt) : "now";
+                return `${o.sourceName} [${o.props.createdAt}→${validStr}]`;
+              }
+              return o.sourceName;
+            })
             .join(", ");
           const desc = group.find((o) => o.props.description)?.props.description;
           const descSuffix = desc ? ` — "${desc}"` : "";
@@ -412,10 +423,338 @@ export async function buildRelationshipDump(): Promise<string> {
     } else {
       for (const r of group) {
         const desc = r.props?.description ? ` — "${r.props.description}"` : "";
-        lines.push(`- ${r.sourceName} → ${r.targetName}${desc}`);
+        if (history) {
+          const created = r.props.createdAt ? ` [${r.props.createdAt}` : "";
+          const valid = r.props.validAt ? `→${r.props.validAt}] (expired)` : (r.props.createdAt ? "→now]" : "");
+          const range = created || valid ? ` ${created}${valid}` : "";
+          lines.push(`- ${r.sourceName} → ${r.targetName}${range}${desc}`);
+        } else {
+          lines.push(`- ${r.sourceName} → ${r.targetName}${desc}`);
+        }
       }
     }
     lines.push("");
   }
+  return lines.join("\n");
+}
+
+// ── TIMELINE ──
+
+interface TimelineEntry {
+  time: number;
+  text: string;
+}
+
+export async function buildTimeline(): Promise<string> {
+  const db = Database.getExisting();
+  const schema = SchemaRegistry.getInstance();
+  const internalLabels = new Set(schema.getInternalTypeNames());
+  const temporalTypeDefs: RelTypeDef[] = [];
+
+  for (const def of schema.getAllRelTypes()) {
+    if (def.name.startsWith("_")) continue;
+    if (internalLabels.has(def.sourceLabel) || internalLabels.has(def.targetLabel)) continue;
+    if (schema.isTemporalRelType(def)) {
+      temporalTypeDefs.push(def);
+    }
+  }
+
+  const entries: TimelineEntry[] = [];
+
+  for (const def of temporalTypeDefs) {
+    try {
+      const r = await db.graph.query(
+        `MATCH (a)-[r:\`${def.name}\`]->(b)
+         RETURN COALESCE(a.name, a._uid) AS srcName,
+                COALESCE(b.name, b._uid) AS tgtName,
+                r.created_at AS created_at, r.valid_at AS valid_at
+         ORDER BY r.created_at DESC
+         LIMIT 300`,
+      );
+      for (const row of r.rows) {
+        const src = row.srcName ?? "?";
+        const tgt = row.tgtName ?? "?";
+        const created = row.created_at as number;
+        entries.push({
+          time: created,
+          text: `${src} ${def.name} → ${tgt} (created)`,
+        });
+        if (row.valid_at != null) {
+          const expired = row.valid_at as number;
+          entries.push({
+            time: expired,
+            text: `${src} ${def.name} → ${tgt} (expired at ${expired})`,
+          });
+        }
+      }
+    } catch {
+      /* table may not exist yet */
+    }
+  }
+
+  if (entries.length === 0) return "## TIMELINE\n\n(none)\n";
+
+  // Sort by time descending, then by text for determinism
+  entries.sort((a, b) => b.time - a.time || a.text.localeCompare(b.text));
+
+  const limited = entries.slice(0, 200);
+  const lines: string[] = ["## TIMELINE", ""];
+  for (const e of limited) {
+    lines.push(`- [${e.time}] ${e.text}`);
+  }
+  lines.push("");
+  return lines.join("\n");
+}
+
+// ── ENTITY_PROFILE ──
+
+export async function buildEntityProfile(name: string, label: string): Promise<string> {
+  const db = Database.getExisting();
+  const schema = SchemaRegistry.getInstance();
+
+  // Check entity exists
+  const entityCheck = await db.graph.query(
+    `MATCH (n:\`${label}\` {name: $name}) RETURN n`,
+    { name },
+  );
+  if (entityCheck.rows.length === 0) {
+    return `## ENTITY_PROFILE\n\nEntity "${name}" with label "${label}" not found.\n`;
+  }
+
+  const node = entityCheck.rows[0]?.n as Record<string, unknown>;
+  const lines: string[] = [`## ENTITY_PROFILE: ${label} "${name}"`, ""];
+
+  // 1. Properties
+  lines.push("### Properties");
+  const props = Object.entries(node)
+    .filter(([k]) => !k.startsWith("_"))
+    .map(([k, v]) => {
+      const val = typeof v === "object" ? JSON.stringify(v) : String(v);
+      return `- **${k}**: ${val}`;
+    });
+  if (props.length === 0) {
+    lines.push("(none)");
+  } else {
+    lines.push(...props);
+  }
+  lines.push("");
+
+  // 2. Current Location (for Character, Object)
+  const locationLabels = new Set(["Character", "Object"]);
+  if (locationLabels.has(label)) {
+    lines.push("### Current Location");
+    try {
+      const locResult = await db.graph.query(
+        `MATCH (e:\`${label}\` {name: $name})-[r:LOCATED_AT]->(loc:Location)
+         WHERE r.valid_at IS NULL
+         RETURN loc.name AS locName, r.brief AS brief, r.created_at AS since
+         LIMIT 1`,
+        { name },
+      );
+      if (locResult.rows.length > 0) {
+        const row = locResult.rows[0];
+        const since = row.since != null ? ` (since ${row.since})` : "";
+        const brief = row.brief ? ` — "${row.brief}"` : "";
+        lines.push(`- **${row.locName}**${since}${brief}`);
+      } else {
+        lines.push("(none)");
+      }
+    } catch {
+      lines.push("(unavailable)");
+    }
+    lines.push("");
+  }
+
+  // 3. Carried Items (Character) or Carried By (Object)
+  lines.push("### Items / Carrying");
+  try {
+    if (label === "Character") {
+      const carried = await db.graph.query(
+        `MATCH (e:\`${label}\` {name: $name})-[r:CARRIES]->(obj:Object)
+         WHERE r.valid_at IS NULL
+         RETURN obj.name AS objName, r.brief AS brief
+         LIMIT 50`,
+        { name },
+      );
+      if (carried.rows.length > 0) {
+        for (const row of carried.rows) {
+          const brief = row.brief ? ` — "${row.brief}"` : "";
+          lines.push(`- **${row.objName}**${brief}`);
+        }
+      } else {
+        lines.push("(nothing carried)");
+      }
+    } else if (label === "Object") {
+      const carrier = await db.graph.query(
+        `MATCH (c:Character)-[r:CARRIES]->(e:\`${label}\` {name: $name})
+         WHERE r.valid_at IS NULL
+         RETURN c.name AS charName, r.brief AS brief
+         LIMIT 1`,
+        { name },
+      );
+      if (carrier.rows.length > 0) {
+        const row = carrier.rows[0];
+        const brief = row.brief ? ` — "${row.brief}"` : "";
+        lines.push(`- Carried by **${row.charName}**${brief}`);
+      } else {
+        lines.push("(not carried by anyone)");
+      }
+    } else {
+      lines.push("(not applicable)");
+    }
+  } catch {
+    lines.push("(unavailable)");
+  }
+  lines.push("");
+
+  // 4. Dispositions (Character only)
+  if (label === "Character") {
+    lines.push("### Dispositions");
+    try {
+      const outgoing = await db.graph.query(
+        `MATCH (e:\`${label}\` {name: $name})-[r:HAS_DISPOSITION]->(d:Disposition)
+         WHERE r.valid_at IS NULL
+         RETURN d.target_name AS target, d.sentiment AS sentiment, d.summary AS summary`,
+        { name },
+      );
+      const incoming = await db.graph.query(
+        `MATCH (c:Character)-[r:HAS_DISPOSITION]->(d:Disposition {target_name: $name})
+         WHERE r.valid_at IS NULL
+         RETURN c.name AS source, d.sentiment AS sentiment, d.summary AS summary`,
+        { name },
+      );
+      if (outgoing.rows.length === 0 && incoming.rows.length === 0) {
+        lines.push("(none)");
+      }
+      for (const row of outgoing.rows) {
+        lines.push(`- → **${row.target}**: ${row.sentiment} — "${row.summary}"`);
+      }
+      for (const row of incoming.rows) {
+        lines.push(`- **${row.source}** → you: ${row.sentiment} — "${row.summary}"`);
+      }
+    } catch {
+      lines.push("(unavailable)");
+    }
+    lines.push("");
+  }
+
+  // 5. Linked Notes
+  lines.push("### Linked Notes");
+  try {
+    const aboutRel = `ABOUT_${label.toUpperCase()}`;
+    const notesResult = await db.graph.query(
+      `MATCH (n:Note)-[:\`${aboutRel}\`]->(e:\`${label}\` {name: $name})
+       RETURN n.name AS noteName
+       LIMIT 50`,
+      { name },
+    );
+    if (notesResult.rows.length > 0) {
+      for (const row of notesResult.rows) {
+        lines.push(`- **${row.noteName}**`);
+      }
+    } else {
+      lines.push("(none)");
+    }
+  } catch {
+    lines.push("(unavailable)");
+  }
+  lines.push("");
+
+  // 6. Scene Appearances (Character only)
+  if (label === "Character") {
+    lines.push("### Scene Appearances");
+    try {
+      const scenes = await db.graph.query(
+        `MATCH (s:Scene) WHERE s.characters CONTAINS $name
+         RETURN s.name AS sceneName, s.start_time AS startTime, s.location_name AS locName
+         ORDER BY s.start_time DESC
+         LIMIT 20`,
+        { name },
+      );
+      if (scenes.rows.length > 0) {
+        for (const row of scenes.rows) {
+          const t = row.startTime as number;
+          const day = Math.floor(t / 48);
+          const halfHours = t % 48;
+          const hour = Math.floor(halfHours / 2);
+          const min = halfHours % 2 === 0 ? "00" : "30";
+          lines.push(`- **${row.sceneName}** (Day ${day}, ${hour}:${min}) at ${row.locName || "?"}`);
+        }
+      } else {
+        lines.push("(none)");
+      }
+    } catch {
+      lines.push("(unavailable)");
+    }
+    lines.push("");
+  }
+
+  // 7. Relationship History (bidirectional — last 20)
+  lines.push("### Relationship History (last 20)");
+  try {
+    const temporalTypes = schema
+      .getAllRelTypes()
+      .filter((d) => schema.isTemporalRelType(d) && !d.name.startsWith("_"));
+    const typeNames = [...new Set(temporalTypes.map((d) => d.name))];
+
+    const historyEntries: Array<{ time: number; text: string }> = [];
+
+    for (const typeName of typeNames) {
+      const r1 = await db.graph.query(
+        `MATCH (a:\`${label}\` {name: $name})-[r:\`${typeName}\`]->(b)
+         RETURN COALESCE(b.name, b._uid) AS other, "out" AS dir,
+                r.created_at AS created_at, r.valid_at AS valid_at
+         ORDER BY r.created_at DESC
+         LIMIT 100`,
+        { name },
+      );
+      for (const row of r1.rows) {
+        historyEntries.push({
+          time: row.created_at as number,
+          text: `${typeName} → ${row.other} (created)`,
+        });
+        if (row.valid_at != null) {
+          historyEntries.push({
+            time: row.valid_at as number,
+            text: `${typeName} → ${row.other} (expired)`,
+          });
+        }
+      }
+
+      const r2 = await db.graph.query(
+        `MATCH (a)-[r:\`${typeName}\`]->(b:\`${label}\` {name: $name})
+         RETURN COALESCE(a.name, a._uid) AS other, "in" AS dir,
+                r.created_at AS created_at, r.valid_at AS valid_at
+         ORDER BY r.created_at DESC
+         LIMIT 100`,
+        { name },
+      );
+      for (const row of r2.rows) {
+        historyEntries.push({
+          time: row.created_at as number,
+          text: `${row.other} ${typeName} → you (created)`,
+        });
+        if (row.valid_at != null) {
+          historyEntries.push({
+            time: row.valid_at as number,
+            text: `${row.other} ${typeName} → you (expired)`,
+          });
+        }
+      }
+    }
+
+    if (historyEntries.length === 0) {
+      lines.push("(none)");
+    } else {
+      historyEntries.sort((a, b) => b.time - a.time);
+      for (const e of historyEntries.slice(0, 20)) {
+        lines.push(`- [${e.time}] ${e.text}`);
+      }
+    }
+  } catch {
+    lines.push("(unavailable)");
+  }
+  lines.push("");
+
   return lines.join("\n");
 }

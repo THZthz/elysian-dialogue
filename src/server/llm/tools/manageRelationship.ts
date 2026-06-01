@@ -52,6 +52,10 @@ function isTemporalRel(def: RelTypeDef): boolean {
   return SchemaRegistry.getInstance().isTemporalRelType(def);
 }
 
+// Relationship types where a source can only have one active relationship at a time.
+// Auto-expiry on UPSERT create applies only to these types.
+const AUTO_EXPIRE_TYPES = new Set(["LOCATED_AT", "CARRIES"]);
+
 function getRelEmbeddingContentText(def: RelTypeDef, props: Record<string, unknown>): string {
   return def.properties
     .filter((p) => p.tags.includes("embedded"))
@@ -77,8 +81,8 @@ const inputSchema = z.object({
       `The relationship type (e.g. 'LOCATED_AT', 'CARRIES', 'LOCATED_IN', or GM-defined). Must be registered in the world schema and writable. Use Disposition nodes for character attitudes instead of relationships. Discover available types via \`${TOOL_NAMES.GET_CONTEXT}\` SCHEMA_DUMP.`,
     ),
   action: z
-    .enum(["READ", "UPSERT"])
-    .describe("READ to look up relationships, UPSERT to create or update."),
+    .enum(["READ", "UPSERT", "END"])
+    .describe("READ to look up relationships, UPSERT to create or update, END to terminate a temporal relationship."),
   sourceLabel: z
     .string()
     .optional()
@@ -108,15 +112,28 @@ const inputSchema = z.object({
     .describe(
       "Properties to set on the relationship (CREATE or UPDATE). No _-prefixed keys allowed since they are managed internally.",
     ),
+  time: z
+    .number()
+    .optional()
+    .describe(
+      "For END: the time to set valid_at (day * 48 + half-hour). Required for END action.",
+    ),
+  atTime: z
+    .number()
+    .optional()
+    .describe(
+      "For READ: query relationship state at this historical time. When provided, uses time-range query instead of current-state-only. Only valid with READ action.",
+    ),
 });
 
 export const manageRelationship = tool({
   title: TOOL_NAMES.MANAGE_RELATIONSHIP,
   description: `
 ## Brief
-READ or UPSERT relationships between nodes. UPSERT creates-or-updates a single relationship
+READ, UPSERT, or END relationships between nodes. UPSERT creates-or-updates a single relationship
 with auto-set temporal props and JSON partial merge. READ looks up relationships without
 writing Cypher — find all outgoing/incoming rels for a node, or a specific relationship.
+END terminates a temporal relationship at a specified time.
 
 ## Actions
 - **UPSERT**: Create-or-update a single relationship. Both endpoint nodes must exist.
@@ -128,6 +145,7 @@ writing Cypher — find all outgoing/incoming rels for a node, or a specific rel
   - targetMatch + relationshipType → all incoming rels of that type to target
   - targetMatch only → all incoming rels to target, grouped by type
   - sourceMatch + targetMatch (no rel type) → all rels between the two nodes, grouped by type
+- **END**: Terminate a temporal relationship at a specified time. Sets \`valid_at\` to the provided \`time\` value. Only works on temporal relationships (those with \`created_at\` and \`valid_at\` properties). The relationship must be currently active (\`valid_at IS NULL\`). Requires \`sourceMatch\`, \`targetMatch\`, \`relationshipType\`, and \`time\`.
 
 It is not recommended to use this tool to directly **edit** ABOUT_CHARACTER/ABOUT_OBJECT/
 ABOUT_LOCATION/ABOUT_SCENE/ABOUT_PLOT (managed by \`${TOOL_NAMES.EDIT_NOTE}\`),
@@ -168,6 +186,16 @@ sub-locations nested within a larger location (e.g., a basement inside a tavern)
     if (args.targetMatch) {
       for (const key of Object.keys(args.targetMatch)) {
         if (key.startsWith("_")) return `ERROR: targetMatch key "${key}" is internal.`;
+      }
+    }
+
+    // atTime is only valid with READ
+    if (args.atTime !== undefined && args.atTime !== null) {
+      if (args.action !== "READ") {
+        return "ERROR: atTime is only valid with READ action.";
+      }
+      if (typeof args.atTime !== "number") {
+        return "ERROR: atTime must be a number.";
       }
     }
 
@@ -260,7 +288,14 @@ sub-locations nested within a larger location (e.g., a basement inside a tavern)
         clauses.push(`MATCH (src)-[r:\`${safeName}\`]->(tgt)`);
 
         if (temporalTypes.has(def.name)) {
-          clauses.push("WHERE r.valid_at IS NULL");
+          if (args.atTime !== undefined && args.atTime !== null) {
+            clauses.push(
+              `WHERE r.created_at <= $atTime AND (r.valid_at IS NULL OR r.valid_at > $atTime)`,
+            );
+            allParams["atTime"] = args.atTime;
+          } else {
+            clauses.push("WHERE r.valid_at IS NULL");
+          }
         }
 
         returns.push("r AS rel");
@@ -276,6 +311,11 @@ sub-locations nested within a larger location (e.g., a basement inside a tavern)
           const props: Record<string, unknown> = {};
           for (const [k, v] of Object.entries(rel)) {
             if (!k.startsWith("_")) props[k] = v;
+          }
+          // When querying historical state, show temporal range
+          if (args.atTime !== undefined && args.atTime !== null) {
+            if ("created_at" in rel) props.created_at = rel.created_at;
+            if ("valid_at" in rel) props.valid_at = rel.valid_at;
           }
           allRows.push({
             relType: typeName,
@@ -318,24 +358,24 @@ sub-locations nested within a larger location (e.g., a basement inside a tavern)
     }
 
     // ── UPSERT ──
-    if (!args.sourceLabel) return "ERROR: sourceLabel is required for UPSERT.";
-    if (!args.targetLabel) return "ERROR: targetLabel is required for UPSERT.";
-    if (!args.sourceMatch || Object.keys(args.sourceMatch).length === 0)
-      return "ERROR: sourceMatch is required for UPSERT.";
-    if (!args.targetMatch || Object.keys(args.targetMatch).length === 0)
-      return "ERROR: targetMatch is required for UPSERT.";
-
-    // Reject array values
-    for (const [k, v] of Object.entries(args.sourceMatch)) {
-      if (Array.isArray(v))
-        return `ERROR: sourceMatch key "${k}" has an array value. Arrays are only allowed for READ.`;
-    }
-    for (const [k, v] of Object.entries(args.targetMatch)) {
-      if (Array.isArray(v))
-        return `ERROR: targetMatch key "${k}" has an array value. Arrays are only allowed for READ.`;
-    }
-
     if (args.action === "UPSERT") {
+      if (!args.sourceLabel) return "ERROR: sourceLabel is required for UPSERT.";
+      if (!args.targetLabel) return "ERROR: targetLabel is required for UPSERT.";
+      if (!args.sourceMatch || Object.keys(args.sourceMatch).length === 0)
+        return "ERROR: sourceMatch is required for UPSERT.";
+      if (!args.targetMatch || Object.keys(args.targetMatch).length === 0)
+        return "ERROR: targetMatch is required for UPSERT.";
+
+      // Reject array values
+      for (const [k, v] of Object.entries(args.sourceMatch)) {
+        if (Array.isArray(v))
+          return `ERROR: sourceMatch key "${k}" has an array value. Arrays are only allowed for READ.`;
+      }
+      for (const [k, v] of Object.entries(args.targetMatch)) {
+        if (Array.isArray(v))
+          return `ERROR: targetMatch key "${k}" has an array value. Arrays are only allowed for READ.`;
+      }
+
       if (!args.relationshipType) return "ERROR: relationshipType is required for UPSERT.";
 
       // Validate relationship type
@@ -562,8 +602,32 @@ sub-locations nested within a larger location (e.g., a basement inside a tavern)
         createProps["_updated_at"] = new Date().toISOString();
       }
 
-      // TODO: auto-expire old relationship of same type+source when a new one is created
-      // (e.g., moving character to new location should expire old LOCATED_AT)
+      // Auto-expire conflicting old relationships (same type + source, different target)
+      if (AUTO_EXPIRE_TYPES.has(args.relationshipType)) {
+        try {
+          const autoExpireResult = await db.graph.query(
+            `MATCH (src:\`${args.sourceLabel}\` {\`${srcKey}\`: $srcVal})-[old:\`${safeType}\`]->(oldTgt:\`${args.targetLabel}\`) WHERE old.valid_at IS NULL AND oldTgt.\`${tgtKey}\` <> $tgtVal RETURN count(old) AS cnt`,
+            { srcVal, tgtVal },
+          );
+          const conflictCount = autoExpireResult.rows[0]?.cnt as number;
+          if (conflictCount > 0) {
+            if (conflictCount > 1) {
+              console.warn(
+                `[manageRelationship] auto-expiry: ${conflictCount} active "${args.relationshipType}" relationships found for source — expiring all`,
+              );
+            }
+            await db.graph.query(
+              `MATCH (src:\`${args.sourceLabel}\` {\`${srcKey}\`: $srcVal})-[old:\`${safeType}\`]->(oldTgt:\`${args.targetLabel}\`) WHERE old.valid_at IS NULL AND oldTgt.\`${tgtKey}\` <> $tgtVal SET old.valid_at = $newCreatedAt`,
+              { srcVal, tgtVal, newCreatedAt: createProps["created_at"] },
+            );
+          }
+        } catch (err) {
+          console.warn(
+            `[manageRelationship] auto-expiry failed for "${args.relationshipType}":`,
+            err instanceof Error ? err.message : String(err),
+          );
+        }
+      }
 
       // Compute embeddings if the relationship type supports it.
       let contentVec: number[] | null = null;
@@ -642,6 +706,78 @@ sub-locations nested within a larger location (e.g., a basement inside a tavern)
       return `Relationship (:${args.sourceLabel})-[:${args.relationshipType}]->(:${args.targetLabel}) created successfully.`;
     }
 
-    return `ERROR: Unknown action "${args.action}". Use READ or UPSERT.`;
+    // ── END ──
+    if (args.action === "END") {
+      if (!args.relationshipType) return "ERROR: relationshipType is required for END.";
+      if (!args.sourceLabel) return "ERROR: sourceLabel is required for END.";
+      if (!args.targetLabel) return "ERROR: targetLabel is required for END.";
+      if (!args.sourceMatch || Object.keys(args.sourceMatch).length === 0)
+        return "ERROR: sourceMatch is required for END.";
+      if (!args.targetMatch || Object.keys(args.targetMatch).length === 0)
+        return "ERROR: targetMatch is required for END.";
+      if (args.time === undefined || args.time === null)
+        return "ERROR: time is required for END.";
+
+      // Validate relationship type is temporal
+      const endRelDef = findRelType(
+        registry,
+        args.relationshipType,
+        args.sourceLabel,
+        args.targetLabel,
+      );
+      if (!endRelDef) {
+        return `ERROR: Relationship type "${args.relationshipType}" with endpoints (:${args.sourceLabel})→(:${args.targetLabel}) is not registered.`;
+      }
+      if (!isTemporalRel(endRelDef)) {
+        const temporalTypes = registry
+          .getAllRelTypes()
+          .filter((r) => registry.isTemporalRelType(r))
+          .map((r) => r.name)
+          .filter((v, i, a) => a.indexOf(v) === i)
+          .join(", ");
+        return `ERROR: Relationship type "${args.relationshipType}" is not temporal (missing created_at/valid_at). Available temporal types: ${temporalTypes}`;
+      }
+
+      const endSrcEntries = Object.entries(args.sourceMatch!);
+      const endTgtEntries = Object.entries(args.targetMatch!);
+      const [endSrcKey, endSrcVal] = endSrcEntries[0];
+      const [endTgtKey, endTgtVal] = endTgtEntries[0];
+
+      const safeEndType = args.relationshipType.replace(/[^A-Za-z0-9_]/g, "_");
+
+      // Find the relationship
+      const endExisting = await db.graph.query(
+        `MATCH (src:\`${args.sourceLabel}\` {\`${endSrcKey}\`: $srcVal})-[r:\`${safeEndType}\`]->(tgt:\`${args.targetLabel}\` {\`${endTgtKey}\`: $tgtVal}) RETURN r`,
+        { srcVal: endSrcVal, tgtVal: endTgtVal },
+      );
+
+      if (endExisting.rows.length === 0) {
+        return `ERROR: No matching relationship found for END.`;
+      }
+      if (endExisting.rows.length > 1) {
+        return `ERROR: Multiple (${endExisting.rows.length}) matching relationships found. Use more specific match criteria.`;
+      }
+
+      const endRel = endExisting.rows[0]?.r as Record<string, unknown> | undefined;
+      const existingValidAt = endRel?.valid_at as number | null | undefined;
+
+      if (existingValidAt != null) {
+        return `Relationship already expired at ${existingValidAt}.`;
+      }
+
+      const endCreatedAt = endRel?.created_at as number | undefined;
+      if (endCreatedAt !== undefined && args.time! < endCreatedAt) {
+        return `ERROR: Cannot end relationship at time ${args.time} which is before its created_at (${endCreatedAt}).`;
+      }
+
+      await db.graph.query(
+        `MATCH (src:\`${args.sourceLabel}\` {\`${endSrcKey}\`: $srcVal})-[r:\`${safeEndType}\`]->(tgt:\`${args.targetLabel}\` {\`${endTgtKey}\`: $tgtVal}) SET r.valid_at = $time`,
+        { srcVal: endSrcVal, tgtVal: endTgtVal, time: args.time },
+      );
+
+      return `Relationship (:\`${args.sourceLabel}\`)-[:${args.relationshipType}]->(:\`${args.targetLabel}\`) ended at time ${args.time}.`;
+    }
+
+    return `ERROR: Unknown action "${args.action}". Valid actions: READ, UPSERT, END.`;
   }, TOOL_NAMES.MANAGE_RELATIONSHIP),
 });

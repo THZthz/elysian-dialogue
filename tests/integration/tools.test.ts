@@ -718,39 +718,6 @@ describe("manageRelationship", () => {
     expect(result).toContain("created successfully");
   });
 
-  // SKIP: Creating a new temporal relationship (e.g. LOCATED_AT) does not yet
-  // auto-expire the previous relationship of the same type+source. Without this,
-  // a character can have multiple active LOCATED_AT relationships.
-  it.skip("creating a new LOCATED_AT auto-expires the previous one", async () => {
-    const db = getTestDb();
-    // First LOCATED_AT
-    await exec(manageRelationship, {
-      action: "UPSERT",
-      relationshipType: "LOCATED_AT",
-      sourceLabel: "Character",
-      sourceMatch: { name: "RelAlice" },
-      targetLabel: "Location",
-      targetMatch: { name: "Tavern" },
-      properties: { brief: "at the bar" },
-    });
-    // Second LOCATED_AT to a different location (should auto-expire the first)
-    await db.entities.create("Location", { name: "Forest", brief: "A dark forest" });
-    await exec(manageRelationship, {
-      action: "UPSERT",
-      relationshipType: "LOCATED_AT",
-      sourceLabel: "Character",
-      sourceMatch: { name: "RelAlice" },
-      targetLabel: "Location",
-      targetMatch: { name: "Forest" },
-      properties: { brief: "walking through the woods" },
-    });
-    // The first LOCATED_AT should now have valid_at != null
-    const check = await db.graph.query(
-      `MATCH (src:Character {name: "RelAlice"})-[r:LOCATED_AT]->(tgt:Location {name: "Tavern"}) RETURN r.valid_at AS valid_at`,
-    );
-    expect(check.rows[0]?.valid_at).not.toBeNull();
-  });
-
   it("READ specific relationship", async () => {
     const result = await exec(manageRelationship, {
       action: "READ",
@@ -800,6 +767,36 @@ describe("manageRelationship", () => {
       relationshipType: "LOCATED_AT",
     });
     expect(result).toContain("ERROR");
+  });
+
+  it("creating a new LOCATED_AT auto-expires the previous one", async () => {
+    const db = getTestDb();
+    // First LOCATED_AT
+    await exec(manageRelationship, {
+      action: "UPSERT",
+      relationshipType: "LOCATED_AT",
+      sourceLabel: "Character",
+      sourceMatch: { name: "RelAlice" },
+      targetLabel: "Location",
+      targetMatch: { name: "Tavern" },
+      properties: { brief: "at the bar" },
+    });
+    // Second LOCATED_AT to a different location (should auto-expire the first)
+    await db.entities.create("Location", { name: "ExpiryForest", brief: "A dark forest" });
+    await exec(manageRelationship, {
+      action: "UPSERT",
+      relationshipType: "LOCATED_AT",
+      sourceLabel: "Character",
+      sourceMatch: { name: "RelAlice" },
+      targetLabel: "Location",
+      targetMatch: { name: "ExpiryForest" },
+      properties: { brief: "walking through the woods" },
+    });
+    // The first LOCATED_AT should now have valid_at != null
+    const check = await db.graph.query(
+      `MATCH (src:Character {name: "RelAlice"})-[r:LOCATED_AT]->(tgt:Location {name: "Tavern"}) RETURN r.valid_at AS valid_at`,
+    );
+    expect(check.rows[0]?.valid_at).not.toBeNull();
   });
 });
 

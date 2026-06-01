@@ -27,6 +27,8 @@ import {
   buildPlotsBrief,
   buildRelationshipDump,
   buildScenesBrief,
+  buildTimeline,
+  buildEntityProfile,
 } from "@/server/llm/sceneContext";
 import { Database } from "@/server/db";
 import { SchemaRegistry } from "@/server/db/schema";
@@ -39,6 +41,8 @@ const CONTEXT_TYPES = [
   "SCENES_BRIEF",
   "SCHEMA_DUMP",
   "RELATIONSHIP_DUMP",
+  "TIMELINE",
+  "ENTITY_PROFILE",
 ] as const;
 
 type ContextType = (typeof CONTEXT_TYPES)[number];
@@ -150,11 +154,21 @@ Pull pre-built context from the world. Nothing is auto-loaded — you choose wha
 - PLOTS_BRIEF — All plots with status, brief, and flags.
 - SCENES_BRIEF — All scenes ordered by time, with location, characters, and transition reason.
 - RELATIONSHIP_DUMP — All active relationships grouped by type. LOCATED_AT/LOCATED_IN are grouped by location showing occupants and access details.
+- TIMELINE — Chronological log of all temporal relationship changes (created/expired), most recent first.
+- ENTITY_PROFILE — Everything about one node: properties, location, carried items, dispositions, notes, scene appearances, and relationship history. Requires entityName + entityLabel.
 `.trim(),
   inputSchema: z.object({
     types: z.array(z.enum(CONTEXT_TYPES)).describe("Which context sections to return."),
+    relationshipHistory: z.boolean().optional().describe("For RELATIONSHIP_DUMP: when true, shows all relationships including expired with time ranges."),
+    entityName: z.string().optional().describe("For ENTITY_PROFILE: the name of the entity to profile."),
+    entityLabel: z.string().optional().describe("For ENTITY_PROFILE: the label of the entity to profile (e.g. 'Character', 'Object')."),
   }),
-  execute: wrapSafe(async (args: { types: ContextType[] }) => {
+  execute: wrapSafe(async (args: { types: ContextType[]; relationshipHistory?: boolean; entityName?: string; entityLabel?: string }) => {
+    if (args.types.includes("ENTITY_PROFILE")) {
+      if (!args.entityName || !args.entityLabel) {
+        return "ERROR: entityName and entityLabel are required when ENTITY_PROFILE is requested.";
+      }
+    }
     const sections: ContextType[] = args.types.length > 0 ? args.types : [];
 
     const builders: Record<ContextType, () => Promise<string>> = {
@@ -164,7 +178,12 @@ Pull pre-built context from the world. Nothing is auto-loaded — you choose wha
       PLOTS_BRIEF: buildPlotsBrief,
       SCENES_BRIEF: buildScenesBrief,
       SCHEMA_DUMP: buildSchemaDump,
-      RELATIONSHIP_DUMP: buildRelationshipDump,
+      RELATIONSHIP_DUMP: () => buildRelationshipDump(!!(args as any).relationshipHistory),
+      TIMELINE: buildTimeline,
+      ENTITY_PROFILE: () => {
+        const extra = args as any;
+        return buildEntityProfile(extra.entityName, extra.entityLabel);
+      },
     };
 
     const tasks: Promise<void>[] = [];
