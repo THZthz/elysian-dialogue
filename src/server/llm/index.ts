@@ -24,8 +24,8 @@ import { buildSystemPrompt, MAX_GM_STEPS } from "@/server/llm/prompt";
 import { Database } from "@/server/db";
 import { queryWorld } from "@/server/llm/tools/queryWorld";
 import { searchWorld } from "@/server/llm/tools/searchWorld";
-import { editNode } from "@/server/llm/tools/editNode";
-import { editRelationship } from "@/server/llm/tools/editRelationship";
+import { manageNode } from "@/server/llm/tools/manageNode";
+import { manageRelationship } from "@/server/llm/tools/manageRelationship";
 import { editNote } from "@/server/llm/tools/editNote";
 import { editPlot } from "@/server/llm/tools/editPlot";
 import { getContext } from "@/server/llm/tools/getContext";
@@ -69,8 +69,8 @@ export async function getPrefix(): Promise<ImmutablePrefix> {
     queryWorld,
     searchWorld,
     manageSchema,
-    editNode,
-    editRelationship,
+    manageNode,
+    manageRelationship,
     editNote,
     editPlot,
     getContext,
@@ -88,8 +88,8 @@ function createToolHandlers(
     queryWorld: async (args: string) => (queryWorld as any).execute(JSON.parse(args)),
     searchWorld: async (args: string) => (searchWorld as any).execute(JSON.parse(args)),
     manageSchema: async (args: string) => (manageSchema as any).execute(JSON.parse(args)),
-    editNode: async (args: string) => (editNode as any).execute(JSON.parse(args)),
-    editRelationship: async (args: string) => (editRelationship as any).execute(JSON.parse(args)),
+    manageNode: async (args: string) => (manageNode as any).execute(JSON.parse(args)),
+    manageRelationship: async (args: string) => (manageRelationship as any).execute(JSON.parse(args)),
     editNote: async (args: string) => (editNote as any).execute(JSON.parse(args)),
     editPlot: async (args: string) => (editPlot as any).execute(JSON.parse(args)),
     getContext: async (args: string) => (getContext as any).execute(JSON.parse(args)),
