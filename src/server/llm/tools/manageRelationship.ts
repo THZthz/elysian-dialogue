@@ -72,6 +72,7 @@ function getRelEmbeddingNameText(
 const inputSchema = z.object({
   relationshipType: z
     .string()
+    .optional()
     .describe(
       `The relationship type (e.g. 'LOCATED_AT', 'CARRIES', 'LOCATED_IN', or GM-defined). Must be registered in the world schema and writable. Use Disposition nodes for character attitudes instead of relationships. Discover available types via \`${TOOL_NAMES.GET_CONTEXT}\` SCHEMA_DUMP.`,
     ),
@@ -154,20 +155,6 @@ sub-locations nested within a larger location (e.g., a basement inside a tavern)
     const db = Database.getExisting();
     const registry = getSchemaRegistry();
 
-    // Validate relationship type (supports pipe-delimited source/target labels)
-    const relDef = findRelType(registry, args.relationshipType, args.sourceLabel ?? "", args.targetLabel ?? "");
-    if (!relDef) {
-      const available = registry
-        .getAllRelTypes()
-        .filter((r) => !r.name.startsWith("_"))
-        .map((r) => `${r.name} (${r.sourceLabel || "?"}→${r.targetLabel || "?"})`)
-        .join(", ");
-      return `ERROR: Relationship type "${args.relationshipType}" with endpoints (:${args.sourceLabel ?? "?"})→(:${args.targetLabel ?? "?"}) is not registered. Available: ${available}`;
-    }
-    if (args.relationshipType.startsWith("_")) {
-      return `ERROR: Relationship type "${args.relationshipType}" (${relDef.sourceLabel}→${relDef.targetLabel}) is internal and cannot be written to.`;
-    }
-
     // Block _-prefixed match keys on endpoints (all actions)
     if (args.sourceMatch) {
       for (const key of Object.keys(args.sourceMatch)) {
@@ -197,6 +184,24 @@ sub-locations nested within a larger location (e.g., a basement inside a tavern)
 
       const safeType = args.relationshipType ? args.relationshipType.replace(/[^A-Za-z0-9_]/g, "_") : null;
 
+      // Determine which relationship types to query.
+      // If safeType is known, just that one. Otherwise iterate over all registered types
+      // matching the source/target constraints (type(r) is unavailable in this LadybugDB version).
+      const typesToQuery: Array<{ name: string; def: RelTypeDef }> = [];
+      if (safeType) {
+        const def = findRelType(registry, args.relationshipType!, args.sourceLabel ?? "", args.targetLabel ?? "");
+        if (def) {
+          typesToQuery.push({ name: args.relationshipType!, def });
+        }
+      } else {
+        const allTypes = registry.getAllRelTypes().filter((r) => !r.name.startsWith("_"));
+        for (const def of allTypes) {
+          if (hasSource && !matchesEndpoint(def.sourceLabel, args.sourceLabel!)) continue;
+          if (hasTarget && !matchesEndpoint(def.targetLabel, args.targetLabel!)) continue;
+          typesToQuery.push({ name: def.name, def });
+        }
+      }
+
       const buildMatchClause = (
         label: string,
         match: Record<string, string | string[]>,
@@ -213,57 +218,75 @@ sub-locations nested within a larger location (e.g., a basement inside a tavern)
         };
       };
 
-      const allParams: Record<string, unknown> = {};
-      const clauses: string[] = [];
-      const returns: string[] = [];
-
-      if (hasSource) {
-        const src = buildMatchClause(args.sourceLabel!, args.sourceMatch!, "src");
-        clauses.push(src.clause);
-        Object.assign(allParams, src.params);
-      }
-      if (hasTarget) {
-        const tgt = buildMatchClause(args.targetLabel!, args.targetMatch!, "tgt");
-        clauses.push(tgt.clause);
-        Object.assign(allParams, tgt.params);
-      }
-
-      let relMatch: string;
-      if (safeType) {
-        relMatch = `[r:\`${safeType}\`]`;
-      } else {
-        relMatch = "[r]";
-      }
-
-      const srcRef = hasSource ? "(src)" : "()";
-      const tgtRef = hasTarget ? "(tgt)" : "()";
-      clauses.push(`MATCH ${srcRef}-${relMatch}->${tgtRef}`);
-
-      // Filter temporal relationships to active only
       const temporalTypes = new Set(["LOCATED_AT", "LOCATED_IN", "CARRIES", "HAS_DISPOSITION"]);
-      if (safeType && temporalTypes.has(args.relationshipType!)) {
-        clauses.push("WHERE r.valid_at IS NULL");
+      const allRows: Array<{
+        relType: string;
+        props: Record<string, unknown>;
+        tgtName?: string;
+        tgtLabel?: string;
+        srcName?: string;
+        srcLabel?: string;
+      }> = [];
+
+      for (const { name: typeName, def } of typesToQuery) {
+        const safeName = typeName.replace(/[^A-Za-z0-9_]/g, "_");
+        const allParams: Record<string, unknown> = {};
+        const clauses: string[] = [];
+        const returns: string[] = [];
+
+        if (hasSource) {
+          const src = buildMatchClause(args.sourceLabel!, args.sourceMatch!, "src");
+          clauses.push(src.clause);
+          Object.assign(allParams, src.params);
+        }
+        if (hasTarget) {
+          const tgt = buildMatchClause(args.targetLabel!, args.targetMatch!, "tgt");
+          clauses.push(tgt.clause);
+          Object.assign(allParams, tgt.params);
+        }
+
+        // Always bind both endpoints so names/labels are available in output
+        clauses.push(`MATCH (src)-[r:\`${safeName}\`]->(tgt)`);
+
+        if (temporalTypes.has(def.name)) {
+          clauses.push("WHERE r.valid_at IS NULL");
+        }
+
+        returns.push("r AS rel");
+        returns.push("tgt.name AS tgtName, label(tgt) AS tgtLabel");
+        returns.push("src.name AS srcName, label(src) AS srcLabel");
+
+        const query = `${clauses.join(" ")} RETURN ${returns.join(", ")} LIMIT 100`;
+        const result = await db.graph.query(query, allParams);
+
+        for (const row of result.rows) {
+          const rel = (row.rel || {}) as Record<string, unknown>;
+          // Extract visible (non-_-prefixed) properties from the relationship object
+          const props: Record<string, unknown> = {};
+          for (const [k, v] of Object.entries(rel)) {
+            if (!k.startsWith("_")) props[k] = v;
+          }
+          allRows.push({
+            relType: typeName,
+            props,
+            tgtName: row.tgtName as string | undefined,
+            tgtLabel: row.tgtLabel as string | undefined,
+            srcName: row.srcName as string | undefined,
+            srcLabel: row.srcLabel as string | undefined,
+          });
+        }
       }
 
-      returns.push("type(r) AS relType");
-      returns.push("properties(r) AS props");
-      if (hasTarget) returns.push("tgt.name AS tgtName, label(tgt) AS tgtLabel");
-      if (hasSource) returns.push("src.name AS srcName, label(src) AS srcLabel");
-
-      const query = `${clauses.join(" ")} RETURN ${returns.join(", ")} LIMIT 100`;
-      const result = await db.graph.query(query, allParams);
-
-      if (result.rows.length === 0) {
+      if (allRows.length === 0) {
         const desc = safeType ? ` of type "${args.relationshipType}"` : "";
         return `No relationships${desc} found matching the criteria.`;
       }
 
       // Group by relationship type
-      const byType = new Map<string, Array<Record<string, unknown>>>();
-      for (const row of result.rows) {
-        const rType = (row.relType as string) || "?";
-        if (!byType.has(rType)) byType.set(rType, []);
-        byType.get(rType)!.push(row as Record<string, unknown>);
+      const byType = new Map<string, typeof allRows>();
+      for (const row of allRows) {
+        if (!byType.has(row.relType)) byType.set(row.relType, []);
+        byType.get(row.relType)!.push(row);
       }
 
       const lines: string[] = [];
@@ -272,8 +295,7 @@ sub-locations nested within a larger location (e.g., a basement inside a tavern)
         for (const row of rows) {
           const src = row.srcName ? `(:${row.srcLabel} "${row.srcName}")` : "?";
           const tgt = row.tgtName ? `(:${row.tgtLabel} "${row.tgtName}")` : "?";
-          const props = row.props as Record<string, unknown>;
-          const visible = Object.entries(props || {})
+          const visible = Object.entries(row.props || {})
             .filter(([k]) => !k.startsWith("_"))
             .map(([k, v]) => `${k}=${typeof v === "object" ? JSON.stringify(v) : String(v)}`)
             .join(", ");
@@ -299,6 +321,22 @@ sub-locations nested within a larger location (e.g., a basement inside a tavern)
     }
 
     if (args.action === "UPSERT") {
+      if (!args.relationshipType) return "ERROR: relationshipType is required for UPSERT.";
+
+      // Validate relationship type
+      const relDef = findRelType(registry, args.relationshipType, args.sourceLabel ?? "", args.targetLabel ?? "");
+      if (!relDef) {
+        const available = registry
+          .getAllRelTypes()
+          .filter((r) => !r.name.startsWith("_"))
+          .map((r) => `${r.name} (${r.sourceLabel || "?"}→${r.targetLabel || "?"})`)
+          .join(", ");
+        return `ERROR: Relationship type "${args.relationshipType}" with endpoints (:${args.sourceLabel ?? "?"})→(:${args.targetLabel ?? "?"}) is not registered. Available: ${available}`;
+      }
+      if (args.relationshipType.startsWith("_")) {
+        return `ERROR: Relationship type "${args.relationshipType}" (${relDef.sourceLabel}→${relDef.targetLabel}) is internal and cannot be written to.`;
+      }
+
       const srcEntries = Object.entries(args.sourceMatch!);
       const tgtEntries = Object.entries(args.targetMatch!);
 

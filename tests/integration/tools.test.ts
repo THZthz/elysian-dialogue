@@ -20,8 +20,8 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
 import { setupTestDb, teardownTestDb, getTestDb } from "../helpers";
 import { queryWorld } from "@/server/llm/tools/queryWorld";
 import { searchWorld } from "@/server/llm/tools/searchWorld";
-import { editNode } from "@/server/llm/tools/editNode";
-import { editRelationship } from "@/server/llm/tools/editRelationship";
+import { manageNode } from "@/server/llm/tools/manageNode";
+import { manageRelationship } from "@/server/llm/tools/manageRelationship";
 import { editNote } from "@/server/llm/tools/editNote";
 import { editPlot } from "@/server/llm/tools/editPlot";
 import { manageSchema } from "@/server/llm/tools/manageSchema";
@@ -317,11 +317,12 @@ describe("manageSchema", () => {
 });
 
 // ===========================================================================
-// editNode
+// manageNode
 // ===========================================================================
-describe("editNode", () => {
+describe("manageNode", () => {
   it("rejects an unregistered label", async () => {
-    const result = await exec(editNode, {
+    const result = await exec(manageNode, {
+      action: "UPSERT",
       nodeLabel: "FooBar",
       match: { name: "test" },
       properties: { brief: "x" },
@@ -331,16 +332,17 @@ describe("editNode", () => {
   });
 
   it("DELETE with empty match returns error", async () => {
-    const result = await exec(editNode, {
-      nodeLabel: "Character",
+    const result = await exec(manageNode, {
       action: "DELETE",
+      nodeLabel: "Character",
       match: {},
     });
     expect(result).toContain("ERROR");
   });
 
   it("UPSERT with match key starting with _ returns error", async () => {
-    const result = await exec(editNode, {
+    const result = await exec(manageNode, {
+      action: "UPSERT",
       nodeLabel: "Character",
       match: { _uid: "test" },
       properties: { brief: "x" },
@@ -350,7 +352,8 @@ describe("editNode", () => {
   });
 
   it("creates a Character entity", async () => {
-    const result = await exec(editNode, {
+    const result = await exec(manageNode, {
+      action: "UPSERT",
       nodeLabel: "Character",
       match: { name: "Alice" },
       properties: { name: "Alice", brief: "A test character" },
@@ -360,7 +363,8 @@ describe("editNode", () => {
   });
 
   it("creates an Object entity", async () => {
-    const result = await exec(editNode, {
+    const result = await exec(manageNode, {
+      action: "UPSERT",
       nodeLabel: "Object",
       match: { name: "Key" },
       properties: { name: "Key", brief: "A rusty key" },
@@ -370,7 +374,8 @@ describe("editNode", () => {
   });
 
   it("creates a Location entity", async () => {
-    const result = await exec(editNode, {
+    const result = await exec(manageNode, {
+      action: "UPSERT",
       nodeLabel: "Location",
       match: { name: "EditNodeTavern" },
       properties: { name: "EditNodeTavern", brief: "A dimly lit tavern" },
@@ -380,12 +385,14 @@ describe("editNode", () => {
   });
 
   it("updates existing entity properties", async () => {
-    await exec(editNode, {
+    await exec(manageNode, {
+      action: "UPSERT",
       nodeLabel: "Character",
       match: { name: "Alice" },
       properties: { name: "Alice", brief: "Initial" },
     });
-    const result = await exec(editNode, {
+    const result = await exec(manageNode, {
+      action: "UPSERT",
       nodeLabel: "Character",
       match: { name: "Alice" },
       properties: { brief: "Updated brief" },
@@ -397,12 +404,14 @@ describe("editNode", () => {
   // NOTE: The entity model handles JSON partial merge of metadata internally.
   // This test verifies that the tool correctly delegates to db.entities.update().
   it("JSON partial merge on metadata for entities", async () => {
-    await exec(editNode, {
+    await exec(manageNode, {
+      action: "UPSERT",
       nodeLabel: "Character",
       match: { name: "MergeChar" },
       properties: { name: "MergeChar", metadata: { stats: { str: 10 }, notes: "old" } },
     });
-    const result = await exec(editNode, {
+    const result = await exec(manageNode, {
+      action: "UPSERT",
       nodeLabel: "Character",
       match: { name: "MergeChar" },
       properties: { metadata: { stats: { dex: 12 } } },
@@ -418,7 +427,8 @@ describe("editNode", () => {
   // require the PK to be passed explicitly, but _-prefixed keys are blocked.
   // The non-entity CREATE path needs auto-generation of PKs for such types.
   it.skip("creates a Disposition node (non-entity)", async () => {
-    const result = await exec(editNode, {
+    const result = await exec(manageNode, {
+      action: "UPSERT",
       nodeLabel: "Disposition",
       match: { source_name: "Guard", target_name: "Player" },
       properties: { source_name: "Guard", target_name: "Player", sentiment: "hostile" },
@@ -427,23 +437,24 @@ describe("editNode", () => {
   });
 
   it("DELETE removes entity and returns success", async () => {
-    await exec(editNode, {
+    await exec(manageNode, {
+      action: "UPSERT",
       nodeLabel: "Character",
       match: { name: "ToDelete" },
       properties: { name: "ToDelete", brief: "temp" },
     });
-    const result = await exec(editNode, {
-      nodeLabel: "Character",
+    const result = await exec(manageNode, {
       action: "DELETE",
+      nodeLabel: "Character",
       match: { name: "ToDelete" },
     });
     expect(result).toContain("deleted");
   });
 
   it("DELETE on non-existent entity returns not-found error", async () => {
-    const result = await exec(editNode, {
-      nodeLabel: "Character",
+    const result = await exec(manageNode, {
       action: "DELETE",
+      nodeLabel: "Character",
       match: { name: "NoSuchCharacter" },
     });
     expect(result).toContain("ERROR");
@@ -451,7 +462,8 @@ describe("editNode", () => {
   });
 
   it("UPDATE with no properties returns error", async () => {
-    const result = await exec(editNode, {
+    const result = await exec(manageNode, {
+      action: "UPSERT",
       nodeLabel: "Object",
       match: { name: "Key" },
     });
@@ -460,7 +472,8 @@ describe("editNode", () => {
   });
 
   it("CREATE with no properties returns error", async () => {
-    const result = await exec(editNode, {
+    const result = await exec(manageNode, {
+      action: "UPSERT",
       nodeLabel: "Object",
       match: { name: "GhostKey" },
     });
@@ -469,7 +482,8 @@ describe("editNode", () => {
   });
 
   it("properties with _-prefixed key returns error", async () => {
-    const result = await exec(editNode, {
+    const result = await exec(manageNode, {
+      action: "UPSERT",
       nodeLabel: "Character",
       match: { name: "Alice" },
       properties: { name: "Alice", _updated_at: "bad" },
@@ -477,12 +491,60 @@ describe("editNode", () => {
     expect(result).toContain("ERROR");
     expect(result).toContain("internal");
   });
+
+  it("READ single node by name", async () => {
+    const result = await exec(manageNode, {
+      action: "READ",
+      nodeLabel: "Character",
+      match: { name: "Alice" },
+    });
+    expect(result).toContain("Alice");
+    expect(result).toContain("brief");
+  });
+
+  it("READ batch nodes by name array", async () => {
+    await exec(manageNode, {
+      action: "UPSERT",
+      nodeLabel: "Character",
+      match: { name: "Guard" },
+      properties: { brief: "Town guard" },
+    });
+    const result = await exec(manageNode, {
+      action: "READ",
+      nodeLabel: "Character",
+      match: { name: ["Alice", "Guard", "Nobody"] },
+    });
+    expect(result).toContain("Alice");
+    expect(result).toContain("Guard");
+    expect(result).toContain("Not found: Nobody");
+  });
+
+  it("READ with multi-key match returns error", async () => {
+    const result = await exec(manageNode, {
+      action: "READ",
+      nodeLabel: "Character",
+      match: { name: "Alice", _uid: "x" },
+    });
+    expect(result).toContain("ERROR");
+    expect(result).toContain("single match key");
+  });
+
+  it("UPSERT with array value returns error", async () => {
+    const result = await exec(manageNode, {
+      action: "UPSERT",
+      nodeLabel: "Character",
+      match: { name: ["Alice"] },
+      properties: { brief: "test" },
+    });
+    expect(result).toContain("ERROR");
+    expect(result).toContain("Arrays are only allowed for READ");
+  });
 });
 
 // ===========================================================================
-// editRelationship
+// manageRelationship
 // ===========================================================================
-describe("editRelationship", () => {
+describe("manageRelationship", () => {
   beforeAll(async () => {
     const db = getTestDb();
     await db.entities.create("Character", { name: "RelAlice", brief: "A test character" });
@@ -500,7 +562,8 @@ describe("editRelationship", () => {
   });
 
   it("UPSERT creates a new LOCATED_AT relationship", async () => {
-    const result = await exec(editRelationship, {
+    const result = await exec(manageRelationship, {
+      action: "UPSERT",
       relationshipType: "LOCATED_AT",
       sourceLabel: "Character",
       sourceMatch: { name: "RelAlice" },
@@ -512,7 +575,8 @@ describe("editRelationship", () => {
   });
 
   it("UPSERT updates an existing LOCATED_AT relationship", async () => {
-    await exec(editRelationship, {
+    await exec(manageRelationship, {
+      action: "UPSERT",
       relationshipType: "LOCATED_AT",
       sourceLabel: "Character",
       sourceMatch: { name: "RelAlice" },
@@ -520,7 +584,8 @@ describe("editRelationship", () => {
       targetMatch: { name: "Tavern" },
       properties: { brief: "standing by the door" },
     });
-    const result = await exec(editRelationship, {
+    const result = await exec(manageRelationship, {
+      action: "UPSERT",
       relationshipType: "LOCATED_AT",
       sourceLabel: "Character",
       sourceMatch: { name: "RelAlice" },
@@ -544,7 +609,8 @@ describe("editRelationship", () => {
   });
 
   it("created_at is immutable on update", async () => {
-    await exec(editRelationship, {
+    await exec(manageRelationship, {
+      action: "UPSERT",
       relationshipType: "LOCATED_AT",
       sourceLabel: "Character",
       sourceMatch: { name: "RelAlice" },
@@ -561,7 +627,8 @@ describe("editRelationship", () => {
   });
 
   it("endpoint not found returns error", async () => {
-    const result = await exec(editRelationship, {
+    const result = await exec(manageRelationship, {
+      action: "UPSERT",
       relationshipType: "LOCATED_AT",
       sourceLabel: "Character",
       sourceMatch: { name: "NonExistent" },
@@ -573,7 +640,8 @@ describe("editRelationship", () => {
   });
 
   it("unknown relationship type returns error", async () => {
-    const result = await exec(editRelationship, {
+    const result = await exec(manageRelationship, {
+      action: "UPSERT",
       relationshipType: "NONEXISTENT_TYPE",
       sourceLabel: "Character",
       sourceMatch: { name: "RelAlice" },
@@ -585,7 +653,8 @@ describe("editRelationship", () => {
   });
 
   it("empty sourceMatch returns error", async () => {
-    const result = await exec(editRelationship, {
+    const result = await exec(manageRelationship, {
+      action: "UPSERT",
       relationshipType: "LOCATED_AT",
       sourceLabel: "Character",
       sourceMatch: {},
@@ -597,7 +666,8 @@ describe("editRelationship", () => {
   });
 
   it("empty targetMatch returns error", async () => {
-    const result = await exec(editRelationship, {
+    const result = await exec(manageRelationship, {
+      action: "UPSERT",
       relationshipType: "LOCATED_AT",
       sourceLabel: "Character",
       sourceMatch: { name: "RelAlice" },
@@ -609,7 +679,8 @@ describe("editRelationship", () => {
   });
 
   it("internal property key returns error", async () => {
-    const result = await exec(editRelationship, {
+    const result = await exec(manageRelationship, {
+      action: "UPSERT",
       relationshipType: "LOCATED_AT",
       sourceLabel: "Character",
       sourceMatch: { name: "RelAlice" },
@@ -622,7 +693,8 @@ describe("editRelationship", () => {
   });
 
   it("updating existing rel with empty properties returns error", async () => {
-    const result = await exec(editRelationship, {
+    const result = await exec(manageRelationship, {
+      action: "UPSERT",
       relationshipType: "LOCATED_AT",
       sourceLabel: "Character",
       sourceMatch: { name: "RelAlice" },
@@ -634,7 +706,8 @@ describe("editRelationship", () => {
   });
 
   it("CARRIES relationship works with embedding", async () => {
-    const result = await exec(editRelationship, {
+    const result = await exec(manageRelationship, {
+      action: "UPSERT",
       relationshipType: "CARRIES",
       sourceLabel: "Character",
       sourceMatch: { name: "RelBob" },
@@ -651,7 +724,8 @@ describe("editRelationship", () => {
   it.skip("creating a new LOCATED_AT auto-expires the previous one", async () => {
     const db = getTestDb();
     // First LOCATED_AT
-    await exec(editRelationship, {
+    await exec(manageRelationship, {
+      action: "UPSERT",
       relationshipType: "LOCATED_AT",
       sourceLabel: "Character",
       sourceMatch: { name: "RelAlice" },
@@ -661,7 +735,8 @@ describe("editRelationship", () => {
     });
     // Second LOCATED_AT to a different location (should auto-expire the first)
     await db.entities.create("Location", { name: "Forest", brief: "A dark forest" });
-    await exec(editRelationship, {
+    await exec(manageRelationship, {
+      action: "UPSERT",
       relationshipType: "LOCATED_AT",
       sourceLabel: "Character",
       sourceMatch: { name: "RelAlice" },
@@ -674,6 +749,57 @@ describe("editRelationship", () => {
       `MATCH (src:Character {name: "RelAlice"})-[r:LOCATED_AT]->(tgt:Location {name: "Tavern"}) RETURN r.valid_at AS valid_at`,
     );
     expect(check.rows[0]?.valid_at).not.toBeNull();
+  });
+
+  it("READ specific relationship", async () => {
+    const result = await exec(manageRelationship, {
+      action: "READ",
+      sourceLabel: "Character",
+      sourceMatch: { name: "RelAlice" },
+      targetLabel: "Location",
+      targetMatch: { name: "Tavern" },
+      relationshipType: "LOCATED_AT",
+    });
+    expect(result).toContain("LOCATED_AT");
+  });
+
+  it("READ all outgoing relationships from a node", async () => {
+    const result = await exec(manageRelationship, {
+      action: "READ",
+      sourceLabel: "Character",
+      sourceMatch: { name: "RelAlice" },
+    });
+    expect(result).toContain("LOCATED_AT");
+    expect(result).toContain("Tavern");
+  });
+
+  it("READ all incoming relationships to a node", async () => {
+    const result = await exec(manageRelationship, {
+      action: "READ",
+      targetLabel: "Location",
+      targetMatch: { name: "Tavern" },
+    });
+    expect(result).toContain("LOCATED_AT");
+    expect(result).toContain("RelAlice");
+  });
+
+  it("READ without sourceMatch or targetMatch returns error", async () => {
+    const result = await exec(manageRelationship, {
+      action: "READ",
+      relationshipType: "LOCATED_AT",
+    });
+    expect(result).toContain("ERROR");
+  });
+
+  it("UPSERT without action: UPSERT returns error (action is mandatory)", async () => {
+    const result = await exec(manageRelationship, {
+      sourceLabel: "Character",
+      sourceMatch: { name: "RelAlice" },
+      targetLabel: "Location",
+      targetMatch: { name: "Tavern" },
+      relationshipType: "LOCATED_AT",
+    });
+    expect(result).toContain("ERROR");
   });
 });
 
@@ -1434,7 +1560,7 @@ describe("generateDialogueStep", () => {
 });
 
 // ===========================================================================
-// Enrichment: editNode
+// Enrichment: manageNode
 // ===========================================================================
 describe("enrichment — editNode", () => {
   beforeAll(async () => {
@@ -1478,7 +1604,7 @@ describe("enrichment — editNode", () => {
       properties: { brief: "scarred mercenary" },
     });
     const rawResult = `Node "Character" "Orin Fell" updated properties: brief.`;
-    const enriched = await enrichResult(TOOL_NAMES.EDIT_NODE, args, rawResult);
+    const enriched = await enrichResult(TOOL_NAMES.MANAGE_NODE, args, rawResult);
 
     // Enrichment query fails gracefully (type(r) not available), so rawResult is
     // returned unchanged rather than crashing.
@@ -1492,7 +1618,7 @@ describe("enrichment — editNode", () => {
       action: "DELETE",
     });
     const rawResult = `Node "Character" matched by {"name":"Orin Fell"} deleted.`;
-    const enriched = await enrichResult(TOOL_NAMES.EDIT_NODE, args, rawResult);
+    const enriched = await enrichResult(TOOL_NAMES.MANAGE_NODE, args, rawResult);
 
     expect(enriched).toBe(rawResult);
   });
@@ -1504,7 +1630,7 @@ describe("enrichment — editNode", () => {
       properties: { brief: "test" },
     });
     const rawResult = 'ERROR: No "Character" node found matching...';
-    const enriched = await enrichResult(TOOL_NAMES.EDIT_NODE, args, rawResult);
+    const enriched = await enrichResult(TOOL_NAMES.MANAGE_NODE, args, rawResult);
 
     expect(enriched).toBe(rawResult);
   });
@@ -1516,7 +1642,7 @@ describe("enrichment — editNode", () => {
       properties: { name: "FreshCharacter", brief: "new arrival" },
     });
     const rawResult = `Node "Character" "FreshCharacter" created.`;
-    const enriched = await enrichResult(TOOL_NAMES.EDIT_NODE, args, rawResult);
+    const enriched = await enrichResult(TOOL_NAMES.MANAGE_NODE, args, rawResult);
 
     // Should not add [Context] because no relationships exist yet
     expect(enriched).not.toContain("[Context]");
@@ -1533,7 +1659,7 @@ describe("enrichment — editNode", () => {
       properties: { sentiment: "hostile" },
     });
     const rawResult = `Node "Disposition" updated properties: sentiment.`;
-    const enriched = await enrichResult(TOOL_NAMES.EDIT_NODE, args, rawResult);
+    const enriched = await enrichResult(TOOL_NAMES.MANAGE_NODE, args, rawResult);
 
     // Enrichment handles non-name match keys without error.
     // Disposition nodes are not Characters, so no HAS_DISPOSITION branch.
@@ -1544,7 +1670,7 @@ describe("enrichment — editNode", () => {
 });
 
 // ===========================================================================
-// Enrichment: editRelationship
+// Enrichment: manageRelationship
 // ===========================================================================
 describe("enrichment — editRelationship", () => {
   beforeAll(async () => {
@@ -1573,7 +1699,7 @@ describe("enrichment — editRelationship", () => {
       targetMatch: { name: "Rusty Dagger" },
     });
     const rawResult = `Relationship (:Character)-[:CARRIES]->(:Object) created successfully.`;
-    const enriched = await enrichResult(TOOL_NAMES.EDIT_RELATIONSHIP, args, rawResult);
+    const enriched = await enrichResult(TOOL_NAMES.MANAGE_RELATIONSHIP, args, rawResult);
 
     // Enrichment attempt is made but query may fail (type(r) limitation in test DB).
     // Verify no crash — rawResult preserved.
@@ -1595,7 +1721,7 @@ describe("enrichment — editRelationship", () => {
       targetMatch: { name: "Lonely Rock" },
     });
     const rawResult = `Relationship (:Character)-[:CARRIES]->(:Object) created successfully.`;
-    const enriched = await enrichResult(TOOL_NAMES.EDIT_RELATIONSHIP, args, rawResult);
+    const enriched = await enrichResult(TOOL_NAMES.MANAGE_RELATIONSHIP, args, rawResult);
 
     // Should at minimum contain the base context line
     expect(enriched).toContain("Hermit now CARRIES Lonely Rock");
@@ -1610,13 +1736,13 @@ describe("enrichment — editRelationship", () => {
       targetMatch: { name: "Nothing" },
     });
     const rawResult = "ERROR: Could not create relationship...";
-    const enriched = await enrichResult(TOOL_NAMES.EDIT_RELATIONSHIP, args, rawResult);
+    const enriched = await enrichResult(TOOL_NAMES.MANAGE_RELATIONSHIP, args, rawResult);
     expect(enriched).toBe(rawResult);
   });
 
   it("gracefully handles args parse failure", async () => {
     const enriched = await enrichResult(
-      TOOL_NAMES.EDIT_RELATIONSHIP,
+      TOOL_NAMES.MANAGE_RELATIONSHIP,
       "not valid json",
       "Some result",
     );
@@ -1737,7 +1863,7 @@ describe("enrichment — pass-through & resilience", () => {
   });
 
   it("enrichment failure returns original result unchanged", async () => {
-    const enriched = await enrichResult(TOOL_NAMES.EDIT_NODE, "not valid json {{{", "Some result");
+    const enriched = await enrichResult(TOOL_NAMES.MANAGE_NODE, "not valid json {{{", "Some result");
     expect(enriched).toBe("Some result");
   });
 
