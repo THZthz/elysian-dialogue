@@ -411,23 +411,28 @@ export async function buildRelationshipDump(history = false): Promise<string> {
     lines.push(`### ${type}`);
     if (type === "LOCATED_AT" || type === "LOCATED_IN") {
       const seen = new Set<string>();
+      const byLocation = new Map<string, RelRow[]>();
+      for (const r of group) {
+        const tgt = r.targetName;
+        if (!byLocation.has(tgt)) byLocation.set(tgt, []);
+        byLocation.get(tgt)!.push(r);
+      }
       for (const r of group) {
         const tgt = r.targetName;
         if (!seen.has(tgt)) {
           seen.add(tgt);
-          const occupants = group
-            .filter((o) => o.targetName === tgt)
-            .map((o) => {
-              if (history && o.props.createdAt != null) {
-                const validStr = o.props.validAt != null ? formatTime(o.props.validAt as number) : "now";
-                return `${o.sourceName} [${formatTime(o.props.createdAt as number)}→${validStr}]`;
-              }
-              return o.sourceName;
-            })
-            .join(", ");
-          const desc = group.find((o) => o.props.description)?.props.description;
-          const descSuffix = desc ? ` — "${desc}"` : "";
-          lines.push(`- **${tgt}**: ${occupants}${descSuffix}`);
+          lines.push(`- **${tgt}**:`);
+          for (const o of byLocation.get(tgt)!) {
+            let entry = `  - ${o.sourceName}`;
+            if (history && o.props.createdAt != null) {
+              const validStr = o.props.validAt != null ? formatTime(o.props.validAt as number) : "now";
+              entry += ` [${formatTime(o.props.createdAt as number)}→${validStr}]`;
+            }
+            if (o.props.description) {
+              entry += ` — "${o.props.description}"`;
+            }
+            lines.push(entry);
+          }
         }
       }
     } else {
