@@ -262,6 +262,59 @@ export async function buildPlotsBrief(): Promise<string> {
   return lines.join("\n");
 }
 
+// ── SCENES_BRIEF ──
+
+interface SceneRow {
+  name: string;
+  start_time: number;
+  end_time: number | null;
+  location_name: string | null;
+  characters: string;
+  reason: string | null;
+  prev_name: string | null;
+}
+
+export async function buildScenesBrief(): Promise<string> {
+  const db = Database.getExisting();
+  const result = await db.graph.query(
+    `MATCH (s:Scene)
+     OPTIONAL MATCH (prev:Scene)-[r:NEXT_SCENE]->(s)
+     RETURN s.name AS name, s.start_time AS start_time, s.end_time AS end_time,
+            s.location_name AS location_name, s.characters AS characters,
+            r.reason AS reason, prev.name AS prev_name
+     ORDER BY s.start_time`,
+  );
+  const rows = result.rows as unknown as SceneRow[];
+
+  if (rows.length === 0) return "## SCENES\n\n(none)\n";
+
+  const lines: string[] = ["## SCENES", ""];
+  for (const sc of rows) {
+    const day = Math.floor(sc.start_time / 48);
+    const halfHours = sc.start_time % 48;
+    const hour = Math.floor(halfHours / 2);
+    const minute = halfHours % 2 === 0 ? "00" : "30";
+    const period = hour < 12 ? "AM" : "PM";
+    const displayH = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+    const timeStr = `Day ${day}, ${displayH}:${minute} ${period}`;
+
+    const active = sc.end_time === null ? " (active)" : "";
+    const loc = sc.location_name ?? "(placeholder)";
+    let chars: string[] = [];
+    try {
+      chars = JSON.parse(sc.characters);
+    } catch {
+      /* ignore parse errors */
+    }
+    const charStr = chars.length > 0 ? ` [${chars.join(", ")}]` : "";
+    const reason = sc.reason ? ` ← "${sc.reason}"` : "";
+
+    lines.push(`- **${sc.name}**${active}: ${timeStr} at **${loc}**${charStr}${reason}`);
+  }
+  lines.push("");
+  return lines.join("\n");
+}
+
 // ── RELATIONSHIP_DUMP ──
 
 interface RelRow {

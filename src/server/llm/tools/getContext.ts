@@ -26,6 +26,7 @@ import {
   buildObjectsBrief,
   buildPlotsBrief,
   buildRelationshipDump,
+  buildScenesBrief,
 } from "@/server/llm/sceneContext";
 import { Database } from "@/server/db";
 import { SchemaRegistry } from "@/server/db/schema";
@@ -35,6 +36,7 @@ const CONTEXT_TYPES = [
   "LOCATIONS_BRIEF",
   "OBJECTS_BRIEF",
   "PLOTS_BRIEF",
+  "SCENES_BRIEF",
   "SCHEMA_DUMP",
   "RELATIONSHIP_DUMP",
 ] as const;
@@ -146,6 +148,7 @@ Pull pre-built context from the world. Nothing is auto-loaded — you choose wha
 - LOCATIONS_BRIEF — All locations with brief descriptions.
 - OBJECTS_BRIEF — All objects with carrier or location.
 - PLOTS_BRIEF — All plots with status, brief, and flags.
+- SCENES_BRIEF — All scenes ordered by time, with location, characters, and transition reason.
 - RELATIONSHIP_DUMP — All active relationships grouped by type. LOCATED_AT/LOCATED_IN are grouped by location showing occupants and access details.
 `.trim(),
   inputSchema: z.object({
@@ -159,6 +162,7 @@ Pull pre-built context from the world. Nothing is auto-loaded — you choose wha
       LOCATIONS_BRIEF: buildLocationsBrief,
       OBJECTS_BRIEF: buildObjectsBrief,
       PLOTS_BRIEF: buildPlotsBrief,
+      SCENES_BRIEF: buildScenesBrief,
       SCHEMA_DUMP: buildSchemaDump,
       RELATIONSHIP_DUMP: buildRelationshipDump,
     };
