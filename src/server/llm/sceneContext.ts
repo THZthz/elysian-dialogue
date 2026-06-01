@@ -34,6 +34,13 @@ function describeTime(time: { day: number; hour: number }): string {
   return `Day ${time.day}, ${formatHour(time.hour)}`;
 }
 
+function formatTime(t: number): string {
+  const day = Math.floor(t / 48);
+  const halfHours = t % 48;
+  const hour = halfHours / 2;
+  return `Day ${day}, ${formatHour(hour)}`;
+}
+
 // ── Types ──
 
 interface EntityRef {
@@ -412,8 +419,8 @@ export async function buildRelationshipDump(history = false): Promise<string> {
             .filter((o) => o.targetName === tgt)
             .map((o) => {
               if (history && o.props.createdAt != null) {
-                const validStr = o.props.validAt != null ? String(o.props.validAt) : "now";
-                return `${o.sourceName} [${o.props.createdAt}→${validStr}]`;
+                const validStr = o.props.validAt != null ? formatTime(o.props.validAt as number) : "now";
+                return `${o.sourceName} [${formatTime(o.props.createdAt as number)}→${validStr}]`;
               }
               return o.sourceName;
             })
@@ -427,8 +434,8 @@ export async function buildRelationshipDump(history = false): Promise<string> {
       for (const r of group) {
         const desc = r.props?.description ? ` — "${r.props.description}"` : "";
         if (history) {
-          const created = r.props.createdAt ? ` [${r.props.createdAt}` : "";
-          const valid = r.props.validAt != null ? `→${r.props.validAt}] (expired)` : (r.props.createdAt ? "→now]" : "");
+          const created = r.props.createdAt ? ` [${formatTime(r.props.createdAt as number)}` : "";
+          const valid = r.props.validAt != null ? `→${formatTime(r.props.validAt as number)}] (expired)` : (r.props.createdAt ? "→now]" : "");
           const range = created || valid ? ` ${created}${valid}` : "";
           lines.push(`- ${r.sourceName} → ${r.targetName}${range}${desc}`);
         } else {
@@ -505,7 +512,7 @@ export async function buildTimeline(): Promise<string> {
   const limited = entries.slice(0, 200);
   const lines: string[] = ["## TIMELINE", ""];
   for (const e of limited) {
-    lines.push(`- [${e.time}] ${e.text}`);
+    lines.push(`- [${formatTime(e.time)}] ${e.text}`);
   }
   lines.push("");
   return lines.join("\n");
@@ -558,7 +565,7 @@ export async function buildEntityProfile(name: string, label: string): Promise<s
       );
       if (locResult.rows.length > 0) {
         const row = locResult.rows[0];
-        const since = row.since != null ? ` (since ${row.since})` : "";
+        const since = row.since != null ? ` (since ${formatTime(row.since as number)})` : "";
         const brief = row.brief ? ` — "${row.brief}"` : "";
         lines.push(`- **${row.locName}**${since}${brief}`);
       } else {
@@ -678,12 +685,7 @@ export async function buildEntityProfile(name: string, label: string): Promise<s
       );
       if (scenes.rows.length > 0) {
         for (const row of scenes.rows) {
-          const t = row.startTime as number;
-          const day = Math.floor(t / 48);
-          const halfHours = t % 48;
-          const hour = Math.floor(halfHours / 2);
-          const min = halfHours % 2 === 0 ? "00" : "30";
-          lines.push(`- **${row.sceneName}** (Day ${day}, ${hour}:${min}) at ${row.locName || "?"}`);
+          lines.push(`- **${row.sceneName}** (${formatTime(row.startTime as number)}) at ${row.locName || "?"}`);
         }
       } else {
         lines.push("(none)");
@@ -753,7 +755,7 @@ export async function buildEntityProfile(name: string, label: string): Promise<s
     } else {
       historyEntries.sort((a, b) => b.time - a.time);
       for (const e of historyEntries.slice(0, 20)) {
-        lines.push(`- [${e.time}] ${e.text}`);
+        lines.push(`- [${formatTime(e.time)}] ${e.text}`);
       }
     }
   } catch {
