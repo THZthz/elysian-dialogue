@@ -23,7 +23,7 @@ import type { EventEmitter } from "@/server/llm/events";
 import { wrapSafe } from "@/server/llm/tools/shared";
 import { TOOL_NAMES } from "@/shared/constants";
 
-const SCENE_ACTIONS = ["CREATE", "MODIFY", "GET", "FIX"] as const;
+const SCENE_ACTIONS = ["CREATE", "MODIFY", "READ", "FIX"] as const;
 
 function describeTime(time: number): string {
   const day = Math.floor(time / 48);
@@ -40,13 +40,13 @@ function toInternalTime(day: number, hour: number): number {
 }
 
 const inputSchema = z.object({
-  action: z.enum(SCENE_ACTIONS).describe("CREATE a new scene, MODIFY or GET the active one."),
+  action: z.enum(SCENE_ACTIONS).describe("CREATE a new scene, MODIFY or READ the active one."),
   scene_name: z
     .string()
     .nullable()
     .optional()
     .describe(
-      "Unique scene name (e.g. 'inn_arrival'). Required for CREATE. Optional for MODIFY/GET — defaults to active scene if omitted.",
+      "Unique scene name (e.g. 'inn_arrival'). Required for CREATE. Optional for MODIFY/READ — defaults to active scene if omitted.",
     ),
   start_day: z.number().int().nullable().optional().describe("Day number. Required for CREATE."),
   start_hour: z
@@ -86,7 +86,7 @@ export function createManageSceneTool(events: EventEmitter) {
     title: TOOL_NAMES.MANAGE_SCENE,
     description: `
 ## Brief
-Manage scene transitions. CREATE starts a new scene, MODIFY adjusts or closes the active scene, GET returns info about the active scene, FIX confirms pending creation after discrepancies.
+Manage scene transitions. CREATE starts a new scene, MODIFY adjusts or closes the active scene, READ returns info about the active scene, FIX confirms pending creation after discrepancies.
 
 ## CREATE
 Start a new scene. Before creating, validates that all specified characters have active LOCATED_AT pointing to the given location. If discrepancies are found (characters not at the location, or extra characters at the location not in the list), the scene is NOT created. Instead the parameters are held pending and the discrepancies are reported. Call FIX to apply automatic LOCATED_AT fixes and continue.
@@ -107,7 +107,7 @@ Adjust a scene. Defaults to the active scene if \`scene_name\` is omitted.
 - \`end_day\`: Optional. Integer day number to close the scene at.
 - \`end_hour\`: Optional. Hour in 24h with optional .5 for half-past. Close the scene at this time. Creates a placeholder for the next scene.
 
-## GET
+## READ
 Get information about a scene. Defaults to the active scene if \`scene_name\` is omitted.
 - \`scene_name\`: Optional. Target a specific scene by name. If omitted, returns the active scene.
 Returns: scene name, time, location, characters, and log entry count.
@@ -176,7 +176,7 @@ At most one Scene has \`end_time = NULL\` (the active scene). When CREATE is cal
           return msg;
         }
 
-        if (args.action === "GET") {
+        if (args.action === "READ") {
           const scene = args.scene_name
             ? await db.scene.getByName(args.scene_name)
             : await db.scene.getActive();

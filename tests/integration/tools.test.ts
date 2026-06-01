@@ -1143,21 +1143,21 @@ describe("manageScene", () => {
     expect(result).toContain("CREATE requires");
   });
 
-  it("GET active scene returns info with fallback note", async () => {
-    const result = await exec(sceneTool, { action: "GET" });
+  it("READ active scene returns info with fallback note", async () => {
+    const result = await exec(sceneTool, { action: "READ" });
     expect(result).toContain("forest_scene");
     expect(result).toContain("defaulted to active scene");
     expect(result).toContain("Forest");
   });
 
-  it("GET specific scene by name", async () => {
-    const result = await exec(sceneTool, { action: "GET", scene_name: "tavern_opening" });
+  it("READ specific scene by name", async () => {
+    const result = await exec(sceneTool, { action: "READ", scene_name: "tavern_opening" });
     expect(result).toContain("tavern_opening");
     expect(result).not.toContain("defaulted to active scene");
   });
 
-  it("GET non-existent scene returns error", async () => {
-    const result = await exec(sceneTool, { action: "GET", scene_name: "no_such_scene" });
+  it("READ non-existent scene returns error", async () => {
+    const result = await exec(sceneTool, { action: "READ", scene_name: "no_such_scene" });
     expect(result).toContain("ERROR");
     expect(result).toContain("not found");
   });
@@ -1203,8 +1203,8 @@ describe("manageScene", () => {
     expect(result).toContain("No active scene");
   });
 
-  it("GET with no active scene returns message", async () => {
-    const result = await exec(sceneTool, { action: "GET" });
+  it("READ with no active scene returns message", async () => {
+    const result = await exec(sceneTool, { action: "READ" });
     expect(result).toContain("No active scene");
   });
 
