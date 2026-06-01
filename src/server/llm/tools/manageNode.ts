@@ -239,20 +239,7 @@ Since \`metadata\` is tagged as "json" of node Character in SCHEMA_DUMP, you can
         const n = (row.n || row) as Record<string, unknown>;
         const matchVal = String(n[matchKey] ?? "");
         found.add(matchVal);
-        const displayName = (n.name ?? n._uid) as string;
-        lines.push(`"${args.nodeLabel}" "${displayName}":`);
-        for (const [k, v] of Object.entries(n)) {
-          if (k.startsWith("_")) continue;
-          if (k === "name") continue;
-          if (v == null) continue;
-          if (typeof v === "object") {
-            const str = JSON.stringify(v);
-            if (str === "{}" || str === "[]") continue;
-            lines.push(`  ${k}: ${str}`);
-          } else {
-            lines.push(`  ${k}: ${String(v)}`);
-          }
-        }
+        lines.push(JSON.stringify(n, null, 2));
       }
 
       const notFound = values.filter((v) => !found.has(v));
