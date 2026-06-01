@@ -1873,3 +1873,193 @@ describe("enrichment — pass-through & resilience", () => {
     expect(enriched).toBe("some result");
   });
 });
+
+// ===========================================================================
+// manageRelationship END
+// ===========================================================================
+describe("manageRelationship END", () => {
+  beforeAll(async () => {
+    const db = getTestDb();
+    try {
+      await db.entities.create("Character", { name: "EndTest", brief: "END test character" });
+    } catch { /* may already exist */ }
+    try {
+      await db.entities.create("Location", { name: "EndLocation", brief: "END test location" });
+    } catch { /* may already exist */ }
+    try {
+      await db.scene.create({
+        scene_name: "end_test_scene",
+        start_time: 200,
+        location_name: "EndLocation",
+        characters: ["EndTest"],
+        reason: "END action test",
+      });
+    } catch { /* may already exist */ }
+  });
+
+  it("END terminates an active temporal relationship", async () => {
+    await exec(manageRelationship, {
+      action: "UPSERT",
+      relationshipType: "LOCATED_AT",
+      sourceLabel: "Character",
+      sourceMatch: { name: "EndTest" },
+      targetLabel: "Location",
+      targetMatch: { name: "EndLocation" },
+      properties: { brief: "testing END" },
+    });
+
+    const result = await exec(manageRelationship, {
+      action: "END",
+      relationshipType: "LOCATED_AT",
+      sourceLabel: "Character",
+      sourceMatch: { name: "EndTest" },
+      targetLabel: "Location",
+      targetMatch: { name: "EndLocation" },
+      time: 250,
+    });
+    expect(result).toContain("ended at time 250");
+
+    const db = getTestDb();
+    const check = await db.graph.query(
+      `MATCH (src:Character {name: "EndTest"})-[r:LOCATED_AT]->(tgt:Location {name: "EndLocation"}) RETURN r`,
+    );
+    const rel = check.rows[0]?.r as Record<string, unknown>;
+    expect(rel.valid_at).toBe(250);
+  });
+
+  it("END on already-expired relationship returns error", async () => {
+    const result = await exec(manageRelationship, {
+      action: "END",
+      relationshipType: "LOCATED_AT",
+      sourceLabel: "Character",
+      sourceMatch: { name: "EndTest" },
+      targetLabel: "Location",
+      targetMatch: { name: "EndLocation" },
+      time: 300,
+    });
+    expect(result).toContain("already expired");
+  });
+
+  it("END on non-temporal relationship type returns error", async () => {
+    const result = await exec(manageRelationship, {
+      action: "END",
+      relationshipType: "ABOUT_CHARACTER",
+      sourceLabel: "Note",
+      sourceMatch: { name: "end-test-note" },
+      targetLabel: "Character",
+      targetMatch: { name: "EndTest" },
+      time: 100,
+    });
+    expect(result).toContain("not temporal");
+  });
+
+  it("END without time parameter returns error", async () => {
+    const result = await exec(manageRelationship, {
+      action: "END",
+      relationshipType: "LOCATED_AT",
+      sourceLabel: "Character",
+      sourceMatch: { name: "EndTest" },
+      targetLabel: "Location",
+      targetMatch: { name: "EndLocation" },
+    });
+    expect(result).toContain("time is required");
+  });
+});
+
+// ===========================================================================
+// manageRelationship READ atTime
+// ===========================================================================
+describe("manageRelationship READ atTime", () => {
+  it("READ with atTime returns historical state", async () => {
+    const result = await exec(manageRelationship, {
+      action: "READ",
+      relationshipType: "LOCATED_AT",
+      sourceLabel: "Character",
+      sourceMatch: { name: "EndTest" },
+      atTime: 220,
+    });
+    expect(result).toContain("EndLocation");
+  });
+
+  it("READ with atTime after expiry returns no results", async () => {
+    const result = await exec(manageRelationship, {
+      action: "READ",
+      relationshipType: "LOCATED_AT",
+      sourceLabel: "Character",
+      sourceMatch: { name: "EndTest" },
+      targetLabel: "Location",
+      targetMatch: { name: "EndLocation" },
+      atTime: 260,
+    });
+    expect(result).toContain("No relationships");
+  });
+
+  it("atTime with UPSERT returns error", async () => {
+    const result = await exec(manageRelationship, {
+      action: "UPSERT",
+      relationshipType: "LOCATED_AT",
+      sourceLabel: "Character",
+      sourceMatch: { name: "EndTest" },
+      targetLabel: "Location",
+      targetMatch: { name: "Tavern" },
+      atTime: 200,
+    });
+    expect(result).toContain("atTime is only valid with READ");
+  });
+});
+
+// ===========================================================================
+// getContext TIMELINE
+// ===========================================================================
+describe("getContext TIMELINE", () => {
+  it("returns timeline with entries", async () => {
+    const result = await exec(getContext, { types: ["TIMELINE"] });
+    expect(result).toContain("## TIMELINE");
+    expect(result).toContain("LOCATED_AT");
+  });
+});
+
+// ===========================================================================
+// getContext ENTITY_PROFILE
+// ===========================================================================
+describe("getContext ENTITY_PROFILE", () => {
+  it("returns full entity profile for a character", async () => {
+    const result = await exec(getContext, {
+      types: ["ENTITY_PROFILE"],
+      entityName: "EndTest",
+      entityLabel: "Character",
+    });
+    expect(result).toContain("ENTITY_PROFILE");
+    expect(result).toContain("EndTest");
+    expect(result).toContain("### Properties");
+    expect(result).toContain("### Current Location");
+  });
+
+  it("ENTITY_PROFILE without entityName returns error", async () => {
+    const result = await exec(getContext, { types: ["ENTITY_PROFILE"] });
+    expect(result).toContain("required");
+  });
+
+  it("ENTITY_PROFILE with unknown entity returns not found", async () => {
+    const result = await exec(getContext, {
+      types: ["ENTITY_PROFILE"],
+      entityName: "NoSuchEntity",
+      entityLabel: "Character",
+    });
+    expect(result).toContain("not found");
+  });
+});
+
+// ===========================================================================
+// getContext RELATIONSHIP_DUMP history
+// ===========================================================================
+describe("getContext RELATIONSHIP_DUMP history", () => {
+  it("history mode shows relationship entries", async () => {
+    const result = await exec(getContext, {
+      types: ["RELATIONSHIP_DUMP"],
+      relationshipHistory: true,
+    });
+    expect(result).toContain("## RELATIONSHIPS");
+    expect(result).toContain("LOCATED_AT");
+  });
+});

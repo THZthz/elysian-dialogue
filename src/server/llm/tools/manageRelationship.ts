@@ -44,7 +44,8 @@ function findRelType(
   const candidates = schema.getRelTypeByName(name);
   return candidates.find(
     (def) =>
-      matchesEndpoint(def.sourceLabel, srcLabel) && matchesEndpoint(def.targetLabel, tgtLabel),
+      (!srcLabel || matchesEndpoint(def.sourceLabel, srcLabel)) &&
+      (!tgtLabel || matchesEndpoint(def.targetLabel, tgtLabel)),
   );
 }
 
