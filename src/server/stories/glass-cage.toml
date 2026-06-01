@@ -38,6 +38,7 @@ The Grey Flats stretch for hundreds of miles in every direction — an uninhabit
 """
 
 [initialScene]
+scene_name = "opening"
 start_time = 204
 location_name = "Observation Car"
 characters = ["Player"]

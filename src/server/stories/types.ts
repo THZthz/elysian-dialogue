@@ -60,6 +60,7 @@ export interface SeedNote {
 }
 
 export interface SeedScene {
+  scene_name: string;
   start_time: number;
   location_name: string;
   characters: string[];

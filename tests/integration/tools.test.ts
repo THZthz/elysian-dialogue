@@ -491,6 +491,7 @@ describe("editRelationship", () => {
     await db.entities.create("Object", { name: "Sword", brief: "A sharp sword" });
     // Create an active scene for temporal relationship testing
     await db.scene.create({
+      scene_name: "tavern_test",
       start_time: 96,
       location_name: "Tavern",
       characters: ["Player", "RelAlice"],
@@ -686,6 +687,7 @@ describe("editNote", () => {
     await db.entities.create("Location", { name: "Camelot", brief: "A legendary castle" });
     await db.plots.create("NotePlot", "Save the world", "", "PENDING");
     await db.scene.create({
+      scene_name: "shire_start",
       start_time: 0,
       location_name: "Shire",
       characters: ["Player"],
@@ -809,6 +811,7 @@ describe("editPlot", () => {
   beforeAll(async () => {
     const db = getTestDb();
     await db.scene.create({
+      scene_name: "plot_test_tavern",
       start_time: 0,
       location_name: "Tavern",
       characters: ["Player"],
@@ -994,15 +997,31 @@ describe("manageScene", () => {
   beforeAll(async () => {
     const db = getTestDb();
     await db.entities.create("Location", { name: "Inn", brief: "A roadside inn" });
+    await db.entities.create("Location", { name: "Forest", brief: "A dark forest" });
+    // Characters already at Inn (proper LOCATED_AT)
+    await db.entities.create("Character", { name: "Player", brief: "The hero" });
+    await db.entities.create("Character", { name: "Bartender", brief: "Serves drinks" });
+    await db.graph.query(
+      `MATCH (c:Character), (l:Location {name: "Inn"})
+       WHERE c.name IN ["Player", "Bartender"]
+       CREATE (c)-[:LOCATED_AT {created_at: 0, valid_at: NULL, brief: "", _updated_at: "now"}]->(l)`,
+    );
+    // Character at Forest, not at Inn
+    await db.entities.create("Character", { name: "Hermit", brief: "Lives in the woods" });
+    await db.graph.query(
+      `MATCH (c:Character {name: "Hermit"}), (l:Location {name: "Forest"})
+       CREATE (c)-[:LOCATED_AT {created_at: 0, valid_at: NULL, brief: "", _updated_at: "now"}]->(l)`,
+    );
     const stubEvents = {
       emitSceneUpdate: () => {},
     } as unknown as import("@/server/llm/events").EventEmitter;
     sceneTool = createManageSceneTool(stubEvents);
   });
 
-  it("CREATE scene with all required fields", async () => {
+  it("CREATE scene with all required fields (clean, no discrepancies)", async () => {
     const result = await exec(sceneTool, {
       action: "CREATE",
+      scene_name: "tavern_opening",
       start_day: 1,
       start_hour: 9,
       location_name: "Inn",
@@ -1011,14 +1030,83 @@ describe("manageScene", () => {
     });
     expect(result).toContain("Scene");
     expect(result).toContain("created");
+    expect(result).toContain("tavern_opening");
     expect(result).toContain("Inn");
     expect(result).toContain("Player");
     expect(result).toContain("Bartender");
   });
 
+  it("CREATE pends when characters not at location", async () => {
+    const result = await exec(sceneTool, {
+      action: "CREATE",
+      scene_name: "forest_scene",
+      start_day: 2,
+      start_hour: 10,
+      location_name: "Forest",
+      characters: ["Player", "Hermit"],
+      reason: "Chasing hermit",
+    });
+    expect(result).toContain("CREATE pending");
+    expect(result).toContain("Player"); // Player not at Forest
+  });
+
+  it("FIX confirms pending create and applies fixes", async () => {
+    const result = await exec(sceneTool, { action: "FIX" });
+    expect(result).toContain("created");
+    expect(result).toContain("forest_scene");
+    expect(result).toContain("LOCATED_AT fixed");
+    expect(result).toContain("Player");
+  });
+
+  it("FIX with no pending returns error", async () => {
+    const result = await exec(sceneTool, { action: "FIX" });
+    expect(result).toContain("ERROR");
+    expect(result).toContain("No pending CREATE");
+  });
+
+  it("CREATE overwrites previous pending with a note", async () => {
+    // First create pends
+    await exec(sceneTool, {
+      action: "CREATE",
+      scene_name: "discard_me",
+      start_day: 3,
+      start_hour: 8,
+      location_name: "Inn",
+      characters: ["Player", "Hermit"],
+      reason: "Will be discarded",
+    });
+    // Second create also pends but with different params, should mention discard
+    const result = await exec(sceneTool, {
+      action: "CREATE",
+      scene_name: "actual_scene",
+      start_day: 3,
+      start_hour: 9,
+      location_name: "Inn",
+      characters: ["Player", "Hermit"],
+      reason: "The real one",
+    });
+    expect(result).toContain("CREATE pending");
+    expect(result).toContain("Previous pending CREATE was discarded");
+  });
+
+  it("CREATE missing scene_name returns error", async () => {
+    const result = await exec(sceneTool, {
+      action: "CREATE",
+      start_day: 2,
+      start_hour: 10,
+      location_name: "Inn",
+      characters: ["Player"],
+      reason: "Test",
+    });
+    expect(result).toContain("ERROR");
+    expect(result).toContain("CREATE requires");
+    expect(result).toContain("scene_name");
+  });
+
   it("CREATE scene without Player returns error", async () => {
     const result = await exec(sceneTool, {
       action: "CREATE",
+      scene_name: "no_player",
       start_day: 2,
       start_hour: 10,
       location_name: "Inn",
@@ -1032,6 +1120,7 @@ describe("manageScene", () => {
   it("CREATE missing start_day returns error", async () => {
     const result = await exec(sceneTool, {
       action: "CREATE",
+      scene_name: "missing_day",
       start_hour: 9,
       location_name: "Inn",
       characters: ["Player"],
@@ -1044,6 +1133,7 @@ describe("manageScene", () => {
   it("CREATE missing characters returns error", async () => {
     const result = await exec(sceneTool, {
       action: "CREATE",
+      scene_name: "missing_chars",
       start_day: 1,
       start_hour: 9,
       location_name: "Inn",
@@ -1053,19 +1143,48 @@ describe("manageScene", () => {
     expect(result).toContain("CREATE requires");
   });
 
-  it("MODIFY add characters to active scene", async () => {
+  it("GET active scene returns info with fallback note", async () => {
+    const result = await exec(sceneTool, { action: "GET" });
+    expect(result).toContain("forest_scene");
+    expect(result).toContain("defaulted to active scene");
+    expect(result).toContain("Forest");
+  });
+
+  it("GET specific scene by name", async () => {
+    const result = await exec(sceneTool, { action: "GET", scene_name: "tavern_opening" });
+    expect(result).toContain("tavern_opening");
+    expect(result).not.toContain("defaulted to active scene");
+  });
+
+  it("GET non-existent scene returns error", async () => {
+    const result = await exec(sceneTool, { action: "GET", scene_name: "no_such_scene" });
+    expect(result).toContain("ERROR");
+    expect(result).toContain("not found");
+  });
+
+  it("MODIFY add characters to active scene (fallback)", async () => {
     const result = await exec(sceneTool, {
       action: "MODIFY",
       add_characters: ["Guard"],
     });
-    expect(result).toContain("characters");
+    expect(result).toContain("defaulted to active scene");
     expect(result).toContain("Guard");
+  });
+
+  it("MODIFY add characters to specific scene by name", async () => {
+    const result = await exec(sceneTool, {
+      action: "MODIFY",
+      scene_name: "forest_scene",
+      add_characters: ["Minstrel"],
+    });
+    expect(result).not.toContain("defaulted to active scene");
+    expect(result).toContain("Minstrel");
   });
 
   it("MODIFY close scene with end time", async () => {
     const result = await exec(sceneTool, {
       action: "MODIFY",
-      end_day: 1,
+      end_day: 2,
       end_hour: 14,
       reason: "Day ends",
     });
@@ -1084,13 +1203,20 @@ describe("manageScene", () => {
     expect(result).toContain("No active scene");
   });
 
+  it("GET with no active scene returns message", async () => {
+    const result = await exec(sceneTool, { action: "GET" });
+    expect(result).toContain("No active scene");
+  });
+
   it("CREATE scene shows formatted time for half-hour", async () => {
+    // Player is at Forest; create at Forest for clean pass
     const result = await exec(sceneTool, {
       action: "CREATE",
+      scene_name: "half_hour_test",
       start_day: 0,
       start_hour: 14.5,
-      location_name: "Inn",
-      characters: ["Player"],
+      location_name: "Forest",
+      characters: ["Player", "Hermit"],
       reason: "test",
     });
     expect(result).toContain("2:30 PM");

@@ -49,6 +49,7 @@ export async function seedDatabase(): Promise<void> {
 
   // Create initial Scene
   await db.scene.create({
+    scene_name: story.initialScene.scene_name,
     start_time: story.initialScene.start_time,
     location_name: story.initialScene.location_name,
     characters: story.initialScene.characters,

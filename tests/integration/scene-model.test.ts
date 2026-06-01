@@ -32,12 +32,13 @@ afterAll(async () => {
 describe("SceneModel", () => {
   it("creates the first scene when no scene exists", async () => {
     const { scene } = await db.scene.create({
+      scene_name: "tavern_opening",
       start_time: 204,
       location_name: "Tavern",
       characters: ["Player", "Bartender"],
       reason: "Story begins",
     });
-    expect(scene.name).toBeDefined();
+    expect(scene.name).toBe("tavern_opening");
     expect(scene.start_time).toBe(204);
     expect(scene.end_time).toBeNull();
     expect(scene.location_name).toBe("Tavern");
@@ -51,6 +52,7 @@ describe("SceneModel", () => {
     expect(active).not.toBeNull();
 
     const { scene: scene2 } = await db.scene.create({
+      scene_name: "forest_arrival",
       start_time: 250,
       location_name: "Forest",
       characters: ["Player"],
@@ -75,6 +77,7 @@ describe("SceneModel", () => {
   it("appends to scene log and retrieves history", async () => {
     // Create a real scene first
     const { scene } = await db.scene.create({
+      scene_name: "castle_entrance",
       start_time: 350,
       location_name: "Castle",
       characters: ["Player", "King"],

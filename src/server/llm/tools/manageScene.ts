@@ -23,7 +23,7 @@ import type { EventEmitter } from "@/server/llm/events";
 import { wrapSafe } from "@/server/llm/tools/shared";
 import { TOOL_NAMES } from "@/shared/constants";
 
-const SCENE_ACTIONS = ["CREATE", "MODIFY"] as const;
+const SCENE_ACTIONS = ["CREATE", "MODIFY", "GET", "FIX"] as const;
 
 function describeTime(time: number): string {
   const day = Math.floor(time / 48);
@@ -40,15 +40,18 @@ function toInternalTime(day: number, hour: number): number {
 }
 
 const inputSchema = z.object({
-  action: z.enum(SCENE_ACTIONS).describe("CREATE a new scene or MODIFY the active one."),
+  action: z.enum(SCENE_ACTIONS).describe("CREATE a new scene, MODIFY or GET the active one."),
+  scene_name: z
+    .string()
+    .nullable()
+    .optional()
+    .describe("Unique scene name (e.g. 'inn_arrival'). Required for CREATE. Optional for MODIFY/GET — defaults to active scene if omitted."),
   start_day: z.number().int().nullable().optional().describe("Day number. Required for CREATE."),
   start_hour: z
     .number()
     .nullable()
     .optional()
-    .describe(
-      "Hour in 24h with optional .5 for half-past (e.g. 9, 14.5, 20). Required for CREATE.",
-    ),
+    .describe("Hour in 24h with optional .5 for half-past (e.g. 9, 14.5, 20). Required for CREATE."),
   location_name: z.string().nullable().optional().describe("Location.name. Required for CREATE."),
   characters: z
     .array(z.string())
@@ -79,46 +82,170 @@ export function createManageSceneTool(events: EventEmitter) {
     title: TOOL_NAMES.MANAGE_SCENE,
     description: `
 ## Brief
-Manage scene transitions. CREATE starts a new scene, MODIFY adjusts or closes the active scene.
+Manage scene transitions. CREATE starts a new scene, MODIFY adjusts or closes the active scene, GET returns info about the active scene, FIX confirms pending creation after discrepancies.
 
 ## CREATE
-Start a new scene. Closes the active scene (if any) and creates a new one.
+Start a new scene. Before creating, validates that all specified characters have active LOCATED_AT pointing to the given location. If discrepancies are found (characters not at the location, or extra characters at the location not in the list), the scene is NOT created. Instead the parameters are held pending and the discrepancies are reported. Call FIX to apply automatic LOCATED_AT fixes and continue.
+- \`scene_name\`: Mandatory. Unique name for this scene (e.g. "inn_arrival", "forest_ambush").
 - \`start_day\`: Mandatory. Integer day number. Required for CREATE.
 - \`start_hour\`: Mandatory. Hour in 24h with optional .5 for half-past (e.g. 9, 14.5). Required for CREATE.
 - \`location_name\`: Mandatory. Must match an existing Location.name.
 - \`characters\`: Mandatory. Array of character names. Must include the player's name.
 - \`reason\`: Mandatory. Why the scene is changing (e.g. "Player traveled to the forest").
 
+## FIX
+Confirm the pending CREATE. Applies automatic LOCATED_AT fixes (update character locations) and creates the scene with the previously held parameters. Call after reviewing the discrepancies reported by CREATE. Has no parameters.
+
 ## MODIFY
-Adjust the active scene.
-- \`add_characters\`: Optional. Append characters to the current scene's character list.
+Adjust a scene. Defaults to the active scene if \`scene_name\` is omitted.
+- \`scene_name\`: Optional. Target a specific scene by name. If omitted, modifies the active scene.
+- \`add_characters\`: Optional. Append characters to the scene's character list.
 - \`end_day\`: Optional. Integer day number to close the scene at.
-- \`end_hour\`: Optional. Hour in 24h with optional .5 for half-past. Close the active scene at this time. Creates a placeholder for the next scene.
+- \`end_hour\`: Optional. Hour in 24h with optional .5 for half-past. Close the scene at this time. Creates a placeholder for the next scene.
+
+## GET
+Get information about a scene. Defaults to the active scene if \`scene_name\` is omitted.
+- \`scene_name\`: Optional. Target a specific scene by name. If omitted, returns the active scene.
+Returns: scene name, time, location, characters, and log entry count.
 
 ## Inner details
 At most one Scene has \`end_time = NULL\` (the active scene). When CREATE is called, the old scene's
 \`end_time\` is automatically set when you do not manually MODIFY it, and a NEXT_SCENE relationship links them.
 `.trim(),
     inputSchema,
-    execute: wrapSafe(async (args: z.infer<typeof inputSchema>) => {
-      const db = Database.getExisting();
+    execute: (() => {
+      interface PendingCreate {
+        scene_name: string;
+        start_day: number;
+        start_hour: number;
+        location_name: string;
+        characters: string[];
+        reason: string | null | undefined;
+      }
+      let pending: PendingCreate | null = null;
+
+      return wrapSafe(async (args: z.infer<typeof inputSchema>) => {
+        const db = Database.getExisting();
+
+        if (args.action === "FIX") {
+          if (!pending) return "ERROR: No pending CREATE to fix. Call CREATE first.";
+
+          const p = pending;
+          pending = null;
+
+          const startTime = toInternalTime(p.start_day, p.start_hour);
+          const { fixed, extraAtLocation } = await db.scene.syncCharacterLocations(
+            p.location_name,
+            p.characters,
+            startTime,
+          );
+
+          const { scene, timeMismatchWarning } = await db.scene.create({
+            scene_name: p.scene_name,
+            start_time: startTime,
+            location_name: p.location_name,
+            characters: p.characters,
+            reason: p.reason,
+          });
+
+          events.emitSceneUpdate({
+            scene_id: scene.name,
+            start_time: scene.start_time,
+            end_time: scene.end_time,
+            location_name: scene.location_name!,
+            characters: scene.characters,
+            reason: p.reason ?? null,
+          });
+
+          const parts: string[] = [];
+          if (fixed.length > 0) {
+            parts.push(`LOCATED_AT fixed: ${fixed.join(", ")} now at "${p.location_name}".`);
+          }
+          if (extraAtLocation.length > 0) {
+            parts.push(`Characters at "${p.location_name}" but not in scene: ${extraAtLocation.join(", ")}.`);
+          }
+          let msg = `Scene (unique name: "${scene.name}") created: ${describeTime(scene.start_time)} at "${scene.location_name}" with [${scene.characters.join(", ")}].`;
+          if (parts.length > 0) msg += `\n${parts.join("\n")}`;
+          if (timeMismatchWarning) msg += `\n${timeMismatchWarning}`;
+          return msg;
+        }
+
+        if (args.action === "GET") {
+        const scene = args.scene_name
+          ? await db.scene.getByName(args.scene_name)
+          : await db.scene.getActive();
+        if (!scene) {
+          return args.scene_name
+            ? `ERROR: Scene "${args.scene_name}" not found.`
+            : "No active scene. Create a scene first with CREATE.";
+        }
+
+        const fallbackNote = !args.scene_name ? " (defaulted to active scene)" : "";
+        return [
+          `Scene: "${scene.name}"${fallbackNote}`,
+          `Time: ${describeTime(scene.start_time)}${scene.end_time !== null ? ` → ${describeTime(scene.end_time)}` : " (ongoing)"}`,
+          `Location: ${scene.location_name ?? "(none)"}`,
+          `Characters: [${scene.characters.join(", ")}]`,
+          `Log entries: ${scene.log.length}`,
+        ].join("\n");
+      }
 
       if (args.action === "CREATE") {
         if (
+          args.scene_name == null ||
           args.start_day == null ||
           args.start_hour == null ||
           args.location_name == null ||
           !args.characters?.length
         ) {
-          return "ERROR: CREATE requires \`start_day\`, \`start_hour\`, \`location_name\`, \`characters\` (non-empty array) and \`reason\`.";
+          return "ERROR: CREATE requires \`scene_name\`, \`start_day\`, \`start_hour\`, \`location_name\`, \`characters\` (non-empty array) and \`reason\`.";
         }
         if (!args.characters.includes("Player")) {
           return "ERROR: characters must include 'Player'.";
         }
 
+        const { missingFromLocation, extraAtLocation } = await db.scene.checkCharacterLocations(
+          args.location_name,
+          args.characters,
+        );
+
+        if (missingFromLocation.length > 0 || extraAtLocation.length > 0) {
+          const hadPending = pending !== null;
+          pending = {
+            scene_name: args.scene_name,
+            start_day: args.start_day,
+            start_hour: args.start_hour,
+            location_name: args.location_name,
+            characters: args.characters,
+            reason: args.reason,
+          };
+
+          const lines: string[] = ["CREATE pending — discrepancies found:"];
+          if (missingFromLocation.length > 0) {
+            lines.push(
+              `  Not at "${args.location_name}": ${missingFromLocation.join(", ")} (will be moved automatically).`,
+            );
+          }
+          if (extraAtLocation.length > 0) {
+            lines.push(
+              `  At "${args.location_name}" but not in scene: ${extraAtLocation.join(", ")} (will NOT be added to scene).`,
+            );
+          }
+          if (hadPending) {
+            lines.push("  (Previous pending CREATE was discarded.)");
+          }
+          lines.push("Call FIX to apply the fixes and create the scene.");
+          return lines.join("\n");
+        }
+
+        // No discrepancies — create directly
+        const hadPending = pending !== null;
+        pending = null;
+
         const startTime = toInternalTime(args.start_day, args.start_hour);
 
         const { scene, timeMismatchWarning } = await db.scene.create({
+          scene_name: args.scene_name,
           start_time: startTime,
           location_name: args.location_name,
           characters: args.characters,
@@ -134,38 +261,55 @@ At most one Scene has \`end_time = NULL\` (the active scene). When CREATE is cal
           reason: args.reason ?? null,
         });
 
-        const msg = `Scene (unique name: "${scene.name}") created: ${describeTime(scene.start_time)} at "${scene.location_name}" with [${scene.characters.join(", ")}].`;
-        return timeMismatchWarning ? `${msg}\n${timeMismatchWarning}` : msg;
+        let msg = `Scene (unique name: "${scene.name}") created: ${describeTime(scene.start_time)} at "${scene.location_name}" with [${scene.characters.join(", ")}].`;
+        if (hadPending) msg += "\n(Previous pending CREATE was discarded.)";
+        if (timeMismatchWarning) msg += `\n${timeMismatchWarning}`;
+        return msg;
       }
 
       // MODIFY
-      const active = await db.scene.getActive();
-      if (!active) return "ERROR: No active scene to modify. Create a scene first.";
+      const active = args.scene_name ? null : await db.scene.getActive();
+      if (!args.scene_name && !active) return "ERROR: No active scene to modify. Create a scene first with CREATE.";
 
       if (args.add_characters?.length) {
-        await db.scene.modify({ add_characters: args.add_characters });
+        await db.scene.modify({
+          scene_name: args.scene_name ?? undefined,
+          add_characters: args.add_characters,
+        });
       }
       if (args.end_day != null && args.end_hour != null) {
         const endTime = toInternalTime(args.end_day, args.end_hour);
         const placeholder = await db.scene.modify({
+          scene_name: args.scene_name ?? undefined,
           end_time: endTime,
           reason: args.reason ?? undefined,
         });
+
+        const sceneName = args.scene_name ?? active!.name;
+        const targetScene = args.scene_name
+          ? await db.scene.getByName(args.scene_name)
+          : active;
         events.emitSceneUpdate({
-          scene_id: active.name,
-          start_time: active.start_time,
+          scene_id: sceneName,
+          start_time: targetScene!.start_time,
           end_time: endTime,
-          location_name: active.location_name!,
-          characters: active.characters,
+          location_name: targetScene!.location_name!,
+          characters: targetScene!.characters,
           reason: args.reason ?? null,
         });
-        return `Scene (unique name: "${active.name}") closed at ${describeTime(endTime)}. A placeholder scene (unique name: "${placeholder.name}") is ready for the next CREATE.${
+
+        const fallbackNote = !args.scene_name ? " (defaulted to active scene)" : "";
+        return `Scene (unique name: "${sceneName}")${fallbackNote} closed at ${describeTime(endTime)}. A placeholder scene (unique name: "${placeholder!.name}") is ready for the next CREATE.${
           args.reason ? ` Reason: "${args.reason}"` : ""
         }`;
       }
 
-      const updated = await db.scene.getActive();
-      return `Scene (unique name: "${active.name}") modified. Current characters: [${updated?.characters.join(", ") ?? ""}].`;
-    }, TOOL_NAMES.MANAGE_SCENE),
+      const fallbackNote = !args.scene_name ? " (defaulted to active scene)" : "";
+      const updated = args.scene_name
+        ? await db.scene.getByName(args.scene_name)
+        : await db.scene.getActive();
+      return `Scene (unique name: "${args.scene_name ?? active!.name}")${fallbackNote} modified. Current characters: [${updated?.characters.join(", ") ?? ""}].`;
+      }, TOOL_NAMES.MANAGE_SCENE);
+    })(),
   });
 }

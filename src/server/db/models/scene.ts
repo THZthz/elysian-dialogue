@@ -43,6 +43,7 @@ export interface SceneMessageContent {
 }
 
 export interface CreateSceneInput {
+  scene_name: string;
   start_time: number;
   location_name: string;
   characters: string[];
@@ -50,6 +51,7 @@ export interface CreateSceneInput {
 }
 
 export interface ModifySceneInput {
+  scene_name?: string;
   add_characters?: string[];
   end_time?: number;
   reason?: string;
@@ -80,11 +82,91 @@ export class SceneModel {
     return this.parseScene(s);
   }
 
+  async checkCharacterLocations(
+    locationName: string,
+    characterNames: string[],
+  ): Promise<{ missingFromLocation: string[]; extraAtLocation: string[] }> {
+    // Which specified characters are already at this location?
+    const atLocationResult = await this.graph.query(
+      `MATCH (c:Character)-[r:LOCATED_AT]->(l:Location {name: $loc})
+       WHERE r.valid_at IS NULL AND c.name IN $names
+       RETURN c.name AS name`,
+      { loc: locationName, names: characterNames },
+    );
+    const alreadyThere = new Set(atLocationResult.rows.map((r) => r.name as string));
+
+    // Which characters are at this location but NOT in the GM's list?
+    const extraResult = await this.graph.query(
+      `MATCH (c:Character)-[r:LOCATED_AT]->(l:Location {name: $loc})
+       WHERE r.valid_at IS NULL AND NOT c.name IN $names
+       RETURN c.name AS name`,
+      { loc: locationName, names: characterNames },
+    );
+    const extraAtLocation = extraResult.rows.map((r) => r.name as string);
+
+    // Specified characters not at this location
+    const missingFromLocation = characterNames.filter((n) => !alreadyThere.has(n));
+
+    return { missingFromLocation, extraAtLocation };
+  }
+
+  async syncCharacterLocations(
+    locationName: string,
+    characterNames: string[],
+    atTime: number,
+  ): Promise<{ fixed: string[]; extraAtLocation: string[] }> {
+    const now = new Date().toISOString();
+
+    // Which specified characters are already at this location?
+    const atLocationResult = await this.graph.query(
+      `MATCH (c:Character)-[r:LOCATED_AT]->(l:Location {name: $loc})
+       WHERE r.valid_at IS NULL AND c.name IN $names
+       RETURN c.name AS name`,
+      { loc: locationName, names: characterNames },
+    );
+    const alreadyThere = new Set(atLocationResult.rows.map((r) => r.name as string));
+
+    // Which characters are at this location but NOT in the GM's list?
+    const extraResult = await this.graph.query(
+      `MATCH (c:Character)-[r:LOCATED_AT]->(l:Location {name: $loc})
+       WHERE r.valid_at IS NULL AND NOT c.name IN $names
+       RETURN c.name AS name`,
+      { loc: locationName, names: characterNames },
+    );
+    const extraAtLocation = extraResult.rows.map((r) => r.name as string);
+
+    // Fix characters that need moving
+    const fixed: string[] = [];
+    for (const name of characterNames) {
+      if (alreadyThere.has(name)) continue;
+
+      // End any current LOCATED_AT for this character
+      await this.graph.query(
+        `MATCH (c:Character {name: $name})-[r:LOCATED_AT]->(:Location)
+         WHERE r.valid_at IS NULL
+         SET r.valid_at = $time, r._updated_at = $now`,
+        { name, time: atTime, now },
+      );
+
+      // Create new LOCATED_AT to the target location
+      await this.graph.query(
+        `MATCH (c:Character {name: $name})
+         MATCH (l:Location {name: $loc})
+         CREATE (c)-[r:LOCATED_AT {created_at: $time, valid_at: NULL, brief: '', _updated_at: $now}]->(l)`,
+        { name, loc: locationName, time: atTime, now },
+      );
+
+      fixed.push(name);
+    }
+
+    return { fixed, extraAtLocation };
+  }
+
   async create(
     input: CreateSceneInput,
   ): Promise<{ scene: SceneData; timeMismatchWarning?: string }> {
     const now = new Date().toISOString();
-    const name = `scene_${await nextId(this.graph)}`;
+    const name = input.scene_name;
 
     // Check if active scene exists
     const existingResult = await this.graph.query(
@@ -150,11 +232,11 @@ export class SceneModel {
         { name: oldScene.name, reason: input.reason, now },
       );
 
-      const scene = await this.getByName(oldScene.name);
+      const scene = await this.getByNameOrThrow(oldScene.name);
       return { scene, timeMismatchWarning };
     }
 
-    // Create brand new scene
+    // Create brand-new scene
     await this.graph.query(
       `CREATE (s:Scene {
          name: $name, start_time: $start_time, end_time: NULL,
@@ -184,29 +266,29 @@ export class SceneModel {
       );
     }
 
-    const scene = await this.getByName(name);
+    const scene = await this.getByNameOrThrow(name);
     return { scene };
   }
 
   async modify(input: ModifySceneInput): Promise<SceneData | null> {
-    const active = await this.getActiveRaw();
-    if (!active) return null;
+    const scene = input.scene_name ? await this.getByName(input.scene_name) : await this.getActiveRaw();
+    if (!scene) return null;
 
     const now = new Date().toISOString();
 
     if (input.add_characters && input.add_characters.length > 0) {
-      const merged = [...new Set([...active.characters, ...input.add_characters])];
+      const merged = [...new Set([...scene.characters, ...input.add_characters])];
       await this.graph.query(
         "MATCH (s:Scene {name: $name}) SET s.characters = $chars, s._updated_at = $now",
-        { name: active.name, chars: JSON.stringify(merged), now },
+        { name: scene.name, chars: JSON.stringify(merged), now },
       );
     }
 
     if (input.end_time !== undefined) {
-      // Close the current scene
+      // Close the scene
       await this.graph.query(
         "MATCH (s:Scene {name: $name}) SET s.end_time = $end_time, s._updated_at = $now",
-        { name: active.name, end_time: input.end_time, now },
+        { name: scene.name, end_time: input.end_time, now },
       );
 
       // Create placeholder
@@ -228,7 +310,7 @@ export class SceneModel {
       await this.graph.mergeRelationship(
         "Scene",
         "name",
-        active.name,
+        scene.name,
         "Scene",
         "name",
         phName,
@@ -239,7 +321,7 @@ export class SceneModel {
       return this.getByName(phName);
     }
 
-    return this.getActive();
+    return this.getByName(scene.name);
   }
 
   async appendPlayerLog(sceneName: string, userInput: string): Promise<void> {
@@ -353,7 +435,14 @@ export class SceneModel {
     };
   }
 
-  private async getByName(name: string): Promise<SceneData> {
+  async getByName(name: string): Promise<SceneData | null> {
+    const result = await this.graph.query("MATCH (s:Scene {name: $name}) RETURN s", { name });
+    if (result.rows.length === 0) return null;
+    const s = (result.rows[0].s || result.rows[0]) as Record<string, unknown>;
+    return this.parseScene(s);
+  }
+
+  private async getByNameOrThrow(name: string): Promise<SceneData> {
     const result = await this.graph.query("MATCH (s:Scene {name: $name}) RETURN s", { name });
     const s = (result.rows[0].s || result.rows[0]) as Record<string, unknown>;
     return this.parseScene(s);
