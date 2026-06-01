@@ -230,7 +230,7 @@ async function enrichEntityBatch(db: Database, entities: EntityBatchEntry[]): Pr
 
 // ── Enrichers ──
 
-async function editNodeEnricher(args: string, result: string): Promise<string> {
+async function manageNodeEnricher(args: string, result: string): Promise<string> {
   let parsed: { nodeLabel?: string; match?: Record<string, string>; action?: string };
   try {
     parsed = JSON.parse(args);
@@ -252,14 +252,14 @@ async function editNodeEnricher(args: string, result: string): Promise<string> {
     return formatEntityContext(rows, entityName);
   } catch (err) {
     console.warn(
-      "[enrichment] editNode enrichment failed:",
+      "[enrichment] manageNode enrichment failed:",
       err instanceof Error ? err.message : String(err),
     );
     return "";
   }
 }
 
-async function editRelationshipEnricher(args: string, result: string): Promise<string> {
+async function manageRelationshipEnricher(args: string, result: string): Promise<string> {
   if (result.startsWith("ERROR:")) return "";
 
   let parsed: {
@@ -307,7 +307,7 @@ async function editRelationshipEnricher(args: string, result: string): Promise<s
     return partList.join("\n");
   } catch (err) {
     console.warn(
-      "[enrichment] editRelationship enrichment failed:",
+      "[enrichment] manageRelationship enrichment failed:",
       err instanceof Error ? err.message : String(err),
     );
     return "";
@@ -409,8 +409,8 @@ async function searchWorldEnricher(_args: string, result: string): Promise<strin
 // ── Registry ──
 
 const ENRICHERS: Record<string, Enricher> = {
-  [TOOL_NAMES.EDIT_NODE]: editNodeEnricher,
-  [TOOL_NAMES.EDIT_RELATIONSHIP]: editRelationshipEnricher,
+  [TOOL_NAMES.MANAGE_NODE]: manageNodeEnricher,
+  [TOOL_NAMES.MANAGE_RELATIONSHIP]: manageRelationshipEnricher,
   [TOOL_NAMES.QUERY_WORLD]: queryWorldEnricher,
   [TOOL_NAMES.SEARCH_WORLD]: searchWorldEnricher,
 };
