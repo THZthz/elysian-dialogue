@@ -451,10 +451,12 @@ export async function buildTimeline(): Promise<string> {
   const internalLabels = new Set(schema.getInternalTypeNames());
   const temporalTypeDefs: RelTypeDef[] = [];
 
+  const seenTypes = new Set<string>();
   for (const def of schema.getAllRelTypes()) {
     if (def.name.startsWith("_")) continue;
     if (internalLabels.has(def.sourceLabel) || internalLabels.has(def.targetLabel)) continue;
-    if (schema.isTemporalRelType(def)) {
+    if (schema.isTemporalRelType(def) && !seenTypes.has(def.name)) {
+      seenTypes.add(def.name);
       temporalTypeDefs.push(def);
     }
   }
