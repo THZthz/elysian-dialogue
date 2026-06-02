@@ -19,7 +19,7 @@
 // NOTE: sourceName/targetName must be entity names (the `name` field stored in the database),
 // NOT database IDs. agent-memory's memory_create_relationship looks up entities by name.
 export interface SeedEntity {
-  // Only used to identify which character is player! ID of player should be "#player#".
+  // Only used to identify which character is player! ID of player should be "00000000-0000-0000-0000-000000000000".
   id?: string;
   type: "CHARACTER" | "OBJECT" | "LOCATION";
   name: string;

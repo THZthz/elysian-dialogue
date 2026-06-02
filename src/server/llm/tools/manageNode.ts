@@ -131,7 +131,7 @@ Since \`metadata\` is tagged as "json" of node Character in SCHEMA_DUMP, you can
 {
   "nodeLabel": "Character",
   "action": "UPSERT",
-  "match": { "_uid": "#player#" },
+  "match": { "_uid": "00000000-0000-0000-0000-000000000000" },
   "properties": {
     "metadata": {
       "stats": { "logic": 3, "rhetoric": 2 }
