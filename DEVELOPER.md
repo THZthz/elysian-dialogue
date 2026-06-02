@@ -189,6 +189,7 @@ The GM is given 10 tools (defined in `src/server/llm/tools/`), each with a speci
 - **Nudge via `onIterStart`**: Instead of `prepareStep` callbacks, the `onIterStart` hook injects reminder messages when the GM has been processing for several iterations without calling `generateDialogueStep`.
 - **ContextManager**: Token estimation (4 chars/token heuristic) triggers automatic history folding at 75% (soft fold — summarize oldest turns), 78% (restore from fold), and 80% (hard limit) of the context window.
 - **Cache diagnostics**: `loop.getCacheDiagnostics()` exposes cache hit/miss tokens and estimated cost savings for monitoring.
+- **Debug logging**: `DEBUG_PRINT_LLM_GENERATIONS` in `src/shared/constants.ts` (default `true`) prints system prompt, user prompt, reasoning, text output, tool calls, and tool results to the server console with chalk coloring.
 
 ### Database: LadybugDB (not Neo4j)
 
