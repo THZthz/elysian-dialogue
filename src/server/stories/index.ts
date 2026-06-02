@@ -32,9 +32,10 @@ function loadSeedStory(filename: string): SeedStory {
 
 const STORIES: Record<string, SeedStory> = {
   "glass-cage": loadSeedStory("glass-cage.toml"),
+  "express-cult": loadSeedStory("express-cult.toml"),
 };
 
-const ACTIVE_SEED_STORY = "glass-cage";
+const ACTIVE_SEED_STORY = "express-cult";
 
 export function getActiveSeedStory(): SeedStory {
   const story = STORIES[ACTIVE_SEED_STORY];

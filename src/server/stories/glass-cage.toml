@@ -50,7 +50,7 @@ characters = ["Player"]
 # ── Characters ──
 
 [[entities]]
-id = "#player#"
+id = "00000000-0000-0000-0000-000000000000"
 type = "CHARACTER"
 name = "Player"
 brief = "An amnesiac passenger in Compartment 3 of Passenger Car A. Woke to screaming with blood on their hands."

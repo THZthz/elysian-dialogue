@@ -1,0 +1,221 @@
+id = "express-cult"
+
+toneDescription = """
+A Victorian express train, all polished brass and steam, carrying hundreds of souls through the night. The world is one of gas-lamps and subtle magic — gentlemen detectives carry enchanted lockets, and occult symbols are not merely superstition. The mood is one of quiet elegance laced with creeping dread.
+"""
+
+settingDescription = """
+The Grand Continental Express — a steam locomotive pulling a long chain of carriages through a moonless countryside. The year is 1891. Magic is real but restrained; most passengers possess a minor charm or a family ward, and the educated classes know that the old gods left echoes in the world. The train cuts through thick fog, headlamp barely piercing the gloom. There are no stops for several hours.
+"""
+
+[initialScene]
+scene_name = "a-body-in-the-night"
+start_time = 204  # 8:24 PM, evening
+location_name = "First-Class Compartment 12"
+characters = ["Player", "Lady Evelyn Ashworth"]
+
+# ═══════════════════════════════════════════════════════════════════
+# ENTITIES
+# ═══════════════════════════════════════════════════════════════════
+
+# ── Characters ──
+
+[[entities]]
+id = "00000000-0000-0000-0000-000000000000"
+type = "CHARACTER"
+name = "Player"
+brief = "A private inquiry agent with the arcane gift of psychometry."
+description = """
+A detective of some repute who consults for the Metropolitan Police on esoteric cases. He carries a small silver magnifying glass that serves as a focus for his psychometric talent — the ability to sense emotional residue and fragmented memories by touching objects. He is travelling aboard the Grand Continental Express at the invitation of Lady Evelyn Ashworth. He is observant, methodical, and accustomed to the weight that lingering psychic impressions leave on his mind.
+"""
+
+[entities.metadata]
+
+[entities.metadata.stats]
+logic = 3
+rhetoric = 1
+empathy = 1
+perception = 2
+volition = 1
+endurance = 1
+sorcery = 3
+suggestion = 1
+instinct = 2
+might = 1
+clockwork = 1
+alchemy = 1
+
+[entities.metadata.conditions]
+
+[[entities]]
+type = "CHARACTER"
+name = "Lady Evelyn Ashworth"
+brief = "A young noblewoman and occult scholar."
+description = """
+Slender and pale, with dark hair typically pinned beneath a travelling hat. She moves with the quiet assurance of old money. Her interests lean towards the esoteric; she owns a respectable private library of forbidden texts and carries a silver athame for protective rituals, along with a leather-bound journal filled with her own sketches of occult symbols. She is travelling with the detective, though the precise nature of their arrangement is her own affair.
+"""
+
+[[entities]]
+type = "CHARACTER"
+name = "Unidentified Victim"
+brief = "An unknown middle-aged man, dead, bearing a ritualistic occult symbol on his chest."
+description = """
+A male corpse, approximately forty years of age, with an unremarkable face. He wears a brown tweed suit, slightly worn at the elbows. No identification papers, wallet, calling cards, or luggage claim ticket are found on his person. His lips show a bluish tint suggestive of poison. A complex circular symbol has been carved into the skin of his chest after death.
+"""
+
+[[entities]]
+type = "OBJECT"
+name = "Cult Sigil"
+brief = "A carved occult symbol on the victim’s chest — an irregular heptagram framed by angular script."
+description = """
+A design approximately four inches in diameter, cut shallow but precisely into the skin. The central figure is a distorted seven-pointed star. The surrounding script does not match any living language; two of the characters appear in a fragment from the *Codex Mortuorum*, a text describing a vanished death cult. The carving shows no hesitation marks.
+"""
+
+# ── Locations ──
+
+[[entities]]
+type = "LOCATION"
+name = "Engine and Coal Tender"
+brief = "Locomotive and fuel car. No passengers allowed."
+description = """
+A great black iron engine that hauls the train. Coal dust and steam fill the cramped space where the engineer and fireman work. The noise of the pistons and the furnace makes normal conversation impossible.
+"""
+
+[[entities]]
+type = "LOCATION"
+name = "Baggage and Mail Car"
+brief = "Storage for luggage, parcels, and post. Access restricted."
+description = """
+Stacks of trunks, crates, and mailbags secured with rope. The air smells of paper, leather, and oil. A porter may be present to assist with retrieving items.
+"""
+
+[[entities]]
+type = "LOCATION"
+name = "First-Class Sleeper Car"
+brief = "First-class accommodation with twelve private compartments."
+description = """
+A corridor panelled in polished mahogany, lit by brass gas-lamps. Twelve numbered doors line the passage, each opening into a private compartment with a fold‑down bed, a small vanity, and plush upholstery. The car is quiet and well‑kept.
+"""
+
+[[entities]]
+type = "LOCATION"
+name = "First-Class Compartment 12"
+brief = "A private first-class compartment, last on the right, where the body lies."
+description = """
+A compact but comfortable compartment at the far end of the first-class sleeper. Contains a fold‑down bed, a small mahogany vanity with a mirror, an upholstered seat, and a window curtained in heavy velvet. The gas-lamp on the wall casts a warm, steady glow. The door locks from the inside with a brass bolt.
+"""
+
+[[entities]]
+type = "LOCATION"
+name = "Dining Car"
+brief = "Communal dining for first- and second-class passengers."
+description = """
+Long tables covered with white linen, set with crystal decanters and silver cutlery. Meals are served at set times; outside those hours, passengers may sit with drinks and light refreshments. The car carries the lingering scent of roast meat and coffee.
+"""
+
+[[entities]]
+type = "LOCATION"
+name = "Second-Class Car"
+brief = "Open seating and compartments for second-class travellers."
+description = """
+Benches upholstered in dark green fabric, arranged in rows and in shared compartments with sliding doors. Clean and functional, though less ornate than first class. Typically occupied by families, commercial travellers, and persons of moderate means.
+"""
+
+[[entities]]
+type = "LOCATION"
+name = "Observation Car"
+brief = "Rear car with large windows and an open platform."
+description = """
+Wicker chairs face broad panes of glass that look out onto the receding tracks. A door at the rear leads to an open platform where passengers may take the air. At night, the car is usually empty and lit only by a dim lantern.
+"""
+
+# ═══════════════════════════════════════════════════════════════════
+# RELATIONSHIPS
+# ═══════════════════════════════════════════════════════════════════
+
+# ── Car adjacency (CONNECTED_TO) ──
+
+[[relationshipTypes]]
+name = "CONNECTED_TO"
+description = "Sequential adjacency between two train cars."
+sourceLabel = "Location"
+targetLabel = "Location"
+
+[[relationships]]
+sourceName = "Engine and Coal Tender"
+targetName = "Baggage and Mail Car"
+type = "CONNECTED_TO"
+description = "Direct coupling."
+
+[[relationships]]
+sourceName = "Baggage and Mail Car"
+targetName = "First-Class Sleeper Car"
+type = "CONNECTED_TO"
+description = "Direct coupling."
+
+[[relationships]]
+sourceName = "First-Class Sleeper Car"
+targetName = "Dining Car"
+type = "CONNECTED_TO"
+description = "Direct coupling."
+
+[[relationships]]
+sourceName = "Dining Car"
+targetName = "Second-Class Car"
+type = "CONNECTED_TO"
+description = "Direct coupling."
+
+[[relationships]]
+sourceName = "Second-Class Car"
+targetName = "Observation Car"
+type = "CONNECTED_TO"
+description = "Direct coupling."
+
+# ── Compartment containment (LOCATED_IN) ──
+
+[[relationships]]
+sourceName = "First-Class Compartment 12"
+targetName = "First-Class Sleeper Car"
+type = "LOCATED_IN"
+description = "Last compartment on the right-hand side of the corridor."
+
+# ═══════════════════════════════════════════════════════════════════
+# PLOTS
+# ═══════════════════════════════════════════════════════════════════
+
+[[plots]]
+name = "The Cult on the Express"
+brief = "A murdered man, an occult symbol, and a train full of potential victims."
+description = """
+A mysterious murder has occurred in a locked first-class compartment. The victim bears a ritualistic sigil linked to a death cult thought long extinct. The detective must identify the dead man, decipher the meaning of the carving, and uncover the cult’s presence before the train reaches its destination — or before the cult acts again.
+"""
+status = "ACTIVE"
+trigger_condition = "Scene starts with the discovery of the body."
+
+# ═══════════════════════════════════════════════════════════════════
+# NOTES
+# ═══════════════════════════════════════════════════════════════════
+
+[[notes]]
+name = "Opening Scene: The Body"
+content = """
+**When the scene opens**: The player is standing inside First-Class Compartment 12, beside the body of an unidentified man. Lady Evelyn Ashworth is present; she discovered the corpse a few minutes earlier and immediately brought the detective. The compartment door is closed. No other passengers are yet aware of the death.
+
+**Immediate sensory details**:
+- The gas-lamp hisses softly, casting a yellow glow on the dead man’s terrified face.
+- The train sways gently; wheels clatter over a junction.
+- The faint smell of coal smoke and lavender polish hangs in the air.
+
+**What the detective knows**:
+- He boarded at the last station at Lady Ashworth’s request. She spoke of a premonition, a sense of gathering darkness on this journey, but offered no specifics.
+- The victim is a stranger. No passenger has been reported missing.
+- A psychometric touch on the sigil returned only an unnatural emptiness — something the detective has never encountered before.
+
+**Immediate options**:
+- Examine the body and the sigil more closely (use psychometry again?).
+- Question Lady Ashworth about the symbol’s possible origin.
+- Search the compartment for hidden luggage, papers, or other clues.
+- Decide whether to alert the conductor or keep the death secret to avoid panic.
+- Step into the corridor and observe other passengers for signs of guilt or fear.
+"""
+aboutPlots = ["The Cult on the Express"]
