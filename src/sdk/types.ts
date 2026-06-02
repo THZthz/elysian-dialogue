@@ -197,6 +197,10 @@ export interface GameLoopOptions {
   maxIterPerTurn?: number;
   runTool: (name: string, args: string, signal: AbortSignal) => Promise<ToolResult>;
   onIterStart?: (iter: number, log: AppendOnlyLog) => void;
+  /** If provided, checked before ending the turn on "no tool calls."
+   *  Return null/undefined if the turn can end; return a nudge message string
+   *  to inject into the log and continue instead. */
+  canEndTurn?: () => string | null | undefined;
   rebuildSystem?: () => string;
   persistence?: SessionPersistence;
 }

@@ -240,12 +240,16 @@ export async function generateTurn(
         return { result };
       },
       onIterStart: (iter, log) => {
-        const minIter = turnNumber === 1 ? 6 : 4;
-        if (iter < minIter || dialogueStepCalled) return;
+        if (iter < 2 || dialogueStepCalled) return;
         nudgeCount++;
         const prefix_ = nudgeCount === 1 ? "Reminder:" : "ERROR:";
-        const msg = `${prefix_} You have not yet called ${TOOL_NAMES.GENERATE_DIALOGUE}. The player cannot see any response. You MUST call ${TOOL_NAMES.GENERATE_DIALOGUE} now.`;
+        const msg = `${prefix_} You have not yet called ${TOOL_NAMES.GENERATE_DIALOGUE}. The player cannot see any response. You MUST call ${TOOL_NAMES.GENERATE_DIALOGUE} now — do not output text, call the tool.`;
         log.append({ role: "user", content: msg });
+      },
+      canEndTurn: () => {
+        if (dialogueStepCalled) return null;
+        nudgeCount++;
+        return `BLOCKED: You must call ${TOOL_NAMES.GENERATE_DIALOGUE} to speak to the player before ending your turn. Text replies are not shown to the player — only ${TOOL_NAMES.GENERATE_DIALOGUE} output is visible. Call ${TOOL_NAMES.GENERATE_DIALOGUE} now.`;
       },
       rebuildSystem: () => buildSystemPrompt() as unknown as string,
     });
@@ -335,7 +339,9 @@ export async function generateTurn(
           }
           break;
         case "assistant_final":
-          console.log(`[generateTurn] cacheHitRatio: ${(event.cacheHitRatio * 100).toFixed(1)}%`);
+          const promptHitRatio = ((event.usage.promptCacheHitTokens / event.usage.promptTokens) * 100).toFixed(2);
+          const promptMissRatio = ((event.usage.promptCacheMissTokens / event.usage.promptTokens) * 100).toFixed(2);
+          console.log(`[generateTurn] cacheHitRatio: ${(event.cacheHitRatio * 100).toFixed(2)}% | promptHitRatio: ${promptHitRatio}% | promptMissRatio: ${promptMissRatio}% | promptToken: ${event.usage.promptCacheHitTokens} | completionToken: ${event.usage.completionTokens}`);
           if (debugToolCalls) {
             if (event.reasoning) {
               console.log(chalk.bold.blue("\n[REASONING]"));

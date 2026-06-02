@@ -220,6 +220,7 @@ export function createGameLoop(opts: GameLoopOptions) {
 
   const runTool = opts.runTool;
   const onIterStart = opts.onIterStart;
+  const canEndTurn = opts.canEndTurn;
   const rebuildSystem = opts.rebuildSystem;
 
   let model = opts.model ?? "deepseek-v4-flash";
@@ -385,8 +386,13 @@ export function createGameLoop(opts: GameLoopOptions) {
       }
       log.append(assistantMsg);
 
-      // ── No tool calls = turn complete ──
+      // ── No tool calls = turn complete (unless blocked by canEndTurn) ──
       if (toolCalls.length === 0) {
+        const blockReason = canEndTurn?.();
+        if (blockReason) {
+          log.append({ role: "user", content: blockReason });
+          continue;
+        }
         yield { turn, role: "done", content: acc.content };
         return;
       }
