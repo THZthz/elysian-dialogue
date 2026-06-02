@@ -18,28 +18,7 @@
 
 import { Database } from "@/server/db";
 import { SchemaRegistry, RelTypeDef } from "@/server/db/schema";
-
-// ── Time helpers ──
-
-function formatHour(hour: number): string {
-  const h = Math.floor(hour);
-  const m = hour % 1 === 0.5 ? 30 : 0;
-  const period = h < 12 ? "AM" : "PM";
-  const displayH = h === 0 ? 12 : h > 12 ? h - 12 : h;
-  const mm = m === 0 ? "00" : "30";
-  return `${displayH}:${mm} ${period}`;
-}
-
-function describeTime(time: { day: number; hour: number }): string {
-  return `Day ${time.day}, ${formatHour(time.hour)}`;
-}
-
-function formatTime(t: number): string {
-  const day = Math.floor(t / 48);
-  const halfHours = t % 48;
-  const hour = halfHours / 2;
-  return `Day ${day}, ${formatHour(hour)}`;
-}
+import { formatTime } from "@/server/db/utils";
 
 // ── Types ──
 

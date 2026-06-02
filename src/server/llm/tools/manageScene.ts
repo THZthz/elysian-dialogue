@@ -22,18 +22,9 @@ import { Database } from "@/server/db";
 import type { EventEmitter } from "@/server/llm/events";
 import { wrapSafe } from "@/server/llm/tools/shared";
 import { TOOL_NAMES } from "@/shared/constants";
+import { describeInternalTime } from "@/server/db/utils";
 
 const SCENE_ACTIONS = ["CREATE", "MODIFY", "READ", "FIX"] as const;
-
-function describeTime(time: number): string {
-  const day = Math.floor(time / 48);
-  const halfHours = time % 48;
-  const hour = Math.floor(halfHours / 2);
-  const minute = halfHours % 2 === 0 ? "00" : "30";
-  const period = hour < 12 ? "AM" : "PM";
-  const displayH = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
-  return `Day ${day}, ${displayH}:${minute} ${period}`;
-}
 
 function toInternalTime(day: number, hour: number): number {
   return day * 48 + hour * 2;
@@ -170,7 +161,7 @@ At most one Scene has \`end_time = NULL\` (the active scene). When CREATE is cal
               `Characters at "${p.location_name}" but not in scene: ${extraAtLocation.join(", ")}.`,
             );
           }
-          let msg = `Scene (unique name: "${scene.name}") created: ${describeTime(scene.start_time)} at "${scene.location_name}" with [${scene.characters.join(", ")}].`;
+          let msg = `Scene (unique name: "${scene.name}") created: ${describeInternalTime(scene.start_time)} at "${scene.location_name}" with [${scene.characters.join(", ")}].`;
           if (parts.length > 0) msg += `\n${parts.join("\n")}`;
           if (timeMismatchWarning) msg += `\n${timeMismatchWarning}`;
           return msg;
@@ -189,7 +180,7 @@ At most one Scene has \`end_time = NULL\` (the active scene). When CREATE is cal
           const fallbackNote = !args.scene_name ? " (defaulted to active scene)" : "";
           return [
             `Scene: "${scene.name}"${fallbackNote}`,
-            `Time: ${describeTime(scene.start_time)}${scene.end_time !== null ? ` → ${describeTime(scene.end_time)}` : " (ongoing)"}`,
+            `Time: ${describeInternalTime(scene.start_time)}${scene.end_time !== null ? ` → ${describeInternalTime(scene.end_time)}` : " (ongoing)"}`,
             `Location: ${scene.location_name ?? "(none)"}`,
             `Characters: [${scene.characters.join(", ")}]`,
             `Log entries: ${scene.log.length}`,
@@ -267,7 +258,7 @@ At most one Scene has \`end_time = NULL\` (the active scene). When CREATE is cal
             reason: args.reason ?? null,
           });
 
-          let msg = `Scene (unique name: "${scene.name}") created: ${describeTime(scene.start_time)} at "${scene.location_name}" with [${scene.characters.join(", ")}].`;
+          let msg = `Scene (unique name: "${scene.name}") created: ${describeInternalTime(scene.start_time)} at "${scene.location_name}" with [${scene.characters.join(", ")}].`;
           if (hadPending) msg += "\n(Previous pending CREATE was discarded.)";
           if (timeMismatchWarning) msg += `\n${timeMismatchWarning}`;
           return msg;
@@ -304,7 +295,7 @@ At most one Scene has \`end_time = NULL\` (the active scene). When CREATE is cal
           });
 
           const fallbackNote = !args.scene_name ? " (defaulted to active scene)" : "";
-          return `Scene (unique name: "${sceneName}")${fallbackNote} closed at ${describeTime(endTime)}. A placeholder scene (unique name: "${placeholder!.name}") is ready for the next CREATE.${
+          return `Scene (unique name: "${sceneName}")${fallbackNote} closed at ${describeInternalTime(endTime)}. A placeholder scene (unique name: "${placeholder!.name}") is ready for the next CREATE.${
             args.reason ? ` Reason: "${args.reason}"` : ""
           }`;
         }
