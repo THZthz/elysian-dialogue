@@ -103,9 +103,9 @@ async function buildSchemaDump(): Promise<string> {
   for (let idx = 0; idx < nodeTypes.length; idx++) {
     const node = nodeTypes[idx];
     const count = counts[node.name];
-    const qty = count !== undefined ? ` (×${count})` : "(×0)";
+    const qty = count !== undefined ? `(×${count})` : "(×0)";
     const category = node.category as string;
-    lines.push(`${idx + 1}. **${node.name}**${qty}${category}: ${node.description}`);
+    lines.push(`${idx + 1}. **${node.name}** ${qty} ${category}: ${node.description}`);
     if (node.properties.length > 0) {
       const visible = node.properties.filter((p) => !p.name.startsWith("_"));
       for (const prop of visible) {
@@ -126,7 +126,7 @@ async function buildSchemaDump(): Promise<string> {
     const src = rel.sourceLabel || "?";
     const tgt = rel.targetLabel || "?";
     const category = rel.category as string;
-    lines.push(`${idx + 1}. **${rel.name}**${qty} (${src}→${tgt})${category}: ${rel.description}`);
+    lines.push(`${idx + 1}. **${rel.name}**${qty} (${src}→${tgt}) ${category}: ${rel.description}`);
     if (rel.properties.length > 0) {
       const visible = rel.properties.filter((p) => !p.name.startsWith("_"));
       for (const prop of visible) {
