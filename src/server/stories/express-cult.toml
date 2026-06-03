@@ -171,6 +171,26 @@ targetName = "First-Class Sleeper Car"
 type = "LOCATED_IN"
 description = "Last compartment on the right-hand side of the corridor."
 
+# ── Character placement (LOCATED_AT) ──
+
+[[relationships]]
+sourceName = "Player"
+targetName = "First-Class Compartment 12"
+type = "LOCATED_AT"
+description = "Summoned by Lady Evelyn to investigate."
+
+[[relationships]]
+sourceName = "Lady Evelyn Ashworth"
+targetName = "First-Class Compartment 12"
+type = "LOCATED_AT"
+description = "Discovered the body and fetched the detective."
+
+[[relationships]]
+sourceName = "Unidentified Victim"
+targetName = "First-Class Compartment 12"
+type = "LOCATED_AT"
+description = "The corpse lies on the window seat."
+
 # ═══════════════════════════════════════════════════════════════════
 # PLOTS
 # ═══════════════════════════════════════════════════════════════════
