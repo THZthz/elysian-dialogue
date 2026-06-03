@@ -35,6 +35,7 @@ import { createManageSceneTool } from "@/server/llm/tools/manageScene";
 import { enrichResult } from "@/server/llm/tools/enrichment";
 import { performSkillCheck } from "@/server/llm/rollSkillCheck";
 import chalk from "chalk";
+import { highlightJson, highlightMarkdown } from "@/shared/highlight";
 import { type SkillName, TOOL_NAMES, DEBUG_PRINT_LLM_GENERATIONS } from "@/shared/constants";
 import {
   DeepSeekClient,
@@ -269,9 +270,9 @@ export async function generateTurn(
       console.log(chalk.bold.magenta("  LLM GENERATION — Turn"), turnNumber);
       console.log(chalk.bold.magenta("══════════════════════════════════════════"));
       console.log(chalk.bold.blue("\n[SYSTEM PROMPT]"));
-      console.log(chalk.dim(prefix.system));
+      console.log(highlightMarkdown(prefix.system));
       console.log(chalk.bold.blue("\n[USER PROMPT]"));
-      console.log(chalk.white(promptText));
+      console.log(highlightMarkdown(promptText));
     }
 
     for await (const event of loop.step(promptText)) {
@@ -345,23 +346,17 @@ export async function generateTurn(
           if (debugToolCalls) {
             if (event.reasoning) {
               console.log(chalk.bold.blue("\n[REASONING]"));
-              console.log(chalk.dim(event.reasoning));
+              console.log(highlightMarkdown(event.reasoning));
             }
             if (event.content) {
               console.log(chalk.bold.green("\n[CONTENT]"));
-              console.log(chalk.green(event.content));
+              console.log(highlightMarkdown(event.content));
             }
             if (debugToolCalls.size > 0) {
               console.log(chalk.bold.cyan("\n[TOOL CALLS]"));
               for (const [, tc] of debugToolCalls) {
-                let parsed = tc.args;
-                try {
-                  parsed = JSON.stringify(JSON.parse(tc.args), null, 2);
-                } catch {
-                  /* use raw */
-                }
                 console.log(chalk.cyan(`  ${tc.name}`));
-                console.log(chalk.dim(`  ${parsed.replace(/\n/g, "\n  ")}`));
+                console.log(highlightJson(tc.args));
               }
             }
             debugToolCalls.clear();
@@ -370,7 +365,7 @@ export async function generateTurn(
         case "tool_result":
           if (DEBUG_PRINT_LLM_GENERATIONS) {
             console.log(chalk.bold.yellow(`\n[TOOL RESULT: ${event.name}]`));
-            console.log(chalk.yellow(event.result));
+            console.log(highlightJson(event.result));
           }
           break;
         case "error":
