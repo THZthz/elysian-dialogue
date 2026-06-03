@@ -63,14 +63,6 @@ description = """
 A male corpse, approximately forty years of age, with an unremarkable face. He wears a brown tweed suit, slightly worn at the elbows. No identification papers, wallet, calling cards, or luggage claim ticket are found on his person. His lips show a bluish tint suggestive of poison. A complex circular symbol has been carved into the skin of his chest after death.
 """
 
-[[entities]]
-type = "OBJECT"
-name = "Cult Sigil"
-brief = "A carved occult symbol on the victim’s chest — an irregular heptagram framed by angular script."
-description = """
-A design approximately four inches in diameter, cut shallow but precisely into the skin. The central figure is a distorted seven-pointed star. The surrounding script does not match any living language; two of the characters appear in a fragment from the *Codex Mortuorum*, a text describing a vanished death cult. The carving shows no hesitation marks.
-"""
-
 # ── Locations ──
 
 [[entities]]
