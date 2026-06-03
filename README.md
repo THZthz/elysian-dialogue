@@ -1,37 +1,28 @@
 # Chorus
 
-> WARNING: Early in development stage. Development only happens on branch `v3`!
+> WARNING: Early in development stage.
 
 Cinematic dialogue engine. The AI Game Master generates branching narrative through tool-calling, streamed to a console client in real-time via SSE. Player choices are guided by twelve inner voices — each a distinct personality mapped to a character stat — with skill checks resolved through 2D6 dice rolls.
 
-## Tech Stack
-
-| Layer     | Technology                                       |
-|-----------|--------------------------------------------------|
-| Console   | TypeScript, Node.js, chalk (`@inquirer/prompts`) |
-| Backend   | Express, Neo4j                                   |
-| AI        | Gemini / DeepSeek via Vercel AI SDK v6           |
-| Streaming | Server-Sent Events                               |
-| Memory    | Neo4j via local memory module                    |
+No plan for web UI for now. Focus only on storytelling quality.
 
 ## Getting Started
 
 ### Prerequisites
 
-- Node.js 20+
-- Docker (for Neo4j)
+- Node.js 26+
 - [llama-server](https://github.com/ggml-org/llama.cpp) (for embeddings and reranking)
-- A DeepSeek API key, this engine is designed especially for `deepseek-v4-flash`. You can use other models as you wish.
+- A DeepSeek API key.
 
 ### Model Setup
 
 Download the GGUF models into `data/models/`:
 
 ```bash
-# Qwen3-Embedding (1024-dim bi-encoder)
+# Qwen3-Embedding
 wget -P data/models/ https://huggingface.co/Qwen/Qwen3-Embedding-0.6B-GGUF/resolve/main/Qwen3-Embedding-0.6B-Q8_0.gguf
 
-# Qwen3-Reranker (cross-encoder)
+# Qwen3-Reranker
 wget -P data/models/ https://huggingface.co/Qwen/Qwen3-Reranker-0.6B-GGUF/resolve/main/Qwen3-Reranker-0.6B-Q8_0.gguf
 ```
 
@@ -40,14 +31,11 @@ wget -P data/models/ https://huggingface.co/Qwen/Qwen3-Reranker-0.6B-GGUF/resolv
 ```bash
 cp .env.example .env
 # Add your keys to .env:
-#
-#   GEMINI_API_KEY=your_key_here
 #   DEEPSEEK_API_KEY=your_key_here
 #
-#   # Llama-server endpoints (defaults work with default ports):
+# Llama-server endpoints (defaults work with default ports):
 #   LLAMA_EMBED_URL=http://localhost:8080/v1/embeddings
 #   LLAMA_RERANK_URL=http://localhost:8081/v1/rerank
-#
 #   EMBEDDING_DIMENSIONS=1024
 
 npm install
@@ -58,27 +46,11 @@ llama-server -m data/models/Qwen3-Embedding-0.6B-Q8_0.gguf --port 8080 -c 32768 
 # Terminal 2 — Reranker server (optional; improves search precision)
 llama-server -m data/models/Qwen3-Reranker-0.6B-Q8_0.gguf --port 8081 -c 32768 -ngl 99 --reranking
 
-# Terminal 3 — Neo4j container and Express server
-docker compose up -d
+# Terminal 3 — Express server
 npm run server
 
 # Terminal 4 — Play
 npm run console
-```
-
-On first run, Neo4j is seeded with a default world, see `src/server/stories/`.
-
-Other operations:
-
-```bash
-# Check all tests passed
-npm run test
-
-# Stop Neo4j container
-docker compose down -v
-
-# Notify server to clear data
-curl -X POST http://localhost:3000/api/reset
 ```
 
 ## Developer Documentation
