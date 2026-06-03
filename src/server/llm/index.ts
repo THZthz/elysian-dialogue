@@ -32,20 +32,15 @@ import { getContext } from "@/server/llm/tools/getContext";
 import { manageSchema } from "@/server/llm/tools/manageSchema";
 import { createGenerateDialogueStepTool } from "@/server/llm/tools/generateDialogueStep";
 import { createManageSceneTool } from "@/server/llm/tools/manageScene";
-import { enrichResult } from "@/server/llm/tools/enrichment";
+import { enrichResult } from "@/server/llm/enrichment";
+import { validateAndExecute } from "@/server/llm/tools/shared";
 import { performSkillCheck } from "@/server/llm/rollSkillCheck";
 import chalk from "chalk";
 import { highlightJson, highlightMarkdown } from "@/shared/highlight";
 import { type SkillName, TOOL_NAMES, DEBUG_PRINT_LLM_GENERATIONS } from "@/shared/constants";
 
 const SEP = chalk.dim("─".repeat(48));
-import {
-  DeepSeekClient,
-  ImmutablePrefix,
-  createGameLoop,
-  vercelToolToSpec,
-  type ToolSpec,
-} from "@/sdk";
+import { DeepSeekClient, ImmutablePrefix, createGameLoop, toolToSpec, type ToolSpec } from "@/sdk";
 
 let generating = false;
 
@@ -79,7 +74,13 @@ export async function getPrefix(): Promise<ImmutablePrefix> {
     editPlot,
     getContext,
   ];
-  const toolSpecs: ToolSpec[] = allTools.map((t: any) => vercelToolToSpec(t));
+  const toolSpecs: ToolSpec[] = allTools.map((t) => toolToSpec(t));
+
+  // Per-turn tools have factory-created state, but their schemas are static —
+  // register specs here so the LLM knows the exact parameter names.
+  toolSpecs.push(toolToSpec(createGenerateDialogueStepTool().tool));
+  toolSpecs.push(toolToSpec(createManageSceneTool(null!)));
+
   _cachedPrefix = new ImmutablePrefix({ system: systemPrompt, toolSpecs });
   return _cachedPrefix;
 }
@@ -89,19 +90,50 @@ function createToolHandlers(
   manageSceneTool: ReturnType<typeof createManageSceneTool>,
 ) {
   return {
-    queryWorld: async (args: string) => (queryWorld as any).execute(JSON.parse(args)),
-    searchWorld: async (args: string) => (searchWorld as any).execute(JSON.parse(args)),
-    manageSchema: async (args: string) => (manageSchema as any).execute(JSON.parse(args)),
-    manageNode: async (args: string) => (manageNode as any).execute(JSON.parse(args)),
-    manageRelationship: async (args: string) =>
-      (manageRelationship as any).execute(JSON.parse(args)),
-    editNote: async (args: string) => (editNote as any).execute(JSON.parse(args)),
-    editPlot: async (args: string) => (editPlot as any).execute(JSON.parse(args)),
-    getContext: async (args: string) => (getContext as any).execute(JSON.parse(args)),
-    generateDialogueStep: async (args: string) =>
-      (dialogueStepTool.tool as any).execute(JSON.parse(args)),
-    manageScene: async (args: string) => (manageSceneTool as any).execute(JSON.parse(args)),
+    queryWorld: async (args: string) => validateAndExecute(queryWorld, args),
+    searchWorld: async (args: string) => validateAndExecute(searchWorld, args),
+    manageSchema: async (args: string) => validateAndExecute(manageSchema, args),
+    manageNode: async (args: string) => validateAndExecute(manageNode, args),
+    manageRelationship: async (args: string) => validateAndExecute(manageRelationship, args),
+    editNote: async (args: string) => validateAndExecute(editNote, args),
+    editPlot: async (args: string) => validateAndExecute(editPlot, args),
+    getContext: async (args: string) => validateAndExecute(getContext, args),
+    generateDialogueStep: async (args: string) => validateAndExecute(dialogueStepTool.tool, args),
+    manageScene: async (args: string) => validateAndExecute(manageSceneTool, args),
   };
+}
+
+function detectFormat(content: string) {
+  let parsed: null;
+  try {
+    parsed = JSON.parse(content);
+  } catch (e) {
+    return "markdown";
+  }
+
+  if (typeof parsed === "object" && parsed !== null) {
+    return "json"; // array or object
+  }
+
+  if (typeof parsed === "string") {
+    const markdownPatterns = [
+      /^#{1,6}\s+\S/m, // headers
+      /^[\*\-\+]\s+\S/m, // unordered lists
+      /^\d+\.\s+\S/m, // ordered lists
+      /\[.+\]\(.+\)/, // links
+      /```/, // code fences
+      /^\>/m, // blockquotes
+      /\*\*.*\*\*/, // bold
+      /__.*__/, // bold (alternative)
+      /\*.*\*/, // italic
+    ];
+    if (markdownPatterns.some((pattern) => pattern.test(content))) {
+      return "markdown";
+    }
+    return "json";
+  }
+  // number, boolean, null
+  return "json";
 }
 
 export async function generateTurn(
@@ -202,7 +234,7 @@ export async function generateTurn(
         "## BEGIN FIRST TURN",
         `This is first turn, you should call \`${TOOL_NAMES.GET_CONTEXT}\` with ["SCHEMA_DUMP", "CHARACTERS_BRIEF", "LOCATIONS_BRIEF", "OBJECTS_BRIEF", "PLOTS_BRIEF", "RELATIONSHIP_DUMP"].`,
         `Explore with \`${TOOL_NAMES.QUERY_WORLD}\`.`,
-        `Check notes/plots by \`${TOOL_NAMES.SEARCH_WORLD}\`. Search note with "Opening Scene" recommended.`,
+        `Check notes/plots by \`${TOOL_NAMES.SEARCH_WORLD}\`. Search note with "Opening Scene" (limit: 1) is recommended.`,
         "",
         "---",
         "",
@@ -277,6 +309,13 @@ export async function generateTurn(
       console.log(SEP);
       console.log(chalk.bold.blue("[USER PROMPT]"));
       console.log(highlightMarkdown(promptText));
+      console.log(SEP);
+      console.log(chalk.bold.cyan("[TOOL SCHEMAS]"));
+      for (const spec of prefix.toolSpecs) {
+        console.log(chalk.cyan(`${spec.function.name}`));
+        console.log(highlightJson(JSON.stringify(spec, null, 2)));
+        console.log("\n");
+      }
     }
 
     for await (const event of loop.step(promptText)) {
@@ -370,7 +409,7 @@ export async function generateTurn(
               console.log(SEP);
               console.log(chalk.bold.cyan("[TOOL CALLS]"));
               for (const [, tc] of debugToolCalls) {
-                console.log(chalk.cyan(`  ${tc.name}`));
+                console.log(chalk.cyan(`${tc.name}`));
                 console.log(highlightJson(tc.args));
               }
             }
@@ -381,7 +420,11 @@ export async function generateTurn(
           if (DEBUG_PRINT_LLM_GENERATIONS) {
             console.log(SEP);
             console.log(chalk.bold.yellow(`[TOOL RESULT: ${event.name}]`));
-            console.log(highlightJson(event.result));
+            console.log(
+              detectFormat(event.result) == "markdown"
+                ? highlightMarkdown(event.result)
+                : highlightJson(event.result),
+            );
           }
           break;
         case "error":

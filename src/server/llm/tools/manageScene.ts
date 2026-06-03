@@ -16,8 +16,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { tool } from "ai";
 import { z } from "zod";
+import type { Tool } from "@/sdk";
 import { Database } from "@/server/db";
 import type { EventEmitter } from "@/server/llm/events";
 import { wrapSafe } from "@/server/llm/tools/shared";
@@ -72,9 +72,9 @@ const inputSchema = z.object({
     .describe("MODIFY: close active scene at this hour (24h, .5 for half-past)."),
 });
 
-export function createManageSceneTool(events: EventEmitter) {
-  return tool({
-    title: TOOL_NAMES.MANAGE_SCENE,
+export function createManageSceneTool(events: EventEmitter): Tool<typeof inputSchema> {
+  return {
+    name: TOOL_NAMES.MANAGE_SCENE,
     description: `
 ## Brief
 Manage scene transitions. CREATE starts a new scene, MODIFY adjusts or closes the active scene, READ returns info about the active scene, FIX confirms pending creation after discrepancies.
@@ -107,7 +107,7 @@ Returns: scene name, time, location, characters, and log entry count.
 At most one Scene has \`end_time = NULL\` (the active scene). When CREATE is called, the old scene's
 \`end_time\` is automatically set when you do not manually MODIFY it, and a NEXT_SCENE relationship links them.
 `.trim(),
-    inputSchema,
+    schema: inputSchema,
     execute: (() => {
       interface PendingCreate {
         scene_name: string;
@@ -307,5 +307,5 @@ At most one Scene has \`end_time = NULL\` (the active scene). When CREATE is cal
         return `Scene (unique name: "${args.scene_name ?? active!.name}")${fallbackNote} modified. Current characters: [${updated?.characters.join(", ") ?? ""}].`;
       }, TOOL_NAMES.MANAGE_SCENE);
     })(),
-  });
+  };
 }

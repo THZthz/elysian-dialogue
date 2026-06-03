@@ -32,7 +32,7 @@ async function start() {
 
     console.log("[db] initializing...");
     await Database.getInstance();
-    console.log("[db] ready.");
+    console.log("[db] ready");
 
     await seedDatabase();
 

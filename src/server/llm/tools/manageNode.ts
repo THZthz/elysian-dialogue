@@ -16,8 +16,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { tool } from "ai";
 import { z } from "zod";
+import type { Tool } from "@/sdk";
 import { Database } from "@/server/db";
 import { getSchemaRegistry } from "@/server/db/schema";
 import { extractInternalAndUnknownKeys, wrapSafe } from "@/server/llm/tools/shared";
@@ -99,8 +99,8 @@ function getMatchValues(match: Record<string, string | string[]>): string[] {
   return Array.isArray(val) ? val : [val];
 }
 
-export const manageNode = tool({
-  title: TOOL_NAMES.MANAGE_NODE,
+export const manageNode: Tool<typeof inputSchema> = {
+  name: TOOL_NAMES.MANAGE_NODE,
   description: `
 ## Brief
 READ, UPSERT, or DELETE nodes. UPSERT creates-or-updates a single node with JSON partial merge
@@ -140,7 +140,7 @@ Since \`metadata\` is tagged as "json" of node Character in SCHEMA_DUMP, you can
 }
 \`\`\`
 `.trim(),
-  inputSchema,
+  schema: inputSchema,
   execute: wrapSafe(async (args: z.infer<typeof inputSchema>) => {
     const db = Database.getExisting();
     const registry = getSchemaRegistry();
@@ -404,4 +404,4 @@ Since \`metadata\` is tagged as "json" of node Character in SCHEMA_DUMP, you can
 
     return `ERROR: Unknown action "${args.action}". Valid actions: READ, UPSERT, DELETE.`;
   }, TOOL_NAMES.MANAGE_NODE),
-});
+};

@@ -16,8 +16,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { tool } from "ai";
 import { z } from "zod";
+import type { Tool } from "@/sdk";
 import { Database } from "@/server/db";
 import { PLOT_STATUSES } from "@/server/db/models/plots";
 import { wrapSafe } from "@/server/llm/tools/shared";
@@ -66,8 +66,8 @@ const inputSchema = z.object({
     .describe("Child plot \`name\` to disconnect from this plot."),
 });
 
-export const editPlot = tool({
-  title: TOOL_NAMES.EDIT_PLOT,
+export const editPlot: Tool<typeof inputSchema> = {
+  name: TOOL_NAMES.EDIT_PLOT,
   description: `
 ## Brief
 Manage narrative arcs — CREATE, UPDATE (partial overwrite), or DELETE a plot.
@@ -82,7 +82,7 @@ Use \`setFlag\` or \`removeFlags\` to track story milestones within a plot.
 Use \`branchTo\` or \`unbranch\` to connect or disconnect child plots. A branch describes a course
 of action or allegiance, not a single line of dialogue.
 `.trim(),
-  inputSchema,
+  schema: inputSchema,
   execute: wrapSafe(async (args: z.infer<typeof inputSchema>) => {
     const db = Database.getExisting();
 
@@ -175,4 +175,4 @@ of action or allegiance, not a single line of dialogue.
     const summary = changes.length > 0 ? ` (${changes.join(", ")})` : "";
     return `Plot "${args.plotName}" is successfully updated${summary}.`;
   }, TOOL_NAMES.EDIT_PLOT),
-});
+};

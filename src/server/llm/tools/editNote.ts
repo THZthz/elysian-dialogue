@@ -16,8 +16,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { tool } from "ai";
 import { z } from "zod";
+import type { Tool } from "@/sdk";
 import { Database } from "@/server/db";
 import { wrapSafe } from "@/server/llm/tools/shared";
 import { TOOL_NAMES } from "@/shared/constants";
@@ -56,8 +56,8 @@ const inputSchema = z.object({
     ),
 });
 
-export const editNote = tool({
-  title: TOOL_NAMES.EDIT_NOTE,
+export const editNote: Tool<typeof inputSchema> = {
+  name: TOOL_NAMES.EDIT_NOTE,
   description: `
 ## Brief
 Your scratchpad — CREATE, UPDATE (partial overwrite), or DELETE a note. Notes can be
@@ -74,7 +74,7 @@ A good note reads like a concise reminder to yourself, and positively contribute
 Do not readily use \`${TOOL_NAMES.SEARCH_WORLD}\`, consider relationships ABOUT_CHARACTER, ABOUT_OBJECT, ABOUT_LOCATION, ABOUT_PLOT
 or ABOUT_SCENE first if you have a clear target.
 `.trim(),
-  inputSchema,
+  schema: inputSchema,
   execute: wrapSafe(async (args: z.infer<typeof inputSchema>) => {
     const db = Database.getExisting();
 
@@ -134,4 +134,4 @@ or ABOUT_SCENE first if you have a clear target.
     if (flags & 0x8) updatedFields.push("all plots links");
     return `Note "${args.noteName}" is successfully updated (overwritten ${updatedFields.join(", ")}).`;
   }, TOOL_NAMES.EDIT_NOTE),
-});
+};

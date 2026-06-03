@@ -39,7 +39,8 @@ export { createGameLoop } from "@/sdk/loop";
 export { buildCacheDiagnostic, prefixDiagnosticHashes } from "@/sdk/diagnostics";
 export type { CacheDiagnostic, PrefixDiagnosticHashes } from "@/sdk/diagnostics";
 
-export { vercelToolToSpec } from "@/sdk/bridge";
+export { toolToSpec } from "@/sdk/bridge";
+export type { Tool } from "@/sdk/bridge";
 
 export { Usage } from "@/sdk/types";
 export type {

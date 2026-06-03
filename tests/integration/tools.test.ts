@@ -28,7 +28,7 @@ import { manageSchema } from "@/server/llm/tools/manageSchema";
 import { getContext } from "@/server/llm/tools/getContext";
 import { createGenerateDialogueStepTool } from "@/server/llm/tools/generateDialogueStep";
 import { createManageSceneTool } from "@/server/llm/tools/manageScene";
-import { enrichResult } from "@/server/llm/tools/enrichment";
+import { enrichResult } from "@/server/llm/enrichment";
 import { TOOL_NAMES } from "@/shared/constants";
 
 // Helpers — AI SDK tool execute() requires 2 args: (input, options)

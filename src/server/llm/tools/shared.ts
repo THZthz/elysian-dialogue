@@ -53,6 +53,45 @@ export function wrapSafe<T>(
   };
 }
 
+// ---------------------------------------------------------------------------
+// Schema-aware tool execution
+// ---------------------------------------------------------------------------
+
+import type { Tool } from "@/sdk";
+import { jsonrepair } from "jsonrepair";
+
+export async function validateAndExecute(tool: Tool, rawArgs: string): Promise<string> {
+  // 1. Parse JSON, with repair fallback
+  let parsed: unknown;
+  let repairNote = "";
+  try {
+    parsed = JSON.parse(rawArgs);
+  } catch {
+    try {
+      const repaired = jsonrepair(rawArgs);
+      parsed = JSON.parse(repaired);
+      repairNote =
+        "\n(Note: JSON was malformed and has been repaired — check for trailing commas, unquoted keys, or missing braces.)";
+    } catch {
+      return "INVALID JSON: Could not parse arguments. Check for syntax errors like trailing commas, unquoted keys, or missing braces.";
+    }
+  }
+
+  // 2. Validate against the tool's Zod schema
+  const result = tool.schema.safeParse(parsed);
+  if (!result.success) {
+    const issues = result.error.issues
+      .map((i) => `- ${i.path.length ? i.path.join(".") : "(root)"}: ${i.message}`)
+      .join("\n");
+    const extra = repairNote || "";
+    return `VALIDATION FAILED\n${issues}\n\nCall again with corrected arguments.${extra}`;
+  }
+
+  // 3. Execute with validated data
+  const output = await tool.execute(result.data);
+  return repairNote ? repairNote + "\n" + output : output;
+}
+
 /**
  * Especially used in manageNode and manageRelationship.
  * @param schemaProps

@@ -16,8 +16,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { tool } from "ai";
 import { z } from "zod";
+import type { Tool } from "@/sdk";
 import { Database } from "@/server/db";
 import { wrapSafe } from "@/server/llm/tools/shared";
 import { TOOL_NAMES } from "@/shared/constants";
@@ -44,8 +44,20 @@ function extractLabels(query: string): string[] {
   return [...labels];
 }
 
-export const queryWorld = tool({
-  title: TOOL_NAMES.QUERY_WORLD,
+const inputSchema = z.object({
+  action: z
+    .enum(["READ", "WRITE"])
+    .default("READ")
+    .describe("READ to query the world, WRITE to modify it."),
+  query: z
+    .string()
+    .describe(
+      "A Cypher query. READ: MATCH...RETURN. WRITE: CREATE, MERGE, SET, DELETE. Must include MATCH with WHERE for deletions.",
+    ),
+});
+
+export const queryWorld: Tool<typeof inputSchema> = {
+  name: TOOL_NAMES.QUERY_WORLD,
   description: `
 ## Brief
 READ or WRITE the world archive using Cypher.
@@ -64,18 +76,8 @@ Internal properties prefixed with "_" are hidden from READ results.
 ## Forbidden
 - Do not call this tool multiple times when the queries are similar in structure, combine queries.
 `.trim(),
-  inputSchema: z.object({
-    action: z
-      .enum(["READ", "WRITE"])
-      .default("READ")
-      .describe("READ to query the world, WRITE to modify it."),
-    query: z
-      .string()
-      .describe(
-        "A Cypher query. READ: MATCH...RETURN. WRITE: CREATE, MERGE, SET, DELETE. Must include MATCH with WHERE for deletions.",
-      ),
-  }),
-  execute: wrapSafe(async (args) => {
+  schema: inputSchema,
+  execute: wrapSafe(async (args: z.infer<typeof inputSchema>) => {
     const db = Database.getExisting();
 
     if (args.action === "WRITE") {
@@ -115,4 +117,4 @@ Internal properties prefixed with "_" are hidden from READ results.
       return `QUERY ERROR:\n${msg}.\nAdjust your query and retry.`;
     }
   }, TOOL_NAMES.QUERY_WORLD),
-});
+};

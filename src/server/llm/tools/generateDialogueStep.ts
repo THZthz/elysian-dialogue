@@ -16,8 +16,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { tool } from "ai";
 import { z } from "zod";
+import type { Tool } from "@/sdk";
 import { NOTIFICATION_TYPES, SPEAKER_TYPES, SpeakerType } from "@/types/dialogue";
 import { TOOL_NAMES, SKILL_NAMES } from "@/shared/constants";
 import { checkText } from "@/server/llm/tools/shared";
@@ -373,8 +373,8 @@ export function createGenerateDialogueStepTool(persistMessage?: PersistMessageFn
   let lastCallOptions: DialogueOpt[] = [];
   let lastPersistedCount = 0;
 
-  const dialogueTool = tool({
-    title: TOOL_NAMES.GENERATE_DIALOGUE,
+  const dialogueTool: Tool<typeof inputSchema> = {
+    name: TOOL_NAMES.GENERATE_DIALOGUE,
     description: `
 ## Brief
 SPEAK to the player. Each turn must include a valid call here.
@@ -426,7 +426,7 @@ should follow:
 - Dialogue of characters should be wrapped by \`"\` and in italics
 - Any text that is emphasized should be in bold
 `.trim(),
-    inputSchema,
+    schema: inputSchema,
     execute: async (args: DialogueArgs) => {
       const isCorrection = args.isCorrection ?? false;
 
@@ -486,7 +486,7 @@ should follow:
 
       return result;
     },
-  });
+  };
 
   return {
     tool: dialogueTool,

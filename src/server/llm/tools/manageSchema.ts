@@ -16,15 +16,67 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { tool } from "ai";
 import { z } from "zod";
+import type { Tool } from "@/sdk";
 import { Database } from "@/server/db";
 import { RelPropertyDef, NODE_PROPERTY_TAGS, REL_PROPERTY_TAGS } from "@/server/db/schema";
 import { wrapSafe } from "@/server/llm/tools/shared";
 import { TOOL_NAMES } from "@/shared/constants";
 
-export const manageSchema = tool({
-  title: TOOL_NAMES.MANAGE_SCHEMA,
+const inputSchema = z.object({
+  target: z
+    .enum(["NODE", "RELATIONSHIP"])
+    .describe("Whether to register a node type (label) or a relationship type."),
+  action: z
+    .enum(["REGISTER", "UNREGISTER"])
+    .describe(
+      "Register a new type or remove an existing one. Only GM-defined types can be unregistered.",
+    ),
+  name: z
+    .string()
+    .describe(
+      "The name of the node label (e.g. 'Artifact') or relationship type (e.g. 'CONNECTED_TO'). Use PascalCase for node labels, UPPER_SNAKE for relationships.",
+    ),
+  description: z
+    .string()
+    .nullable()
+    .optional()
+    .describe(
+      "For register: describes what the node type represents or what the relationship type means. For unregister: not needed.",
+    ),
+  properties: z
+    .array(
+      z.object({
+        name: z.string().describe("Property name (snake_case, e.g. 'power_level')."),
+        description: z.string().describe("What this property stores."),
+        tags: z
+          .array(z.enum(NODE_PROPERTY_TAGS))
+          .describe(
+            `Comma-separated tags describing the property. For nodes: 'string', 'number', 'number[]', 'json', 'embedded', 'unique'. For relationships: same tags except 'unique' (not supported for relationship properties).`,
+          ),
+      }),
+    )
+    .nullable()
+    .optional()
+    .describe(
+      "For action=register: the property schema for the new type (nodes or relationships).",
+    ),
+  sourceLabel: z
+    .string()
+    .optional()
+    .describe(
+      "The node label that sits at the source (tail) of this relationship. E.g. 'Character'. Required for relationship registration.",
+    ),
+  targetLabel: z
+    .string()
+    .optional()
+    .describe(
+      "The node label that sits at the target (head) of this relationship. E.g. 'Location'. Required for relationship registration.",
+    ),
+});
+
+export const manageSchema: Tool<typeof inputSchema> = {
+  name: TOOL_NAMES.MANAGE_SCHEMA,
   description: `
 ## Brief
 Register or unregister node types and relationship types in the world schema.
@@ -49,58 +101,8 @@ Only GM_DEFINED types can be unregistered. PREDEFINED and INTERNAL types are per
 - \`embedded\`: property text will be embedded into the dense vector for semantic search and used in the reranker
 - \`unique\`: will create a unique constraint on this property, not available for relationship
 `.trim(),
-  inputSchema: z.object({
-    target: z
-      .enum(["NODE", "RELATIONSHIP"])
-      .describe("Whether to register a node type (label) or a relationship type."),
-    action: z
-      .enum(["REGISTER", "UNREGISTER"])
-      .describe(
-        "Register a new type or remove an existing one. Only GM-defined types can be unregistered.",
-      ),
-    name: z
-      .string()
-      .describe(
-        "The name of the node label (e.g. 'Artifact') or relationship type (e.g. 'CONNECTED_TO'). Use PascalCase for node labels, UPPER_SNAKE for relationships.",
-      ),
-    description: z
-      .string()
-      .nullable()
-      .optional()
-      .describe(
-        "For register: describes what the node type represents or what the relationship type means. For unregister: not needed.",
-      ),
-    properties: z
-      .array(
-        z.object({
-          name: z.string().describe("Property name (snake_case, e.g. 'power_level')."),
-          description: z.string().describe("What this property stores."),
-          tags: z
-            .array(z.enum(NODE_PROPERTY_TAGS))
-            .describe(
-              `Comma-separated tags describing the property. For nodes: 'string', 'number', 'number[]', 'json', 'embedded', 'unique'. For relationships: same tags except 'unique' (not supported for relationship properties).`,
-            ),
-        }),
-      )
-      .nullable()
-      .optional()
-      .describe(
-        "For action=register: the property schema for the new type (nodes or relationships).",
-      ),
-    sourceLabel: z
-      .string()
-      .optional()
-      .describe(
-        "The node label that sits at the source (tail) of this relationship. E.g. 'Character'. Required for relationship registration.",
-      ),
-    targetLabel: z
-      .string()
-      .optional()
-      .describe(
-        "The node label that sits at the target (head) of this relationship. E.g. 'Location'. Required for relationship registration.",
-      ),
-  }),
-  execute: wrapSafe(async (args) => {
+  schema: inputSchema,
+  execute: wrapSafe(async (args: z.infer<typeof inputSchema>) => {
     const db = Database.getExisting();
 
     if (args.action === "REGISTER") {
@@ -211,4 +213,4 @@ Only GM_DEFINED types can be unregistered. PREDEFINED and INTERNAL types are per
 
     return "ERROR: Invalid action. Use 'REGISTER' or 'UNREGISTER'.";
   }, TOOL_NAMES.MANAGE_SCHEMA),
-});
+};

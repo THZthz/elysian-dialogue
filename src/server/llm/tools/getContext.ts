@@ -16,8 +16,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { tool } from "ai";
 import { z } from "zod";
+import type { Tool } from "@/sdk";
 import { TOOL_NAMES } from "@/shared/constants";
 import { wrapSafe } from "@/server/llm/tools/shared";
 import {
@@ -218,8 +218,28 @@ async function buildSchemaDump(): Promise<string> {
   return lines.join("\n");
 }
 
-export const getContext = tool({
-  title: TOOL_NAMES.GET_CONTEXT,
+const inputSchema = z.object({
+  types: z.array(z.enum(CONTEXT_TYPES)).describe("Which context sections to return."),
+  relationshipHistory: z
+    .boolean()
+    .optional()
+    .describe(
+      "For RELATIONSHIP_DUMP: when true, shows all relationships including expired with time ranges.",
+    ),
+  entityName: z
+    .string()
+    .optional()
+    .describe("For ENTITY_PROFILE: the name of the entity to profile."),
+  entityLabel: z
+    .string()
+    .optional()
+    .describe(
+      "For ENTITY_PROFILE: the label of the entity to profile (e.g. 'Character', 'Object').",
+    ),
+});
+
+export const getContext: Tool<typeof inputSchema> = {
+  name: TOOL_NAMES.GET_CONTEXT,
   description: `
 ## Brief
 Pull pre-built context from the world. Nothing is auto-loaded — you choose what you need.
@@ -236,25 +256,7 @@ Pull pre-built context from the world. Nothing is auto-loaded — you choose wha
 - ENTITY_PROFILE — Everything about one node: properties, location, carried items, dispositions, notes, scene appearances, and relationship history. Requires entityName + entityLabel.
 - CYPHER_COOKBOOK - The graph database is LadybugDB, its Cypher syntax is slightly different from most used database Neo4j.
 `.trim(),
-  inputSchema: z.object({
-    types: z.array(z.enum(CONTEXT_TYPES)).describe("Which context sections to return."),
-    relationshipHistory: z
-      .boolean()
-      .optional()
-      .describe(
-        "For RELATIONSHIP_DUMP: when true, shows all relationships including expired with time ranges.",
-      ),
-    entityName: z
-      .string()
-      .optional()
-      .describe("For ENTITY_PROFILE: the name of the entity to profile."),
-    entityLabel: z
-      .string()
-      .optional()
-      .describe(
-        "For ENTITY_PROFILE: the label of the entity to profile (e.g. 'Character', 'Object').",
-      ),
-  }),
+  schema: inputSchema,
   execute: wrapSafe(
     async (args: {
       types: ContextType[];
@@ -309,4 +311,4 @@ Pull pre-built context from the world. Nothing is auto-loaded — you choose wha
     },
     TOOL_NAMES.GET_CONTEXT,
   ),
-});
+};

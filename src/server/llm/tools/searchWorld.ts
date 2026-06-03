@@ -16,8 +16,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { tool } from "ai";
 import { z } from "zod";
+import type { Tool } from "@/sdk";
 import { Database } from "@/server/db";
 import { SchemaRegistry } from "@/server/db/schema";
 import { wrapSafe } from "@/server/llm/tools/shared";
@@ -77,8 +77,27 @@ function getVectorSearchable(type: "relationship" | "label"): {
   return { canonical, labelToCanonical };
 }
 
-export const searchWorld = tool({
-  title: TOOL_NAMES.SEARCH_WORLD,
+const inputSchema = z.object({
+  query: z
+    .string()
+    .describe(
+      "Natural language search query, usually a few keywords. Keep short and focus on the same topic.",
+    ),
+  target: z
+    .array(z.enum(["NODE", "RELATIONSHIP"]))
+    .default(["NODE", "RELATIONSHIP"])
+    .describe("Search nodes, relationships, or both. Defaults to both."),
+  domains: z
+    .array(z.string())
+    .optional()
+    .describe(
+      "Node labels or relationship types to search (e.g. ['Character', 'Location', 'Message', 'LOCATED_AT']). Omit to search all searchable types.",
+    ),
+  limit: z.number().default(3).describe("Max results per domain."),
+});
+
+export const searchWorld: Tool<typeof inputSchema> = {
+  name: TOOL_NAMES.SEARCH_WORLD,
   description: `
 ## Brief
 Search the archive by semantic MEANING (vector similarity search with reranking).
@@ -93,25 +112,8 @@ Search your notes at the start of every turn with domains: ["Note"].
 Do not combine multiple search attempts into a single call.
 Do not forget to use parameter \`limit\` wisely, if the search should be exact, set it to 1.
 `.trim(),
-  inputSchema: z.object({
-    query: z
-      .string()
-      .describe(
-        "Natural language search query, usually a few keywords. Keep short and focus on the same topic.",
-      ),
-    target: z
-      .array(z.enum(["NODE", "RELATIONSHIP"]))
-      .default(["NODE", "RELATIONSHIP"])
-      .describe("Search nodes, relationships, or both. Defaults to both."),
-    domains: z
-      .array(z.string())
-      .optional()
-      .describe(
-        "Node labels or relationship types to search (e.g. ['Character', 'Location', 'Message', 'LOCATED_AT']). Omit to search all searchable types.",
-      ),
-    limit: z.number().default(3).describe("Max results per domain."),
-  }),
-  execute: wrapSafe(async (args) => {
+  schema: inputSchema,
+  execute: wrapSafe(async (args: z.infer<typeof inputSchema>) => {
     const target = args.target ?? ["NODE", "RELATIONSHIP"];
     const searchNodes = target.includes("NODE");
     const searchRels = target.includes("RELATIONSHIP");
@@ -175,4 +177,4 @@ Do not forget to use parameter \`limit\` wisely, if the search should be exact, 
 
     return JSON.stringify(result, null, 2);
   }, TOOL_NAMES.SEARCH_WORLD),
-});
+};

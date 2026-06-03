@@ -16,8 +16,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { tool } from "ai";
 import { z } from "zod";
+import type { Tool } from "@/sdk";
 import { Database } from "@/server/db";
 import { SchemaRegistry, type RelTypeDef, getSchemaRegistry } from "@/server/db/schema";
 import { extractInternalAndUnknownKeys, wrapSafe } from "@/server/llm/tools/shared";
@@ -127,8 +127,8 @@ const inputSchema = z.object({
     ),
 });
 
-export const manageRelationship = tool({
-  title: TOOL_NAMES.MANAGE_RELATIONSHIP,
+export const manageRelationship: Tool<typeof inputSchema> = {
+  name: TOOL_NAMES.MANAGE_RELATIONSHIP,
   description: `
 ## Brief
 READ, UPSERT, or END relationships between nodes. UPSERT creates-or-updates a single relationship
@@ -173,7 +173,7 @@ history is preserved.
 Convention: use LOCATED_AT for characters/objects at a specific spot. Use LOCATED_IN for
 sub-locations nested within a larger location (e.g., a basement inside a tavern).
 `.trim(),
-  inputSchema,
+  schema: inputSchema,
   execute: wrapSafe(async (args: z.infer<typeof inputSchema>) => {
     const db = Database.getExisting();
     const registry = getSchemaRegistry();
@@ -785,4 +785,4 @@ sub-locations nested within a larger location (e.g., a basement inside a tavern)
 
     return `ERROR: Unknown action "${args.action}". Valid actions: READ, UPSERT, END.`;
   }, TOOL_NAMES.MANAGE_RELATIONSHIP),
-});
+};
