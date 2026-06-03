@@ -17,6 +17,7 @@
  */
 
 import * as fs from "fs";
+import * as fsp from "fs/promises";
 import * as path from "path";
 import { Connection, Database } from "@ladybugdb/core";
 
@@ -31,13 +32,13 @@ async function reopenWithRetry(
   reopenCallback: () => Promise<void>,
   copyError: unknown,
 ): Promise<void> {
-  for (let attempt = 0; attempt < 5; attempt++) {
+  for (let attempt = 0; attempt < 10; attempt++) {
     try {
       await reopenCallback();
       return;
     } catch (err) {
-      if (attempt === 4) throw copyError ?? err;
-      await new Promise((r) => setTimeout(r, 300));
+      if (attempt === 9) throw copyError ?? err;
+      await new Promise((r) => setTimeout(r, 500));
     }
   }
 }
@@ -70,24 +71,28 @@ export class CheckpointManager {
     // LadybugDB file lock is released before this Promise resolves.
     await closeCallback();
 
-    // WAL is flushed via CHECKPOINT before close, so only the main
-    // database file needs copying — no .wal companion to worry about.
+    // On Windows the OS file handle may outlive LadybugDB's close().
+    // Poll until the file becomes readable, then copy with retry.
     let copyError: unknown = null;
     try {
-      for (let attempt = 0; attempt < 5; attempt++) {
+      for (let attempt = 0; attempt < 30; attempt++) {
         try {
-          fs.copyFileSync(this.graphPath, graphDest);
+          // Test readability first — a successful open-for-read means the
+          // OS handle has been released and we can proceed.
+          const handle = await fsp.open(this.graphPath, fs.constants.O_RDONLY);
+          await handle.close();
+          await fsp.copyFile(this.graphPath, graphDest);
           break;
         } catch (err) {
-          if (attempt === 4) {
+          if (attempt === 29) {
             copyError = err;
           } else {
-            await new Promise((r) => setTimeout(r, 200));
+            await new Promise((r) => setTimeout(r, 500));
           }
         }
       }
       if (!copyError) {
-        fs.copyFileSync(this.vectorPath, vectorDest);
+        await fsp.copyFile(this.vectorPath, vectorDest);
       }
     } finally {
       await reopenWithRetry(reopenCallback, copyError);
