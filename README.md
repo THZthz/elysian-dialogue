@@ -81,21 +81,6 @@ docker compose down -v
 curl -X POST http://localhost:3000/api/reset
 ```
 
-## How It Works
-
-1. **Player chooses an action** — dialogue option, skill check, or custom input
-2. **AI Game Master responds** — the LLM uses Neo4j-backed tools to query world state (entities, relationships, facts, conversation history), then generates narrative
-3. **Streaming to console** — typed SSE events deliver progressive messages in real-time
-4. **Inner voices chime in** — twelve skills (Logic, Rhetoric, Empathy, Perception, Volition, Endurance, Sorcery, Suggestion, Instinct, Might, Clockwork, Alchemy) each have distinct personalities that comment on the situation
-
-### World Memory
-
-All game states live in Neo4j: characters, locations, objects, factions, plots, relationships, facts, and conversation history. The GM accesses it through locally-defined AI SDK tools — semantic search, graph traversal, entity CRUD, relationship management, and Cypher queries. Embeddings and reranking are served via llama-server.
-
-### Skill Checks
-
-(outdated, under rework).
-
 ## Developer Documentation
 
 See [DEVELOPER.md](DEVELOPER.md) for configuration and architecture details.

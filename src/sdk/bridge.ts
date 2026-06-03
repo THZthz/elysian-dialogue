@@ -35,7 +35,7 @@ export interface Tool<S extends z.ZodTypeAny = z.ZodTypeAny> {
   name: string;
   description: string;
   schema: S;
-  execute: (args: unknown) => Promise<string>;
+  execute: (args: z.infer<S>) => Promise<string>;
 }
 
 // ---------------------------------------------------------------------------

@@ -16,7 +16,7 @@ npm run server          # Start Express server (port 3000)
 npm run server:dev      # Start server with watch mode
 npm run console         # Start interactive terminal client
 
-npm run lint            # Type-check only (tsc --noEmit)
+npm run lint            # npx tsc --noEmit and npx eslint .
 npm run format          # Format source (prettier)
 npm run format:check    # Check formatting
 
