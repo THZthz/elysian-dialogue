@@ -37,6 +37,8 @@ import { performSkillCheck } from "@/server/llm/rollSkillCheck";
 import chalk from "chalk";
 import { highlightJson, highlightMarkdown } from "@/shared/highlight";
 import { type SkillName, TOOL_NAMES, DEBUG_PRINT_LLM_GENERATIONS } from "@/shared/constants";
+
+const SEP = chalk.dim("─".repeat(48));
 import {
   DeepSeekClient,
   ImmutablePrefix,
@@ -269,9 +271,11 @@ export async function generateTurn(
       console.log(chalk.bold.magenta("\n══════════════════════════════════════════"));
       console.log(chalk.bold.magenta("  LLM GENERATION — Turn"), turnNumber);
       console.log(chalk.bold.magenta("══════════════════════════════════════════"));
-      console.log(chalk.bold.blue("\n[SYSTEM PROMPT]"));
+      console.log(SEP);
+      console.log(chalk.bold.blue("[SYSTEM PROMPT]"));
       console.log(highlightMarkdown(prefix.system));
-      console.log(chalk.bold.blue("\n[USER PROMPT]"));
+      console.log(SEP);
+      console.log(chalk.bold.blue("[USER PROMPT]"));
       console.log(highlightMarkdown(promptText));
     }
 
@@ -345,15 +349,18 @@ export async function generateTurn(
           console.log(`[generateTurn] cacheHitRatio: ${(event.cacheHitRatio * 100).toFixed(2)}% | promptHitRatio: ${promptHitRatio}% | promptMissRatio: ${promptMissRatio}% | promptToken: ${event.usage.promptCacheHitTokens} | completionToken: ${event.usage.completionTokens}`);
           if (debugToolCalls) {
             if (event.reasoning) {
-              console.log(chalk.bold.blue("\n[REASONING]"));
+              console.log(SEP);
+              console.log(chalk.bold.blue("[REASONING]"));
               console.log(highlightMarkdown(event.reasoning));
             }
             if (event.content) {
-              console.log(chalk.bold.green("\n[CONTENT]"));
+              console.log(SEP);
+              console.log(chalk.bold.green("[CONTENT]"));
               console.log(highlightMarkdown(event.content));
             }
             if (debugToolCalls.size > 0) {
-              console.log(chalk.bold.cyan("\n[TOOL CALLS]"));
+              console.log(SEP);
+              console.log(chalk.bold.cyan("[TOOL CALLS]"));
               for (const [, tc] of debugToolCalls) {
                 console.log(chalk.cyan(`  ${tc.name}`));
                 console.log(highlightJson(tc.args));
@@ -364,7 +371,8 @@ export async function generateTurn(
           break;
         case "tool_result":
           if (DEBUG_PRINT_LLM_GENERATIONS) {
-            console.log(chalk.bold.yellow(`\n[TOOL RESULT: ${event.name}]`));
+            console.log(SEP);
+            console.log(chalk.bold.yellow(`[TOOL RESULT: ${event.name}]`));
             console.log(highlightJson(event.result));
           }
           break;
