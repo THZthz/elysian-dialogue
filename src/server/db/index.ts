@@ -124,6 +124,22 @@ export class Database {
     this.vectors.close();
   }
 
+  /** Synchronous close — releases the LadybugDB file lock before returning.
+   *  Used during checkpoint saves to avoid Windows lock-timing issues. */
+  closeSync(): void {
+    this.graph.closeSync();
+    this.vectors.close();
+  }
+
+  /** Flush WAL to main database file so a file copy captures all data. */
+  async flushCheckpoint(): Promise<void> {
+    try {
+      await this.graph.query("CHECKPOINT;");
+    } catch {
+      // CHECKPOINT may not be supported in all LadybugDB versions — ignore
+    }
+  }
+
   async reset(): Promise<void> {
     await this.close();
     // Delete main files and their WAL/SHM companions to avoid
@@ -165,6 +181,14 @@ export class Database {
   static async closeInstance(): Promise<void> {
     if (Database.instance) {
       await Database.instance.close();
+      Database.instance = null;
+      SchemaRegistry.resetInstance();
+    }
+  }
+
+  static closeInstanceSync(): void {
+    if (Database.instance) {
+      Database.instance.closeSync();
       Database.instance = null;
       SchemaRegistry.resetInstance();
     }

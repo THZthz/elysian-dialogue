@@ -51,25 +51,34 @@ export class CheckpointManager {
     const graphDest = path.join(turnDir, "graph.lbug");
     const vectorDest = path.join(turnDir, "vectors.db");
 
+    // closeCallback uses Database.closeSync() under the hood, so the
+    // LadybugDB file lock is released before this Promise resolves.
     await closeCallback();
+
+    // WAL is flushed via CHECKPOINT before close, so only the main
+    // database file needs copying — no .wal companion to worry about.
     try {
-      // Retry with backoff — LadybugDB may not release file lock instantly
-      for (let attempt = 0; attempt < 20; attempt++) {
+      for (let attempt = 0; attempt < 5; attempt++) {
         try {
           fs.copyFileSync(this.graphPath, graphDest);
           break;
         } catch (err) {
-          if (attempt === 19) throw err;
-          await new Promise((r) => setTimeout(r, 150));
+          if (attempt === 4) throw err;
+          await new Promise((r) => setTimeout(r, 200));
         }
-      }
-      const walPath = this.graphPath + ".wal";
-      if (fs.existsSync(walPath)) {
-        fs.copyFileSync(walPath, graphDest + ".wal");
       }
       fs.copyFileSync(this.vectorPath, vectorDest);
     } finally {
-      await reopenCallback();
+      // Reopen may still hit a transient lock on rare occasions.
+      for (let attempt = 0; attempt < 5; attempt++) {
+        try {
+          await reopenCallback();
+          return;
+        } catch (err) {
+          if (attempt === 4) throw err;
+          await new Promise((r) => setTimeout(r, 300));
+        }
+      }
     }
 
     const index = this.loadIndex();

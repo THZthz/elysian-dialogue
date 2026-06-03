@@ -494,10 +494,11 @@ export async function generateTurn(
 
     // Save checkpoint
     try {
+      await db.flushCheckpoint();
       await db.checkpoint.save(
         turnNumber,
         async () => {
-          await Database.closeInstance();
+          Database.closeInstanceSync();
         },
         async () => {
           await Database.getInstance();

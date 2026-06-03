@@ -66,6 +66,19 @@ export class LadybugClient {
     }
   }
 
+  /** Synchronous close — releases the file lock before returning.
+   *  Used during checkpoint saves to avoid Windows lock-timing issues. */
+  closeSync(): void {
+    if (this.conn) {
+      this.conn.closeSync();
+      this.conn = null;
+    }
+    if (this.db) {
+      this.db.closeSync();
+      this.db = null;
+    }
+  }
+
   async mergeRelationship(
     srcLabel: string,
     srcKey: string,
