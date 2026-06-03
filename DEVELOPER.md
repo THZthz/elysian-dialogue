@@ -146,23 +146,6 @@ Console (SSE client) ──POST /api/chat/stream──▶ Express API
                           (read world)  (streamed to player via SSE)
 ```
 
-### Key files
-
-| File                                | Role                                                                                                             |
-|-------------------------------------|------------------------------------------------------------------------------------------------------------------|
-| `src/server/main.ts`                | Entry: starts Express, initializes Database singleton, seeds world                                               |
-| `src/server/api.ts`                 | All REST endpoints (`/chat/stream`, `/history`, `/game/current`, `/checkpoints`, `/reset`, `/debug/tools/:name`) |
-| `src/server/llm/index.ts`           | Core turn loop: builds prompt, calls `createGameLoop()`, emits SSE, persists checkpoints                             |
-| `src/sdk/loop.ts`                   | SDK turn loop: generator that yields LoopEvents, handles tool dispatch, cache diagnostics                           |
-| `src/server/llm/prompt.ts`          | System prompt template with full LadybugDB Cypher cookbook and workflow                                          |
-| `src/server/db/index.ts`            | `Database` singleton: owns LadybugClient, VectorStore, SchemaRegistry, HybridSearcher, domain models             |
-| `src/server/db/schema.ts`           | `SchemaRegistry`: all predefined node/rel type definitions, DDL generation, `embedded` tag for vector indexing   |
-| `src/server/db/ladybug.ts`          | Thin wrapper around `@ladybugdb/core` — `query()`, `mergeRelationship()`, `deleteRelationship()`                 |
-| `src/server/db/vectorstore.ts`      | SQLite-backed vector store — brute-force cosine similarity (design note: faster than Qdrant at <10K vectors)     |
-| `src/server/search/hybridSearch.ts` | Dense cosine + BM25 RRF fusion + optional cross-encoder rerank                                                   |
-| `src/console/main.ts`               | Terminal UI: renders SSE events, handles input, resume, regenerate                                               |
-| `src/shared/events.ts`              | SSE event type definitions                                                                                       |
-
 ### LLM tool system
 
 The GM is given 10 tools (defined in `src/server/llm/tools/`), each with a specific responsibility:
