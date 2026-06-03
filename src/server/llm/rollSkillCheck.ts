@@ -115,7 +115,9 @@ export interface SkillCheckResult {
 
 async function getPlayerStats(): Promise<Record<string, number> | null> {
   const db = Database.getExisting();
-  const r = await db.graph.query("MATCH (e:Character {_uid: '00000000--0000-0000-0000-000000000000'}) RETURN e LIMIT 1");
+  const r = await db.graph.query(
+    "MATCH (e:Character {_uid: '00000000--0000-0000-0000-000000000000'}) RETURN e LIMIT 1",
+  );
   if (r.rows.length === 0) return null;
   const entity = db.entities.parseEntity(
     "Character",

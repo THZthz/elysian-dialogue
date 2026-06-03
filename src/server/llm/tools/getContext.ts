@@ -238,54 +238,75 @@ Pull pre-built context from the world. Nothing is auto-loaded — you choose wha
 `.trim(),
   inputSchema: z.object({
     types: z.array(z.enum(CONTEXT_TYPES)).describe("Which context sections to return."),
-    relationshipHistory: z.boolean().optional().describe("For RELATIONSHIP_DUMP: when true, shows all relationships including expired with time ranges."),
-    entityName: z.string().optional().describe("For ENTITY_PROFILE: the name of the entity to profile."),
-    entityLabel: z.string().optional().describe("For ENTITY_PROFILE: the label of the entity to profile (e.g. 'Character', 'Object')."),
+    relationshipHistory: z
+      .boolean()
+      .optional()
+      .describe(
+        "For RELATIONSHIP_DUMP: when true, shows all relationships including expired with time ranges.",
+      ),
+    entityName: z
+      .string()
+      .optional()
+      .describe("For ENTITY_PROFILE: the name of the entity to profile."),
+    entityLabel: z
+      .string()
+      .optional()
+      .describe(
+        "For ENTITY_PROFILE: the label of the entity to profile (e.g. 'Character', 'Object').",
+      ),
   }),
-  execute: wrapSafe(async (args: { types: ContextType[]; relationshipHistory?: boolean; entityName?: string; entityLabel?: string }) => {
-    if (args.types.includes("ENTITY_PROFILE")) {
-      if (!args.entityName || !args.entityLabel) {
-        return "ERROR: entityName and entityLabel are required when ENTITY_PROFILE is requested.";
+  execute: wrapSafe(
+    async (args: {
+      types: ContextType[];
+      relationshipHistory?: boolean;
+      entityName?: string;
+      entityLabel?: string;
+    }) => {
+      if (args.types.includes("ENTITY_PROFILE")) {
+        if (!args.entityName || !args.entityLabel) {
+          return "ERROR: entityName and entityLabel are required when ENTITY_PROFILE is requested.";
+        }
       }
-    }
-    const sections: ContextType[] = args.types.length > 0 ? args.types : [];
+      const sections: ContextType[] = args.types.length > 0 ? args.types : [];
 
-    const builders: Record<ContextType, () => Promise<string>> = {
-      CHARACTERS_BRIEF: buildCharactersBrief,
-      LOCATIONS_BRIEF: buildLocationsBrief,
-      OBJECTS_BRIEF: buildObjectsBrief,
-      PLOTS_BRIEF: buildPlotsBrief,
-      SCENES_BRIEF: buildScenesBrief,
-      SCHEMA_DUMP: buildSchemaDump,
-      RELATIONSHIP_DUMP: () => buildRelationshipDump(!!(args as any).relationshipHistory),
-      TIMELINE: buildTimeline,
-      ENTITY_PROFILE: () => {
-        const extra = args as any;
-        return buildEntityProfile(extra.entityName, extra.entityLabel);
-      },
-      CYPHER_COOKBOOK: async () => {
-        return CYPHER_COOKBOOK_PROMPT;
+      const builders: Record<ContextType, () => Promise<string>> = {
+        CHARACTERS_BRIEF: buildCharactersBrief,
+        LOCATIONS_BRIEF: buildLocationsBrief,
+        OBJECTS_BRIEF: buildObjectsBrief,
+        PLOTS_BRIEF: buildPlotsBrief,
+        SCENES_BRIEF: buildScenesBrief,
+        SCHEMA_DUMP: buildSchemaDump,
+        RELATIONSHIP_DUMP: () => buildRelationshipDump(!!(args as any).relationshipHistory),
+        TIMELINE: buildTimeline,
+        ENTITY_PROFILE: () => {
+          const extra = args as any;
+          return buildEntityProfile(extra.entityName, extra.entityLabel);
+        },
+        CYPHER_COOKBOOK: async () => {
+          return CYPHER_COOKBOOK_PROMPT;
+        },
+      };
+
+      const tasks: Promise<void>[] = [];
+      const results: string[] = [];
+      for (let i = 0; i < sections.length; i++) {
+        const type = sections[i];
+        tasks.push(
+          builders[type]()
+            .then((section) => {
+              results[i] = section;
+            })
+            .catch((err) => {
+              const msg = err instanceof Error ? err.message : String(err);
+              results[i] = `## ${type}\n\nError: ${msg}\n`;
+            }),
+        );
       }
-    };
 
-    const tasks: Promise<void>[] = [];
-    const results: string[] = [];
-    for (let i = 0; i < sections.length; i++) {
-      const type = sections[i];
-      tasks.push(
-        builders[type]()
-          .then((section) => {
-            results[i] = section;
-          })
-          .catch((err) => {
-            const msg = err instanceof Error ? err.message : String(err);
-            results[i] = `## ${type}\n\nError: ${msg}\n`;
-          }),
-      );
-    }
+      await Promise.all(tasks);
 
-    await Promise.all(tasks);
-
-    return results.join("\n");
-  }, TOOL_NAMES.GET_CONTEXT),
+      return results.join("\n");
+    },
+    TOOL_NAMES.GET_CONTEXT,
+  ),
 });

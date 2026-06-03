@@ -341,9 +341,8 @@ export async function buildRelationshipDump(history = false): Promise<string> {
     try {
       const isTemporal = schema.isTemporalRelType(relDef);
       const whereClause = isTemporal ? (history ? "" : " WHERE r.valid_at IS NULL") : "";
-      const temporalCols = history && isTemporal
-        ? ", r.created_at AS createdAt, r.valid_at AS validAt"
-        : "";
+      const temporalCols =
+        history && isTemporal ? ", r.created_at AS createdAt, r.valid_at AS validAt" : "";
       const r = await db.graph.query(
         `MATCH (a)-[r:\`${relDef.name}\`]->(b)${whereClause}
          RETURN label(a) AS sourceLabel, COALESCE(a.name, a._uid) AS sourceName,
@@ -370,7 +369,10 @@ export async function buildRelationshipDump(history = false): Promise<string> {
         }
       }
     } catch (err) {
-      console.warn(`[buildRelationshipDump] query failed for ${relDef.name}:`, err instanceof Error ? err.message : String(err));
+      console.warn(
+        `[buildRelationshipDump] query failed for ${relDef.name}:`,
+        err instanceof Error ? err.message : String(err),
+      );
     }
   }
 
@@ -404,7 +406,8 @@ export async function buildRelationshipDump(history = false): Promise<string> {
           for (const o of byLocation.get(tgt)!) {
             let entry = `  - ${o.sourceName}`;
             if (history && o.props.createdAt != null) {
-              const validStr = o.props.validAt != null ? formatTime(o.props.validAt as number) : "now";
+              const validStr =
+                o.props.validAt != null ? formatTime(o.props.validAt as number) : "now";
               entry += ` [${formatTime(o.props.createdAt as number)}→${validStr}]`;
             }
             if (o.props.description) {
@@ -419,7 +422,12 @@ export async function buildRelationshipDump(history = false): Promise<string> {
         const desc = r.props?.description ? ` — "${r.props.description}"` : "";
         if (history) {
           const created = r.props.createdAt ? ` [${formatTime(r.props.createdAt as number)}` : "";
-          const valid = r.props.validAt != null ? `→${formatTime(r.props.validAt as number)}] (expired)` : (r.props.createdAt ? "→now]" : "");
+          const valid =
+            r.props.validAt != null
+              ? `→${formatTime(r.props.validAt as number)}] (expired)`
+              : r.props.createdAt
+                ? "→now]"
+                : "";
           const range = created || valid ? ` ${created}${valid}` : "";
           lines.push(`- ${r.sourceName} → ${r.targetName}${range}${desc}`);
         } else {
@@ -509,10 +517,9 @@ export async function buildEntityProfile(name: string, label: string): Promise<s
   const schema = SchemaRegistry.getInstance();
 
   // Check entity exists
-  const entityCheck = await db.graph.query(
-    `MATCH (n:\`${label}\` {name: $name}) RETURN n`,
-    { name },
-  );
+  const entityCheck = await db.graph.query(`MATCH (n:\`${label}\` {name: $name}) RETURN n`, {
+    name,
+  });
   if (entityCheck.rows.length === 0) {
     return `## ENTITY_PROFILE\n\nEntity "${name}" with label "${label}" not found.\n`;
   }
@@ -669,7 +676,9 @@ export async function buildEntityProfile(name: string, label: string): Promise<s
       );
       if (scenes.rows.length > 0) {
         for (const row of scenes.rows) {
-          lines.push(`- **${row.sceneName}** (${formatTime(row.startTime as number)}) at ${row.locName || "?"}`);
+          lines.push(
+            `- **${row.sceneName}** (${formatTime(row.startTime as number)}) at ${row.locName || "?"}`,
+          );
         }
       } else {
         lines.push("(none)");

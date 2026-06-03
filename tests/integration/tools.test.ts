@@ -1882,10 +1882,14 @@ describe("manageRelationship END", () => {
     const db = getTestDb();
     try {
       await db.entities.create("Character", { name: "EndTest", brief: "END test character" });
-    } catch { /* may already exist */ }
+    } catch {
+      /* may already exist */
+    }
     try {
       await db.entities.create("Location", { name: "EndLocation", brief: "END test location" });
-    } catch { /* may already exist */ }
+    } catch {
+      /* may already exist */
+    }
     try {
       await db.scene.create({
         scene_name: "end_test_scene",
@@ -1894,7 +1898,9 @@ describe("manageRelationship END", () => {
         characters: ["EndTest"],
         reason: "END action test",
       });
-    } catch { /* may already exist */ }
+    } catch {
+      /* may already exist */
+    }
   });
 
   it("END terminates an active temporal relationship", async () => {

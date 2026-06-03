@@ -16,7 +16,6 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-
 // ── Time helpers ──
 
 export function formatHour(hour: number): string {
@@ -43,5 +42,5 @@ export function describeInternalTime(time: number): string {
   const day = Math.floor(time / 48);
   const halfHours = time % 48;
   const hour = Math.floor(halfHours / 2);
-  return describeTime({day, hour});
+  return describeTime({ day, hour });
 }

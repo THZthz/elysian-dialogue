@@ -83,7 +83,9 @@ const inputSchema = z.object({
     ),
   action: z
     .enum(["READ", "UPSERT", "END"])
-    .describe("READ to look up relationships, UPSERT to create or update, END to terminate a temporal relationship."),
+    .describe(
+      "READ to look up relationships, UPSERT to create or update, END to terminate a temporal relationship.",
+    ),
   sourceLabel: z
     .string()
     .optional()
@@ -116,9 +118,7 @@ const inputSchema = z.object({
   time: z
     .number()
     .optional()
-    .describe(
-      "For END: the time to set valid_at (day * 48 + half-hour). Required for END action.",
-    ),
+    .describe("For END: the time to set valid_at (day * 48 + half-hour). Required for END action."),
   atTime: z
     .number()
     .optional()
@@ -259,7 +259,8 @@ sub-locations nested within a larger location (e.g., a basement inside a tavern)
       };
 
       const temporalTypes = new Set(
-        registry.getAllRelTypes()
+        registry
+          .getAllRelTypes()
           .filter((r) => isTemporalRel(r))
           .map((r) => r.name),
       );
@@ -720,8 +721,7 @@ sub-locations nested within a larger location (e.g., a basement inside a tavern)
         return "ERROR: sourceMatch is required for END.";
       if (!args.targetMatch || Object.keys(args.targetMatch).length === 0)
         return "ERROR: targetMatch is required for END.";
-      if (args.time === undefined || args.time === null)
-        return "ERROR: time is required for END.";
+      if (args.time === undefined || args.time === null) return "ERROR: time is required for END.";
 
       // Validate relationship type is temporal
       const endRelDef = findRelType(

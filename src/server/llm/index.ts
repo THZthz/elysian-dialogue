@@ -344,9 +344,17 @@ export async function generateTurn(
           }
           break;
         case "assistant_final":
-          const promptHitRatio = ((event.usage.promptCacheHitTokens / event.usage.promptTokens) * 100).toFixed(2);
-          const promptMissRatio = ((event.usage.promptCacheMissTokens / event.usage.promptTokens) * 100).toFixed(2);
-          console.log(`[generateTurn] cacheHitRatio: ${(event.cacheHitRatio * 100).toFixed(2)}% | promptHitRatio: ${promptHitRatio}% | promptMissRatio: ${promptMissRatio}% | promptToken: ${event.usage.promptCacheHitTokens} | completionToken: ${event.usage.completionTokens}`);
+          const promptHitRatio = (
+            (event.usage.promptCacheHitTokens / event.usage.promptTokens) *
+            100
+          ).toFixed(2);
+          const promptMissRatio = (
+            (event.usage.promptCacheMissTokens / event.usage.promptTokens) *
+            100
+          ).toFixed(2);
+          console.log(
+            `[generateTurn] cacheHitRatio: ${(event.cacheHitRatio * 100).toFixed(2)}% | promptHitRatio: ${promptHitRatio}% | promptMissRatio: ${promptMissRatio}% | promptToken: ${event.usage.promptCacheHitTokens} | completionToken: ${event.usage.completionTokens}`,
+          );
           if (debugToolCalls) {
             if (event.reasoning) {
               console.log(SEP);
