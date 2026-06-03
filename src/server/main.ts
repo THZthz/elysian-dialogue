@@ -25,7 +25,7 @@ import { seedDatabase } from "@/server/stories/seed";
 async function start() {
   try {
     const app = express();
-    const PORT = 3000;
+    const port = Number(process.env.CHORUS_PORT ?? 3000);
 
     app.use(express.json());
     app.use("/api", apiRouter);
@@ -36,8 +36,8 @@ async function start() {
 
     await seedDatabase();
 
-    app.listen(PORT, "0.0.0.0", () => {
-      console.log(`[start] server running on http://localhost:${PORT}`);
+    app.listen(port, "0.0.0.0", () => {
+      console.log(`[start] server running on http://localhost:${port}`);
     });
 
     const shutdown = async () => {
