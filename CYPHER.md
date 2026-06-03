@@ -67,17 +67,16 @@ MATCH (n:Person {name: $name}) RETURN n;
 
 ### Primitives (most common)
 
-| Type        | Example                   | Notes                |
-|-------------|---------------------------|----------------------|
-| `INT64`     | `42`                      | Default integer type |
-| `DOUBLE`    | `3.14`                    | Floating point       |
-| `BOOLEAN`   | `true` / `false`          |                      |
-| `STRING`    | `'hello'`                 | Single quotes, UTF-8 |
-| `DATE`      | `date('2022-06-06')`      |                      |
-| `TIMESTAMP` | `timestamp('2025-01-01')` | Stored as UTC        |
-| `INTERVAL`   | `interval('1 year 2 days')`| Date/time difference  |
-
-| `NULL` | Special marker for unknown/missing data |
+| Type        | Example                                 | Notes                |
+|-------------|-----------------------------------------|----------------------|
+| `INT64`     | `42`                                    | Default integer type |
+| `DOUBLE`    | `3.14`                                  | Floating point       |
+| `BOOLEAN`   | `true` / `false`                        |                      |
+| `STRING`    | `'hello'`                               | Single quotes, UTF-8 |
+| `DATE`      | `date('2022-06-06')`                    |                      |
+| `TIMESTAMP` | `timestamp('2025-01-01')`               | Stored as UTC        |
+| `INTERVAL`  | `interval('1 year 2 days')`             | Date/time difference |
+| `NULL`      | Special marker for unknown/missing data |                      |
 
 `null = null` returns `NULL` (not `true`). This is a common gotcha for SQL users where `NULL = NULL` returns `NULL` there too, but Cypher makes it even more explicit: any comparison with `NULL` yields `NULL`. Use `IS NULL` / `IS NOT NULL` to test for nulls.
 
@@ -490,8 +489,8 @@ RETURN count(n) AS total, avg(n.age) AS avg_age, collect(n.name) AS names;
 ### Casting
 
 ```cypher
-CAST(2.3, 'INT64')               -- returns 2
-CAST(2.3 AS INT64)               -- alternative syntax
+CAST(2.3, 'INT64')                -- returns 2
+CAST(2.3 AS INT64)                -- alternative syntax
 CAST('12' AS INT)                 -- string to integer
 CAST('[1,2,3]' AS INT[])          -- string to array
 ```

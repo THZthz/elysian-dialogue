@@ -107,7 +107,7 @@ function detectFormat(content: string) {
   let parsed: null;
   try {
     parsed = JSON.parse(content);
-  } catch (e) {
+  } catch {
     return "markdown";
   }
 
@@ -118,11 +118,11 @@ function detectFormat(content: string) {
   if (typeof parsed === "string") {
     const markdownPatterns = [
       /^#{1,6}\s+\S/m, // headers
-      /^[\*\-\+]\s+\S/m, // unordered lists
+      /^[*\-+]\s+\S/m, // unordered lists
       /^\d+\.\s+\S/m, // ordered lists
       /\[.+\]\(.+\)/, // links
       /```/, // code fences
-      /^\>/m, // blockquotes
+      /^>/m, // blockquotes
       /\*\*.*\*\*/, // bold
       /__.*__/, // bold (alternative)
       /\*.*\*/, // italic
@@ -262,7 +262,7 @@ export async function generateTurn(
       thinking: true,
       reasoningEffort: "high",
       maxIterPerTurn: MAX_GM_STEPS,
-      runTool: async (name, args, signal) => {
+      runTool: async (name, args, _signal) => {
         const handler = handlers[name as keyof typeof handlers];
         if (!handler) return { result: `Unknown tool: ${name}` };
         const rawResult = await handler(args);
@@ -320,7 +320,7 @@ export async function generateTurn(
 
     for await (const event of loop.step(promptText)) {
       switch (event.role) {
-        case "tool_call_delta":
+        case "tool_call_delta": {
           if (debugToolCalls) {
             const entry = debugToolCalls.get(event.index) ?? { name: event.toolName, args: "" };
             entry.name = event.toolName;
@@ -382,7 +382,8 @@ export async function generateTurn(
             }
           }
           break;
-        case "assistant_final":
+        }
+        case "assistant_final": {
           const promptHitRatio = (
             (event.usage.promptCacheHitTokens / event.usage.promptTokens) *
             100
@@ -416,7 +417,8 @@ export async function generateTurn(
             debugToolCalls.clear();
           }
           break;
-        case "tool_result":
+        }
+        case "tool_result": {
           if (DEBUG_PRINT_LLM_GENERATIONS) {
             console.log(SEP);
             console.log(chalk.bold.yellow(`[TOOL RESULT: ${event.name}]`));
@@ -427,12 +429,15 @@ export async function generateTurn(
             );
           }
           break;
-        case "error":
+        }
+        case "error": {
           events.emitError(event.error);
           break;
-        case "warning":
+        }
+        case "warning": {
           console.warn(`[generateTurn] ${event.content}`);
           break;
+        }
       }
     }
 

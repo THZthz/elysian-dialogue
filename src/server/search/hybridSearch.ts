@@ -16,7 +16,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { VectorStore, type StoredVector } from "@/server/db/vectorstore";
+import type { VectorStore } from "@/server/db/vectorstore";
+import { type StoredVector } from "@/server/db/vectorstore";
 import type { Embedder } from "@/server/search/embedder";
 import { getReranker, applyRerank } from "@/server/search/reranker";
 import { BM25Scorer, tokenize } from "@/server/search/bm25";

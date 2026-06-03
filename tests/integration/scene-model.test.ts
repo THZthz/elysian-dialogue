@@ -17,7 +17,8 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import { setupTestDb, teardownTestDb, getTestDb } from "../helpers";
+import type { getTestDb } from "../helpers";
+import { setupTestDb, teardownTestDb } from "../helpers";
 
 let db: Awaited<ReturnType<typeof getTestDb>>;
 

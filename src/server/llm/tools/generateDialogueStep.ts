@@ -18,7 +18,8 @@
 
 import { z } from "zod";
 import type { Tool } from "@/sdk";
-import { NOTIFICATION_TYPES, SPEAKER_TYPES, SpeakerType } from "@/types/dialogue";
+import type { SpeakerType } from "@/types/dialogue";
+import { NOTIFICATION_TYPES, SPEAKER_TYPES } from "@/types/dialogue";
 import { TOOL_NAMES, SKILL_NAMES } from "@/shared/constants";
 import { checkText } from "@/server/llm/tools/shared";
 
@@ -111,7 +112,7 @@ const optionSchema = z.object({
     .nullable()
     .optional()
     .describe(
-      "Add a skill check when player choose this option, should not add \`hintBefore\` when \`check\` is present.",
+      `Add a skill check when player choose this option, should not add \`hintBefore\` when \`check\` is present.`,
     ),
 });
 
@@ -226,8 +227,7 @@ function validateDialogueArgs(args: DialogueArgs): ValidationResult {
   }
 
   // Collect ALL INNER_VOICE errors in one pass (no break)
-  for (let i = 0; i < messages.length; i++) {
-    const msg = messages[i];
+  for (const msg of messages) {
     if (msg.speaker === "INNER_VOICE") {
       errors.push(
         `A message uses speaker="INNER_VOICE" — INNER_VOICE is a type, not a speaker name. Use the specific skill name as the speaker (e.g. "LOGIC", "INSTINCT", "SORCERY").`,
@@ -448,12 +448,12 @@ should follow:
       // are appended. If the correction sends items but NONE have index, treat as full
       // replacement (the GM thinks the previous call was entirely rejected).
       let allMessagesFresh = false;
-      let allOptionsFresh = false;
+      let _allOptionsFresh = false;
       const replacedMessageIndices = new Set<number>();
       if (isCorrection) {
         const merged = mergeCorrection(args, lastCallMessages, lastCallOptions);
         allMessagesFresh = merged.allMessagesFresh;
-        allOptionsFresh = merged.allOptionsFresh;
+        _allOptionsFresh = merged.allOptionsFresh;
         for (const i of merged.replacedMessageIndices) replacedMessageIndices.add(i);
         args = merged.mergedArgs;
       }

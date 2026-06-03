@@ -49,7 +49,7 @@ export interface Tool<S extends z.ZodTypeAny = z.ZodTypeAny> {
 export function toolToSpec(tool: Tool): ToolSpec {
   const jsonSchema = tool.schema.toJSONSchema() as Record<string, unknown>;
   // Strip Zod-internal properties that aren't part of standard JSON Schema.
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
   const { "~standard": _std, _prefault: _pf, ...parameters } = jsonSchema;
 
   return {

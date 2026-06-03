@@ -19,7 +19,8 @@
 import { z } from "zod";
 import type { Tool } from "@/sdk";
 import { Database } from "@/server/db";
-import { RelPropertyDef, NODE_PROPERTY_TAGS, REL_PROPERTY_TAGS } from "@/server/db/schema";
+import type { RelPropertyDef } from "@/server/db/schema";
+import { NODE_PROPERTY_TAGS, REL_PROPERTY_TAGS } from "@/server/db/schema";
 import { wrapSafe } from "@/server/llm/tools/shared";
 import { TOOL_NAMES } from "@/shared/constants";
 

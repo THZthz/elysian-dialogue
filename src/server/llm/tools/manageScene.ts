@@ -195,7 +195,7 @@ At most one Scene has \`end_time = NULL\` (the active scene). When CREATE is cal
             args.location_name == null ||
             !args.characters?.length
           ) {
-            return "ERROR: CREATE requires \`scene_name\`, \`start_day\`, \`start_hour\`, \`location_name\`, \`characters\` (non-empty array) and \`reason\`.";
+            return `ERROR: CREATE requires \`scene_name\`, \`start_day\`, \`start_hour\`, \`location_name\`, \`characters\` (non-empty array) and \`reason\`.`;
           }
           if (!args.characters.includes("Player")) {
             return "ERROR: characters must include 'Player'.";

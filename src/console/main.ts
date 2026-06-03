@@ -35,7 +35,7 @@ type GameState = "IDLE" | "WAITING" | "AWAITING_OPTION";
 let state: GameState = "IDLE";
 let history: Message[] = [];
 let currentOptions: DialogueOption[] = [];
-let lastStepId: string | null = null;
+let _lastStepId: string | null = null;
 let streamingMessages: Message[] = [];
 let isRetrying = false;
 let sseClient: ConsoleSseClient | null = null;
@@ -154,7 +154,7 @@ function renderBanner() {
 function createSseCallbacks(): SseCallbacks {
   return {
     onStepStart: (data) => {
-      lastStepId = data.stepId;
+      _lastStepId = data.stepId;
     },
     onStreamingMessages: (messages) => {
       if (isRetrying) return;
@@ -391,7 +391,7 @@ async function doResume(): Promise<boolean> {
     }
 
     history = hist;
-    lastStepId = current.id;
+    _lastStepId = current.id;
     currentOptions = current.options;
     messageIdCounter = hist.length;
 
@@ -519,7 +519,7 @@ async function main() {
           history = [];
           currentOptions = [];
           streamingMessages = [];
-          lastStepId = null;
+          _lastStepId = null;
           messageIdCounter = 0;
           sseClient?.abort();
           console.log(chalk.dim("\nSession reset.\n"));

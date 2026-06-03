@@ -17,7 +17,8 @@
  */
 
 import { describe, it, expect, beforeEach } from "vitest";
-import { SchemaRegistry, NodeTypeDef, RelTypeDef, NodePropertyDef } from "@/server/db/schema";
+import type { NodePropertyDef } from "@/server/db/schema";
+import { SchemaRegistry } from "@/server/db/schema";
 
 describe("SchemaRegistry", () => {
   beforeEach(() => {

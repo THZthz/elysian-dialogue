@@ -43,6 +43,8 @@ export function renderMarkdown(text: string): string {
   result = result.replace(/~~([^~\n]+?)~~/g, (_m, inner) => chalk.strikethrough(inner));
 
   // Restore code spans
+  // \x00 used as sentinel delimiter to protect code spans from formatting
+  // eslint-disable-next-line no-control-regex
   result = result.replace(/\x00C(\d+)\x00/g, (_m, idx) => codeSpans[Number(idx)] ?? "");
 
   return result;

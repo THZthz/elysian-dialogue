@@ -27,6 +27,21 @@ export interface CheckpointEntry {
   createdAt: string;
 }
 
+async function reopenWithRetry(
+  reopenCallback: () => Promise<void>,
+  copyError: unknown,
+): Promise<void> {
+  for (let attempt = 0; attempt < 5; attempt++) {
+    try {
+      await reopenCallback();
+      return;
+    } catch (err) {
+      if (attempt === 4) throw copyError ?? err;
+      await new Promise((r) => setTimeout(r, 300));
+    }
+  }
+}
+
 export class CheckpointManager {
   private readonly graphPath: string;
   private readonly vectorPath: string;
@@ -57,29 +72,27 @@ export class CheckpointManager {
 
     // WAL is flushed via CHECKPOINT before close, so only the main
     // database file needs copying — no .wal companion to worry about.
+    let copyError: unknown = null;
     try {
       for (let attempt = 0; attempt < 5; attempt++) {
         try {
           fs.copyFileSync(this.graphPath, graphDest);
           break;
         } catch (err) {
-          if (attempt === 4) throw err;
-          await new Promise((r) => setTimeout(r, 200));
+          if (attempt === 4) {
+            copyError = err;
+          } else {
+            await new Promise((r) => setTimeout(r, 200));
+          }
         }
       }
-      fs.copyFileSync(this.vectorPath, vectorDest);
+      if (!copyError) {
+        fs.copyFileSync(this.vectorPath, vectorDest);
+      }
     } finally {
-      // Reopen may still hit a transient lock on rare occasions.
-      for (let attempt = 0; attempt < 5; attempt++) {
-        try {
-          await reopenCallback();
-          return;
-        } catch (err) {
-          if (attempt === 4) throw err;
-          await new Promise((r) => setTimeout(r, 300));
-        }
-      }
+      await reopenWithRetry(reopenCallback, copyError);
     }
+    if (copyError) throw copyError;
 
     const index = this.loadIndex();
     index.push({
@@ -133,9 +146,9 @@ export class CheckpointManager {
       }
     } catch (err) {
       // Validation failed — keep sentinel to block further restores
-      throw new Error(
-        `Restored checkpoint file is corrupt: ${err instanceof Error ? err.message : String(err)}`,
-      );
+      throw new Error(`Restored checkpoint file is corrupt`, {
+        cause: err,
+      });
     }
 
     // Delete later checkpoints

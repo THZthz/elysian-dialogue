@@ -17,18 +17,19 @@
  */
 
 import { Database } from "@/server/db";
-import { SchemaRegistry, RelTypeDef } from "@/server/db/schema";
+import type { RelTypeDef } from "@/server/db/schema";
+import { SchemaRegistry } from "@/server/db/schema";
 import { formatTime } from "@/server/db/utils";
 
 // ── Types ──
 
-interface EntityRef {
+interface _EntityRef {
   name: string;
   description: string | null;
   brief: string | null;
 }
 
-interface DispositionRow {
+interface _DispositionRow {
   npcName: string;
   sentiment: string;
   summary: string;
@@ -44,15 +45,6 @@ interface PlotNode {
 }
 
 // ── Formatters ──
-
-function formatDisposition(d: DispositionRow): string {
-  return `- **${d.npcName}**: ${d.sentiment} — "${d.summary}"`;
-}
-
-function formatEntityCompact(entity: EntityRef): string {
-  const brief = entity.brief || (entity.description || "").slice(0, 120);
-  return `- **${entity.name}**: ${brief}`;
-}
 
 function buildPlotTreeFromNodes(plots: PlotNode[]): string {
   const childNames = new Set<string>();

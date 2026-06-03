@@ -16,7 +16,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { Database, Connection, LbugValue } from "@ladybugdb/core";
+import type { LbugValue } from "@ladybugdb/core";
+import { Database, Connection } from "@ladybugdb/core";
 
 export interface QueryResult {
   rows: Record<string, unknown>[];

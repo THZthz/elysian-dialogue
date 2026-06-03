@@ -584,7 +584,7 @@ sub-locations nested within a larger location (e.g., a basement inside a tavern)
       }
 
       // ── CREATE new relationship ──
-      let createProps: Record<string, unknown> = {};
+      const createProps: Record<string, unknown> = {};
       if (args.properties) {
         const propErr = validateProps(args.properties);
         if (propErr) return `ERROR: ${propErr}`;

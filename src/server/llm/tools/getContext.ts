@@ -187,57 +187,54 @@ Pull pre-built context from the world. Nothing is auto-loaded — you choose wha
 - CYPHER_COOKBOOK - The graph database is LadybugDB, its Cypher syntax is slightly different from most used database Neo4j.
 `.trim(),
   schema: inputSchema,
-  execute: wrapSafe(
-    async (args: z.infer<typeof inputSchema>) => {
-      if (args.types.includes("ENTITY_PROFILE")) {
-        if (!args.entityName || !args.entityLabel) {
-          return "ERROR: entityName and entityLabel are required when ENTITY_PROFILE is requested.";
+  execute: wrapSafe(async (args: z.infer<typeof inputSchema>) => {
+    if (args.types.includes("ENTITY_PROFILE")) {
+      if (!args.entityName || !args.entityLabel) {
+        return "ERROR: entityName and entityLabel are required when ENTITY_PROFILE is requested.";
+      }
+    }
+    const sections: ContextType[] = args.types.length > 0 ? args.types : [];
+
+    const builders: Record<ContextType, () => Promise<string>> = {
+      CHARACTERS_BRIEF: buildCharactersBrief,
+      LOCATIONS_BRIEF: buildLocationsBrief,
+      OBJECTS_BRIEF: buildObjectsBrief,
+      PLOTS_BRIEF: buildPlotsBrief,
+      SCENES_BRIEF: buildScenesBrief,
+      SCHEMA_DUMP: buildSchemaDump,
+      RELATIONSHIP_DUMP: () => buildRelationshipDump(!!(args as any).relationshipHistory),
+      TIMELINE: buildTimeline,
+      ENTITY_PROFILE: () => {
+        const extra = args as any;
+        return buildEntityProfile(extra.entityName, extra.entityLabel);
+      },
+      CYPHER_COOKBOOK: async () => {
+        if (!_cypherCookbookCache) {
+          const p = join(__dirname, "..", "..", "..", "..", "CYPHER.md");
+          _cypherCookbookCache = readFileSync(p, "utf-8");
         }
-      }
-      const sections: ContextType[] = args.types.length > 0 ? args.types : [];
+        return _cypherCookbookCache;
+      },
+    };
 
-      const builders: Record<ContextType, () => Promise<string>> = {
-        CHARACTERS_BRIEF: buildCharactersBrief,
-        LOCATIONS_BRIEF: buildLocationsBrief,
-        OBJECTS_BRIEF: buildObjectsBrief,
-        PLOTS_BRIEF: buildPlotsBrief,
-        SCENES_BRIEF: buildScenesBrief,
-        SCHEMA_DUMP: buildSchemaDump,
-        RELATIONSHIP_DUMP: () => buildRelationshipDump(!!(args as any).relationshipHistory),
-        TIMELINE: buildTimeline,
-        ENTITY_PROFILE: () => {
-          const extra = args as any;
-          return buildEntityProfile(extra.entityName, extra.entityLabel);
-        },
-        CYPHER_COOKBOOK: async () => {
-          if (!_cypherCookbookCache) {
-            const p = join(__dirname, "..", "..", "..", "..", "CYPHER.md");
-            _cypherCookbookCache = readFileSync(p, "utf-8");
-          }
-          return _cypherCookbookCache;
-        },
-      };
+    const tasks: Promise<void>[] = [];
+    const results: string[] = [];
+    for (let i = 0; i < sections.length; i++) {
+      const type = sections[i];
+      tasks.push(
+        builders[type]()
+          .then((section) => {
+            results[i] = section;
+          })
+          .catch((err) => {
+            const msg = err instanceof Error ? err.message : String(err);
+            results[i] = `## ${type}\n\nError: ${msg}\n`;
+          }),
+      );
+    }
 
-      const tasks: Promise<void>[] = [];
-      const results: string[] = [];
-      for (let i = 0; i < sections.length; i++) {
-        const type = sections[i];
-        tasks.push(
-          builders[type]()
-            .then((section) => {
-              results[i] = section;
-            })
-            .catch((err) => {
-              const msg = err instanceof Error ? err.message : String(err);
-              results[i] = `## ${type}\n\nError: ${msg}\n`;
-            }),
-        );
-      }
+    await Promise.all(tasks);
 
-      await Promise.all(tasks);
-
-      return results.join("\n");
-    },
-    TOOL_NAMES.GET_CONTEXT,
-  ),
+    return results.join("\n");
+  }, TOOL_NAMES.GET_CONTEXT),
 };

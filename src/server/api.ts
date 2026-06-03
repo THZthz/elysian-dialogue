@@ -20,7 +20,6 @@ import express from "express";
 import { generateTurn, isGenerating } from "@/server/llm";
 import { chatStreamSchema } from "@/server/validation";
 import { Database } from "@/server/db";
-import { SchemaRegistry } from "@/server/db/schema";
 import { queryWorld } from "@/server/llm/tools/queryWorld";
 import { searchWorld } from "@/server/llm/tools/searchWorld";
 import { manageNode } from "@/server/llm/tools/manageNode";
@@ -196,9 +195,7 @@ apiRouter.post("/checkpoint/restore/:turnNumber", async (req, res) => {
     await Database.getInstance();
     res.json({ success: true, turn: turnNumber });
   } catch (error: unknown) {
-    try {
-      await Database.getInstance();
-    } catch {}
+    await Database.getInstance();
     const message = error instanceof Error ? error.message : String(error);
     res.status(500).json({ error: message });
   }

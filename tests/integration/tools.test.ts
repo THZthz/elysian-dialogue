@@ -30,9 +30,10 @@ import { createGenerateDialogueStepTool } from "@/server/llm/tools/generateDialo
 import { createManageSceneTool } from "@/server/llm/tools/manageScene";
 import { enrichResult } from "@/server/llm/enrichment";
 import { TOOL_NAMES } from "@/shared/constants";
+import { type EventEmitter } from "@/server/llm/events";
 
 // Helpers — AI SDK tool execute() requires 2 args: (input, options)
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 function exec(tool: any, args: Record<string, unknown>) {
   return tool.execute(args, {});
 }
@@ -1137,7 +1138,7 @@ describe("manageScene", () => {
     );
     const stubEvents = {
       emitSceneUpdate: () => {},
-    } as unknown as import("@/server/llm/events").EventEmitter;
+    } as unknown as EventEmitter;
     sceneTool = createManageSceneTool(stubEvents);
   });
 

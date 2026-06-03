@@ -240,11 +240,10 @@ export class ContextManager {
     if (turnSignal.aborted) return noop;
 
     const foldCtrl = new AbortController();
-    let cleanupAbort = () => {};
 
     const onAbort = () => foldCtrl.abort();
     turnSignal.addEventListener("abort", onAbort, { once: true });
-    cleanupAbort = () => turnSignal.removeEventListener("abort", onAbort);
+    const cleanupAbort = () => turnSignal.removeEventListener("abort", onAbort);
 
     const timer = setTimeout(
       () => foldCtrl.abort(new Error("fold-timeout")),

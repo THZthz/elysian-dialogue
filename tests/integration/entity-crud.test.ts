@@ -92,7 +92,7 @@ describe("Entity CRUD", () => {
 
   it("stores metadata with aliases", async () => {
     const db = getTestDb();
-    const entity = await db.entities.create("Character", {
+    const _entity = await db.entities.create("Character", {
       name: "Duke",
       metadata: { aliases: ["The Duke", "His Grace"], stats: { MIGHT: 5 } },
     });

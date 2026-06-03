@@ -20,14 +20,6 @@ import { v4 as uuidv4 } from "uuid";
 import { getActiveSeedStory } from "@/server/stories";
 import { Database } from "@/server/db";
 
-function parseType(typeStr: string): { type: string; subtype: string | null } {
-  if (typeStr.includes(":")) {
-    const parts = typeStr.toUpperCase().split(":", 2);
-    return { type: parts[0], subtype: parts[1] || null };
-  }
-  return { type: typeStr.toUpperCase(), subtype: null };
-}
-
 type EntityLabel = "Character" | "Object" | "Location";
 
 function pascalCase(str: string): string {

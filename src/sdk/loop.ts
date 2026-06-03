@@ -21,7 +21,6 @@
 // tool calls, detects storms, and folds history via ContextManager.
 import { jsonrepair } from "jsonrepair";
 import type { DeepSeekClient } from "@/sdk/client";
-import type { ImmutablePrefix } from "@/sdk/prefix";
 import { AppendOnlyLog } from "@/sdk/log";
 import { ContextManager } from "@/sdk/context";
 import { healMessages } from "@/sdk/healing";
@@ -225,7 +224,7 @@ export function createGameLoop(opts: GameLoopOptions) {
 
   let model = opts.model ?? "deepseek-v4-flash";
   let thinking = opts.thinking ?? true;
-  let reasoningEffort = opts.reasoningEffort;
+  const reasoningEffort = opts.reasoningEffort;
   let maxOutputTokens = opts.maxOutputTokens;
   const maxIterPerTurn = opts.maxIterPerTurn ?? DEFAULT_MAX_ITER_PER_TURN;
   let turn = 0;

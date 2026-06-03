@@ -58,12 +58,12 @@ const inputSchema = z.object({
     .string()
     .nullable()
     .optional()
-    .describe("Child plot \`name\` to connect via BRANCHES_TO."),
+    .describe(`Child plot \`name\` to connect via BRANCHES_TO.`),
   unbranch: z
     .string()
     .nullable()
     .optional()
-    .describe("Child plot \`name\` to disconnect from this plot."),
+    .describe(`Child plot \`name\` to disconnect from this plot.`),
 });
 
 export const editPlot: Tool<typeof inputSchema> = {

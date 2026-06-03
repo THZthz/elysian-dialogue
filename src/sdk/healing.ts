@@ -204,7 +204,7 @@ export function stripHallucinatedToolMarkup(content: string): string {
 }
 
 export function healMessages(messages: ChatMessage[], opts: HealingOptions = {}): HealingResult {
-  let result: HealingResult = {
+  const result: HealingResult = {
     messages: [...messages],
     healedCount: 0,
     tokensSaved: 0,
