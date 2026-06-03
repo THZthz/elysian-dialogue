@@ -16,6 +16,9 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+import { readFileSync } from "node:fs";
+import { join, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 import { z } from "zod";
 import type { Tool } from "@/sdk";
 import { TOOL_NAMES } from "@/shared/constants";
@@ -33,6 +36,10 @@ import {
 import { Database } from "@/server/db";
 import { SchemaRegistry } from "@/server/db/schema";
 
+const __dirname = dirname(fileURLToPath(import.meta.url));
+
+let _cypherCookbookCache: string | null = null;
+
 const CONTEXT_TYPES = [
   "CHARACTERS_BRIEF",
   "LOCATIONS_BRIEF",
@@ -45,83 +52,6 @@ const CONTEXT_TYPES = [
   "ENTITY_PROFILE",
   "CYPHER_COOKBOOK",
 ] as const;
-
-const CYPHER_COOKBOOK_PROMPT = `
-## CYPHER COOKBOOK
-
-### Mental Model
-
-LadybugDB uses a **structured property graph model** — schema-first, strongly-typed Cypher. Think "PostgreSQL with graph traversal": every node label and relationship type must be registered as a table before data can be inserted.
-
-### Tool-to-Cypher Mapping
-
-| Tool | Maps to | Use for |
-|------|---------|---------|
-| \`${TOOL_NAMES.MANAGE_NODE}\` | READ / UPSERT / DELETE | Single-node READ, UPSERT, or DELETE. Handles JSON partial merge, embeddings, and schema validation automatically. |
-| \`${TOOL_NAMES.MANAGE_RELATIONSHIP}\` | READ / UPSERT | Single-relationship READ or UPSERT. Auto-sets temporal props (\`created_at\`, \`valid_at\`) on create, JSON partial merge on update. |
-| \`${TOOL_NAMES.MANAGE_SCHEMA}\` | CREATE NODE/REL TABLE | Register new node labels and relationship types before use. Generates the DDL. |
-| \`${TOOL_NAMES.QUERY_WORLD}\` | Raw Cypher | Multi-hop traversals, aggregations, bulk operations, or anything spanning multiple nodes/rels. |
-| \`${TOOL_NAMES.GET_CONTEXT}\` (SCHEMA_DUMP) | — | Discover registered types, property schemas, and tags. |
-| \`${TOOL_NAMES.SEARCH_WORLD}\` | — | Hybrid vector search (dense + sparse + rerank). Not Cypher-based. |
-
-**Prefer \`${TOOL_NAMES.MANAGE_NODE}\` and \`${TOOL_NAMES.MANAGE_RELATIONSHIP}\`** for single-entity read/mutations — they handle embedding updates, JSON partial merge, and schema validation automatically. Reach for \`${TOOL_NAMES.QUERY_WORLD}\` when you need traversals, aggregations, or multi-node operations.
-
-### Property Conventions
-- \`brief\` is for one-liners, \`description\` is for full text. Default to brief to save context — fetch description when you need detail.
-- SEARCH BROADLY FIRST, then drill into specific entities.
-
-### Label & Relationship Conventions
-- Node labels are **PascalCase**: Character, Object, Location, Note, Plot, Disposition, Scene, plus any GM-defined labels.
-- Relationship types are **UPPER_SNAKE**: LOCATED_AT, CARRIES, ABOUT_CHARACTER, ABOUT_OBJECT, ABOUT_LOCATION, HAS_DISPOSITION, BRANCHES_TO, etc.
-- There is **no multi-label syntax** — each node has exactly one label.
-
-### Schema
-- For new types, call \`${TOOL_NAMES.MANAGE_SCHEMA}\` first — it creates the actual node/relationship tables.
-- Properties tagged \`json\` receive automatic partial merge on update in both \`${TOOL_NAMES.MANAGE_NODE}\` and \`${TOOL_NAMES.MANAGE_RELATIONSHIP}\`.
-
-### Query Rules
-
-**Pattern Matching:**
-- For shortest path: \`MATCH (a)-[r* SHORTEST 1..10]->(b)\`. For all shortest: \`ALL SHORTEST\`.
-- LadybugDB uses **walk semantics** (repeated edges allowed). Use \`is_trail()\` or \`is_acyclic()\` to constrain.
-- \`WHERE\` must be a separate clause — not inside node/relationship patterns. Label filters in WHERE must use \`label(n) = '...'\`, not \`n:Label\`.
-
-**Mutations:**
-- When deleting or transferring a relationship that may not exist, use OPTIONAL MATCH; otherwise the query silently fails.
-- For unique relationships (e.g. LOCATED_AT), use MERGE or delete old before creating new.
-- For character attitudes, use Disposition **nodes** linked via HAS_DISPOSITION, not relationship properties.
-- Use MERGE for idempotent entity creation.
-- \`DETACH DELETE\` removes relationships but does NOT cascade to nodes referencing the deleted entity by name string. Clean up dangling references manually.
-- \`SET n.prop = NULL\` to remove a property; \`REMOVE\` is not supported.
-- \`FOREACH\` is not supported — use \`UNWIND\` instead.
-
-**Functions & Types (LadybugDB vs Neo4j):**
-- \`id()\` not \`elementId()\`. \`label()\` not \`labels()\`. \`current_timestamp()\` not \`datetime()\`.
-- Type check: \`typeOf(x) = INT64\` (not \`x IS :: INTEGER\`).
-- Vector similarity: \`ARRAY_COSINE_SIMILARITY()\` and \`ARRAY_DISTANCE()\`.
-- List functions use \`list_\` prefix: \`list_concat\`, \`list_reverse\`, \`list_slice\`.
-- Cast: \`cast(value, 'TYPE')\` instead of \`toXXX()\`.
-- No APOC procedures. \`SHOW XXX\` → \`CALL show_xxx() RETURN *\`.
-- Subqueries: \`EXISTS { }\` and \`COUNT { }\` are supported. \`CALL <subquery>\` is not.
-- Aggregate extras: \`percentileCont\`, \`percentileDisc\`, \`stDev\`, \`stDevP\` are available.
-
-**Expressions & Common Patterns:**
-- **NULL semantics:** \`null = null\` returns \`NULL\` (not \`true\`), and \`WHERE\` drops \`NULL\` rows. Always use \`IS NULL\` / \`IS NOT NULL\` to test for nulls. Any comparison with \`NULL\` yields \`NULL\` — this is a silent query killer.
-- **Implicit GROUP BY:** Cypher has no \`GROUP BY\` keyword. Whatever non-aggregated columns are in \`RETURN\` or \`WITH\` become the grouping key. Adding an extra column changes the groups.
-- **WITH chains results:** Use \`WITH\` to pass and reshape results between query stages — accumulate counts, filter aggregates, or isolate \`OPTIONAL MATCH\` scopes. \`WITH c, count(d) AS cnt WHERE cnt > 0 RETURN c.name, cnt\`.
-- **Text matching:** \`STARTS WITH\`, \`ENDS WITH\`, \`CONTAINS\` for substring tests. \`=~\` for POSIX regex: \`WHERE n.name =~ '(?i)alice.*'\`.
-- **Pattern predicates in WHERE:** \`WHERE NOT (n)-[:NEXT_MESSAGE]->(:Message)\` finds nodes missing a relationship. Powerful for tail-of-list, missing-links, and absence checks.
-- **CASE:** \`CASE WHEN n.age < 18 THEN 'minor' ELSE 'adult' END\` for conditional values.
-- **COALESCE:** \`COALESCE(n.name, n.uid)\` returns the first non-null value.
-- **collect():** Aggregates values into a list — \`RETURN a.name, collect(b.name) AS friends\`.
-- **DISTINCT:** \`RETURN DISTINCT label(n)\` or \`count(DISTINCT n)\`.
-- **UNION / UNION ALL:** Combine results from multiple \`MATCH\` blocks with the same column signature.
-- **Graph functions:** \`label(n)\` returns the node's label string, \`type(r)\` returns the relationship type string, \`nodes(p)\` / \`rels(p)\` extract nodes/rels from a path, \`length(p)\` returns hop count.
-- **Path modifiers (on the pattern itself):** Use \`TRAIL\` for distinct edges, \`ACYCLIC\` for distinct nodes: \`(a)-[:Follows* TRAIL 1..5]->(b)\`. Default is walk (repeated edges allowed).
-
----
-
-`;
 
 type ContextType = (typeof CONTEXT_TYPES)[number];
 
@@ -258,12 +188,7 @@ Pull pre-built context from the world. Nothing is auto-loaded — you choose wha
 `.trim(),
   schema: inputSchema,
   execute: wrapSafe(
-    async (args: {
-      types: ContextType[];
-      relationshipHistory?: boolean;
-      entityName?: string;
-      entityLabel?: string;
-    }) => {
+    async (args: z.infer<typeof inputSchema>) => {
       if (args.types.includes("ENTITY_PROFILE")) {
         if (!args.entityName || !args.entityLabel) {
           return "ERROR: entityName and entityLabel are required when ENTITY_PROFILE is requested.";
@@ -285,7 +210,11 @@ Pull pre-built context from the world. Nothing is auto-loaded — you choose wha
           return buildEntityProfile(extra.entityName, extra.entityLabel);
         },
         CYPHER_COOKBOOK: async () => {
-          return CYPHER_COOKBOOK_PROMPT;
+          if (!_cypherCookbookCache) {
+            const p = join(__dirname, "..", "..", "..", "..", "CYPHER.md");
+            _cypherCookbookCache = readFileSync(p, "utf-8");
+          }
+          return _cypherCookbookCache;
         },
       };
 
