@@ -23,6 +23,7 @@ import type { DeepSeekClient } from "@/sdk/client";
 import type { AppendOnlyLog } from "@/sdk/log";
 import type { ChatMessage, ToolSpec, Usage } from "@/sdk/types";
 import { healMessages, stripHallucinatedToolMarkup } from "@/sdk/healing";
+import { ROLE_NAMES } from "@/shared/constants";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -171,11 +172,12 @@ export class ContextManager {
     return { estimateTokens: estimate, ctxMax, ratio: estimate / ctxMax };
   }
 
-  /** Summarise older turns into a single assistant message, preserving a
+  /** Summarize older turns into a single assistant message, preserving a
    *  recent tail. Uses a fast model (`deepseek-v4-flash`) with a 15 s timeout
    *  so a hung summary request cannot stall the turn loop. */
-  async fold(
+  async compact(
     model: string,
+    instruction?: string,
     opts?: { keepRecentTokens?: number; requireTailBoundary?: boolean },
   ): Promise<FoldResult> {
     const ctxMax = resolveContextTokens(model);
@@ -221,7 +223,8 @@ export class ContextManager {
     }
 
     const healed = healMessages(head).messages;
-    const instruction =
+    // TODO: Need more tailored version for GM.
+    instruction = instruction ??
       "Summarize the conversation above as one self-contained prose recap. " +
       "Preserve the user's ORIGINAL OBJECTIVE, all decisions reached, " +
       "tool results still relevant, and any open todos. " +
@@ -232,7 +235,7 @@ export class ContextManager {
       { role: "system", content: this.deps.getSystemPrompt() },
       ...fewShots.map((m) => ({ ...m })),
       ...healed,
-      { role: "user", content: instruction },
+      { role: "user", content: instruction, name: ROLE_NAMES.GM_ASSISTANT },
     ];
 
     // Wire turn abort → fold abort so Esc cancels a running fold immediately.
@@ -265,6 +268,7 @@ export class ContextManager {
       const summary: ChatMessage = {
         role: "assistant",
         content: `[History summary]\n${stripHallucinatedToolMarkup(resp.content)}${constraintTail}`,
+        name: ROLE_NAMES.GM,
       };
       // In thinking mode, stamp empty reasoning_content to prevent 400
       // on the next API call — DeepSeek requires it on ALL assistant messages.

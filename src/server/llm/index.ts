@@ -37,7 +37,7 @@ import { validateAndExecute } from "@/server/llm/tools/shared";
 import { performSkillCheck } from "@/server/llm/rollSkillCheck";
 import chalk from "chalk";
 import { highlightJson, highlightMarkdown } from "@/shared/highlight";
-import { type SkillName, TOOL_NAMES, DEBUG_PRINT_LLM_GENERATIONS } from "@/shared/constants";
+import { type SkillName, TOOL_NAMES, DEBUG_PRINT_LLM_GENERATIONS, ROLE_NAMES } from "@/shared/constants";
 
 const SEP = chalk.dim("─".repeat(48));
 import { DeepSeekClient, ImmutablePrefix, createGameLoop, toolToSpec, type ToolSpec } from "@/sdk";
@@ -278,7 +278,7 @@ export async function generateTurn(
         nudgeCount++;
         const prefix_ = nudgeCount === 1 ? "Reminder:" : "ERROR:";
         const msg = `${prefix_} You have not yet called ${TOOL_NAMES.GENERATE_DIALOGUE}. The player cannot see any response. You MUST call ${TOOL_NAMES.GENERATE_DIALOGUE} now — do not output text, call the tool.`;
-        log.append({ role: "user", content: msg });
+        log.append({ role: "user", content: msg, name: ROLE_NAMES.GM_ASSISTANT });
       },
       canEndTurn: () => {
         if (dialogueStepCalled) return null;

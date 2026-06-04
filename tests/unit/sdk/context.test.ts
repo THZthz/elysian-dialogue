@@ -145,7 +145,7 @@ describe("ContextManager", () => {
   describe("fold", () => {
     it("returns noop on empty log", async () => {
       const mgr = createManager();
-      const result = await mgr.fold("deepseek-v4-flash");
+      const result = await mgr.compact("deepseek-v4-flash");
       expect(result.folded).toBe(false);
       expect(result.beforeMessages).toBe(0);
     });
@@ -163,7 +163,7 @@ describe("ContextManager", () => {
         getCurrentTurn: () => 1,
         getSystemPrompt: () => "system prompt",
       });
-      const result = await mgr.fold("deepseek-v4-flash");
+      const result = await mgr.compact("deepseek-v4-flash");
       expect(result.folded).toBe(false);
     });
   });

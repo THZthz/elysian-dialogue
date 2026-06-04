@@ -38,6 +38,7 @@ import type {
   ReconfigurableOptions,
   Usage as UsageType,
 } from "@/sdk/types";
+import { ROLE_NAMES } from "@/shared/constants.ts";
 
 const DEFAULT_MAX_ITER_PER_TURN = 10;
 const TURN_START_FOLD_THRESHOLD = 0.9;
@@ -250,7 +251,7 @@ export function createGameLoop(opts: GameLoopOptions) {
   async function* step(userInput: string): AsyncGenerator<LoopEvent> {
     turn++;
     const turnStartLogIndex = log.length;
-    log.append({ role: "user", content: userInput });
+    log.append({ role: "user", content: userInput, name: ROLE_NAMES.GM_ASSISTANT });
 
     turnAbort = new AbortController();
     discardAbortRequested = false;
@@ -266,7 +267,7 @@ export function createGameLoop(opts: GameLoopOptions) {
         severity: "high",
         content: `Context at ${Math.round(tsEstimate.ratio * 100)}% — folding history before starting turn.`,
       };
-      await context.fold(model, { requireTailBoundary: true });
+      await context.compact(model, undefined,{ requireTailBoundary: true });
     }
 
     let foldedThisTurn = false;
@@ -291,6 +292,7 @@ export function createGameLoop(opts: GameLoopOptions) {
           log.append({
             role: "assistant",
             content: "[aborted by user — ask again or retry when ready]",
+            name: ROLE_NAMES.GM
           });
         }
         yield { turn, role: "done", content: "[aborted]" };
@@ -356,6 +358,7 @@ export function createGameLoop(opts: GameLoopOptions) {
       const assistantMsg: ChatMessage = {
         role: "assistant",
         content: acc.content || null,
+        name: ROLE_NAMES.GM,
       };
       if (toolCalls.length > 0) {
         assistantMsg.tool_calls = toolCalls;
@@ -369,7 +372,7 @@ export function createGameLoop(opts: GameLoopOptions) {
       if (toolCalls.length === 0) {
         const blockReason = canEndTurn?.();
         if (blockReason) {
-          log.append({ role: "user", content: blockReason });
+          log.append({ role: "user", content: blockReason, name: ROLE_NAMES.GM_ASSISTANT });
           continue;
         }
         yield { turn, role: "done", content: acc.content };
@@ -483,7 +486,7 @@ export function createGameLoop(opts: GameLoopOptions) {
             severity: "low",
             content: `Context at ${Math.round(decision.ratio * 100)}% — compacting history.`,
           };
-          await context.fold(model);
+          await context.compact(model);
         } else if (decision.kind === "exit-with-summary") {
           yield {
             turn,

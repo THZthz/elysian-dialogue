@@ -47,3 +47,8 @@ export const TOOL_NAMES = {
   EDIT_PLOT: "editPlot",
   GET_CONTEXT: "getContext",
 } as const;
+
+export const ROLE_NAMES = {
+  GM: "GM",
+  GM_ASSISTANT: "GM Assistant",
+} as const;
