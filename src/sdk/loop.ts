@@ -102,6 +102,7 @@ async function* streamModelResponse(
   thinking: boolean,
   reasoningEffort: string | undefined,
   maxTokens: number | undefined,
+  toolChoice: ChatOptions["toolChoice"],
   signal: AbortSignal,
   turn: number,
 ): AsyncGenerator<LoopEvent, Accumulator, void> {
@@ -120,6 +121,7 @@ async function* streamModelResponse(
     thinking: thinking ? "enabled" : "disabled",
     reasoningEffort: reasoningEffort as "high" | "max" | undefined,
     maxTokens,
+    toolChoice,
     signal,
   };
 
@@ -207,6 +209,7 @@ export function createGameLoop(opts: GameLoopOptions) {
   let thinking = (opts.reasoningEffort && opts.reasoningEffort !== "none") ?? true;
   const reasoningEffort = opts.reasoningEffort;
   let maxOutputTokens = opts.maxOutputTokens;
+  let toolChoice = opts.toolChoice;
   const maxIterPerTurn = opts.maxIterPerTurn ?? DEFAULT_MAX_ITER_PER_TURN;
   let turn = 0;
   const cacheDiagnostics: CacheDiagnostic[] = [];
@@ -312,6 +315,7 @@ export function createGameLoop(opts: GameLoopOptions) {
         thinking,
         reasoningEffort,
         maxOutputTokens,
+        toolChoice,
         signal,
         turn,
       );
@@ -542,6 +546,7 @@ export function createGameLoop(opts: GameLoopOptions) {
     if (opts.model !== undefined) model = opts.model;
     if (opts.thinking !== undefined) thinking = opts.thinking;
     if (opts.maxOutputTokens !== undefined) maxOutputTokens = opts.maxOutputTokens;
+    if (opts.toolChoice !== undefined) toolChoice = opts.toolChoice;
   }
 
   return {

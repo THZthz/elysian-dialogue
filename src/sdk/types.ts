@@ -107,10 +107,17 @@ export interface StreamChunk {
 
 // Chat request / response
 
+export type ToolChoice =
+  | "none"
+  | "auto"
+  | "required"
+  | { type: "function"; function: { name: string } };
+
 export interface ChatOptions {
   model: string;
   messages: ChatMessage[];
   tools?: readonly ToolSpec[];
+  toolChoice?: ToolChoice;
   signal?: AbortSignal;
   thinking?: "enabled" | "disabled";
   reasoningEffort?: "high" | "max";
@@ -161,6 +168,7 @@ export interface ReconfigurableOptions {
   model?: string;
   thinking?: boolean;
   maxOutputTokens?: number;
+  toolChoice?: ToolChoice;
 }
 
 export interface SessionMeta {
@@ -197,6 +205,7 @@ export interface GameLoopOptions {
   reasoningEffort?: "none" | "high" | "max";
   maxOutputTokens?: number;
   maxIterPerTurn?: number;
+  toolChoice?: ToolChoice;
   runTool: (name: string, args: string, signal: AbortSignal) => Promise<ToolResult>;
   onIterStart?: (iter: number, log: AppendOnlyLog) => void;
   /** If provided, checked before ending the turn on "no tool calls."

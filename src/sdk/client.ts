@@ -79,6 +79,7 @@ function buildPayload(opts: ChatOptions, stream: boolean): Record<string, unknow
   };
   if (stream) payload.stream_options = { include_usage: true };
   if (opts.tools?.length) payload.tools = opts.tools;
+  if (opts.toolChoice !== undefined) payload.tool_choice = opts.toolChoice;
   if (opts.maxTokens !== undefined) payload.max_tokens = opts.maxTokens;
   if (opts.thinking) {
     payload.extra_body = { thinking: { type: opts.thinking } };
