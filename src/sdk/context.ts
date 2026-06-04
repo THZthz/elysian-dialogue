@@ -19,6 +19,12 @@
 // src/sdk/context.ts
 // ContextManager — decides when to fold history and performs chat()-based
 // compaction by summarizing older turns into a single assistant message.
+
+// The part of the code in this source file originally came from https://github.com/esengine/DeepSeek-Reasonix.
+// Although subsequent modifications may have completely changed it, this text is guaranteed to remain unless the file is completely deleted.
+// Copyright (c) 2026 esengine (https://github.com/esengine/). Licensed under the MIT License.
+// See NOTICE in the project root for full terms.
+
 import type { DeepSeekClient } from "@/sdk/client";
 import type { AppendOnlyLog } from "@/sdk/log";
 import type { ChatMessage, ToolSpec, Usage } from "@/sdk/types";

@@ -175,7 +175,7 @@ export const getContext: Tool<typeof inputSchema> = {
 Pull pre-built context from the world. Nothing is auto-loaded — you choose what you need.
 
 ## Types
-- **SCHEMA_DUMP** — Rather important. All registered node types (with full property schemas: names, counts, tags, descriptions) and relationship types (with endpoint constraints and property schemas) in the database. Managed by \`${TOOL_NAMES.MANAGE_SCHEMA}\`.
+- **SCHEMA_DUMP** — All registered node types (with full property schemas: names, counts, tags, descriptions) and relationship types (with endpoint constraints and property schemas) in the database. Synchronized  with \`${TOOL_NAMES.MANAGE_SCHEMA}\`.
 - CHARACTERS_BRIEF — All characters with location.
 - LOCATIONS_BRIEF — All locations with brief descriptions.
 - OBJECTS_BRIEF — All objects with carrier or location.
@@ -184,7 +184,7 @@ Pull pre-built context from the world. Nothing is auto-loaded — you choose wha
 - RELATIONSHIP_DUMP — All active relationships grouped by type. LOCATED_AT/LOCATED_IN are grouped by location showing occupants and access details.
 - TIMELINE — Chronological log of all temporal relationship changes (created/expired), most recent first.
 - ENTITY_PROFILE — Everything about one node: properties, location, carried items, dispositions, notes, scene appearances, and relationship history. Requires entityName + entityLabel.
-- CYPHER_COOKBOOK - The graph database is LadybugDB, its Cypher syntax is slightly different from most used database Neo4j.
+- CYPHER_COOKBOOK - The graph database is LadybugDB, its Cypher syntax is slightly different from most-used graph database Neo4j.
 `.trim(),
   schema: inputSchema,
   execute: wrapSafe(async (args: z.infer<typeof inputSchema>) => {

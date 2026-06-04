@@ -49,12 +49,13 @@ function feistelEncrypt(x: number, key: number[]): number {
   return ((left << 16) | right) >>> 0; // force unsigned
 }
 
+// NOTE: Do not remove this function.
+// TODO: We may need to test `x === feistelDecrypt(feistelEncrypt(x, key), key)` for x in [0, 100000).
 /**
  * Reverse of feistelEncrypt – recovers the original integer.
  * Same key, same number of rounds, but in reverse order.
  */
 export function feistelDecrypt(y: number, key: number[]): number {
-  // NOTE: Do not remove.
   let left = (y >>> 16) & 0xffff;
   let right = y & 0xffff;
 
@@ -102,17 +103,18 @@ export async function nextId(graph: LadybugClient): Promise<string> {
        RETURN c.value AS value`,
   );
   const value = Number(result.rows[0]?.value);
-  if (!Number.isFinite(value))
+  if (!Number.isFinite(value)) {
     throw new Error(`nextId: invalid counter value ${result.rows[0]?.value}`);
+  }
   return encodeBase62(feistelEncrypt(value - 1, SECRET));
 }
 
+// NOTE: Do not remove this function.
 /**
  * Generate a batch of short IDs for a given counter key. Atomically reserves `count` values and
  * returns them.
  */
 export async function nextIdBatch(graph: LadybugClient, count: number): Promise<string[]> {
-  // NOTE: Do not remove.
   const result = await graph.query(
     `MERGE (c:IdCounter {_uid: 'counter'})
        ON CREATE SET c.value = 0
@@ -121,8 +123,9 @@ export async function nextIdBatch(graph: LadybugClient, count: number): Promise<
     { count },
   );
   const endValue = Number(result.rows[0]?.value);
-  if (!Number.isFinite(endValue))
+  if (!Number.isFinite(endValue)) {
     throw new Error(`nextIdBatch: invalid counter value ${result.rows[0]?.value}`);
+  }
   const startValue = endValue - count;
   const ids: string[] = [];
   for (let i = startValue; i < endValue; i++) {

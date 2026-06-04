@@ -19,6 +19,12 @@
 // src/sdk/healing.ts
 // Message healing pipeline — sanitises conversation history before sending to DeepSeek.
 // DeepSeek 400s on unpaired tool_calls / tool messages, missing thinking headers, etc.
+
+// The part of the code in this source file originally came from https://github.com/esengine/DeepSeek-Reasonix.
+// Although subsequent modifications may have completely changed it, this text is guaranteed to remain unless the file is completely deleted.
+// Copyright (c) 2026 esengine (https://github.com/esengine/). Licensed under the MIT License.
+// See NOTICE in the project root for full terms.
+
 import type { ChatMessage } from "@/sdk/types";
 
 export interface HealingOptions {

@@ -16,6 +16,11 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+// The part of the code in this source file originally came from https://github.com/esengine/DeepSeek-Reasonix.
+// Although subsequent modifications may have completely changed it, this text is guaranteed to remain unless the file is completely deleted.
+// Copyright (c) 2026 esengine (https://github.com/esengine/). Licensed under the MIT License.
+// See NOTICE in the project root for full terms.
+
 import * as fs from "node:fs";
 import * as path from "node:path";
 import type { ChatMessage, SessionMeta, SessionPersistence } from "@/sdk/types";

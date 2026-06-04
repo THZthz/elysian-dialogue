@@ -19,6 +19,12 @@
 // src/sdk/diagnostics.ts
 // Cache telemetry — tracks prefix-hash stability across turns so callers can
 // detect cache-warm/cache-cold transitions and attribute cache misses.
+
+// The part of the code in this source file originally came from https://github.com/esengine/DeepSeek-Reasonix.
+// Although subsequent modifications may have completely changed it, this text is guaranteed to remain unless the file is completely deleted.
+// Copyright (c) 2026 esengine (https://github.com/esengine/). Licensed under the MIT License.
+// See NOTICE in the project root for full terms.
+
 import { createHash } from "node:crypto";
 import type { Usage } from "@/sdk/types";
 
