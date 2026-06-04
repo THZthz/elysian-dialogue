@@ -352,12 +352,14 @@ export async function generateTurn(
                   finalMessages = parsed.messages as Record<string, unknown>[];
                   hasEmittedStreaming = true;
                   events.emitStreamingMessages(
-                    (finalMessages as any[]).map((m: any) => ({
-                      speaker: m.speaker || "SYSTEM",
-                      type: m.type || "SYSTEM",
-                      text: m.text || "",
-                      metadata: m.metadata,
-                    })),
+                    (finalMessages as any[])
+                      .filter((m: any) => m.speaker && m.text)
+                      .map((m: any) => ({
+                        speaker: m.speaker,
+                        type: m.type || "SYSTEM",
+                        text: m.text,
+                        metadata: m.metadata,
+                      })),
                   );
                 }
                 if (parsed.options && Array.isArray(parsed.options)) {
