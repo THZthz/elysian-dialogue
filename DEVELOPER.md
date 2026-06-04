@@ -9,29 +9,6 @@ Cinematic dialogue engine with branching paths, skill checks, and LLM Game Maste
 
 Chorus is a cinematic dialogue engine — an AI Game Master that generates branching narrative via LLM tool-calling, streamed to an interactive terminal client through SSE. The LLM uses a LadybugDB (Cypher) database to read/write world state (characters, locations, objects, plots, notes, dispositions). Hybrid search (dense + BM25 + optional cross-encoder reranking) runs locally via llama-server.
 
-## Commands
-
-```bash
-npm run server            # Start Express server (port 3000)
-npm run server:dev        # Start server with watch mode
-npm run console           # Start interactive terminal client
-
-npm run lint              # eslint . && tsc --noEmit
-npm run format            # Format source (prettier)
-npm run format:check      # Check formatting
-
-npm run test              # All tests (vitest run, fileParallelism: false)
-npm run test:watch        # Tests in watch mode
-npm run test:unit         # tests/unit/
-npm run test:integration  # tests/integration/
-npm run test:scenarios    # tests/scenarios/
-```
-
-Single test:
-```bash
-npx vitest run tests/integration/tools.test.ts
-```
-
 ---
 
 ## Architecture
@@ -46,31 +23,43 @@ npx vitest run tests/integration/tools.test.ts
 
 ```mermaid
 flowchart TD
+    %% Main Architecture Flow
     Console["Console (SSE client)"] -->|POST /api/chat/stream| Express["Express API (port 3000)"]
     Express --> GenTurn["generateTurn()"]
+    GenTurn --> Loop
 
-    subgraph Loop["createGameLoop() — generator loop"]
+    %% The Generator Loop Subgraph
+    subgraph Loop ["createGameLoop() — Generator Loop"]
         direction TB
         Iter["Next iteration"] --> Check{"Tool call?"}
-
-        Check -->|generateDialogueStep| Dialogue["Parse partial JSON<br/>→ Emit content SSE"]
+        
+        %% Path A: Dialogue
+        Check -->|generateDialogueStep| Dialogue["Parse partial JSON\n→ Emit content SSE"]
         Dialogue --> Done["Turn complete"]
-
-        Check -->|Other tool| Execute["runTool callback<br/>→ Cypher / search"]
-        Execute --> Enrich["enrichResult()<br/>(post-tool context)"]
+        
+        %% Path B: Tools
+        Check -->|Other tool| Execute["runTool callback\n(Cypher / search)"]
+        Execute --> Enrich["enrichResult()\n(post-tool context)"]
         Enrich -->|Feed back as user msg| Iter
-
-        Check -->|Storm / idle| Nudge["onIterStart:<br/>inject reminder"]
+        
+        %% Path C: Idle/Nudge
+        Check -->|Storm / idle| Nudge["onIterStart:\ninject reminder"]
         Nudge --> Iter
     end
 
-    GenTurn --> Loop
-    Loop -->|Stream| SSE["TurnEventEmitter<br/>(SSE events to client)"]
+    %% External Infrastructure & Services
+    subgraph Infrastructure ["Data & Embedding Layer"]
+        DB[("LadybugDB\n(Graph Database)")]
+        Vector[("SQLite VectorStore\n+ llama-server")]
+    end
 
-    Execute -->|Cypher| DB["LadybugDB<br/>(graph database)"]
-    Execute -->|Embedding| Vector["SQLite VectorStore<br/>+ llama-server"]
-
+    %% Connections to Services
+    Execute -->|Cypher| DB
+    Execute -->|Embedding| Vector
     Enrich -.->|Extra entity context| Execute
+
+    %% Output
+    Loop -->|Stream| SSE["TurnEventEmitter\n(SSE events to client)"]
 ```
 
 ### SDK turn loop

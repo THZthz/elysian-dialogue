@@ -5,13 +5,7 @@
 - No need to consider backward compatibility (anything including database), we always start fresh.
 - If you meet a problem regarding to Cypher usage in LadybugDB, check CYPHER.md in the project root.
 
-## IMPORTANT: Your workflow
-
-1. **Read DEVELOPER.md BEFORE DOING ANYTHING ELSE**. DEVELOPER.md may contain outdated information, so it should only act as a reference. Check the exact source files before you act.
-2. Explore the codebase, making plans, modify codebase, etc.
-3. Update DEVELOPER.md after you have modified the codebase, keep concise.
-
-## GUIDELINES
+## GUIDELINES (**Read DEVELOPER.md BEFORE DOING ANYTHING ELSE**)
 
 ### 1. Think Before Coding
 
@@ -69,3 +63,26 @@ For multi-step tasks, state a brief plan:
 ```
 
 Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
+
+## Commands
+
+```bash
+npm run server            # Start Express server (port 3000)
+npm run server:dev        # Start server with watch mode
+npm run console           # Start interactive terminal client
+
+npm run lint              # eslint . && tsc --noEmit
+npm run format            # Format source (prettier)
+npm run format:check      # Check formatting
+
+npm run test              # All tests (vitest run, fileParallelism: false)
+npm run test:watch        # Tests in watch mode
+npm run test:unit         # tests/unit/
+npm run test:integration  # tests/integration/
+npm run test:scenarios    # tests/scenarios/
+```
+
+Single test:
+```bash
+npx vitest run tests/integration/tools.test.ts
+```
