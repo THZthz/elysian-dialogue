@@ -133,7 +133,7 @@ If you fixing invalid messages, make sure your include "index" field to precisel
     .optional()
     .describe(
       `
-The choices presented to the player.
+The choices presented to the player (minimum: 2 options, maximum: 4 options).
 Required for fresh calls.
 Omit during corrections if only fixing options.
 If you fixing invalid options, make sure your include "index" field to precisely repair the corresponding options.`.trim(),
@@ -141,6 +141,7 @@ If you fixing invalid options, make sure your include "index" field to precisely
   isCorrection: z
     .boolean()
     .optional()
+    .nullable()
     .describe(
       `
 Set to true when correcting specific validation errors from a previous failed call.

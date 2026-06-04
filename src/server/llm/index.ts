@@ -302,7 +302,7 @@ export async function generateTurn(
     let finalMessages: Record<string, unknown>[] = [];
     let finalOptions: DialogueOption[] = [];
     let toolRawArgs = "";
-    let hasEmittedStreaming = false;
+    let streamingNeedsReset = false;
 
     // Debug: track tool call argument deltas to print complete requests
     let debugToolCalls: Map<number, { name: string; args: string }> | null = null;
@@ -315,19 +315,20 @@ export async function generateTurn(
 
       if (turnNumber == 1) {
         console.log(SEP);
-        console.log(chalk.bold.blue("[SYSTEM PROMPT]"));
-        console.log(highlightMarkdown(prefix.system));
-        console.log(SEP);
-        console.log(chalk.bold.blue("[USER PROMPT]"));
-        console.log(highlightMarkdown(promptText));
-        console.log(SEP);
         console.log(chalk.bold.cyan("[TOOL SCHEMAS]"));
         for (const spec of prefix.toolSpecs) {
           console.log(chalk.cyan(`${spec.function.name}`));
           console.log(highlightJson(JSON.stringify(spec, null, 2)));
           console.log("\n");
         }
+        console.log(SEP);
+        console.log(chalk.bold.blue("[SYSTEM PROMPT]"));
+        console.log(highlightMarkdown(prefix.system));
       }
+
+      console.log(SEP);
+      console.log(chalk.bold.blue("[USER PROMPT]"));
+      console.log(highlightMarkdown(promptText));
     }
 
     let hadError = false;
@@ -343,10 +344,11 @@ export async function generateTurn(
           }
           if (event.toolName === TOOL_NAMES.GENERATE_DIALOGUE) {
             if (event.argsDelta) {
-              // New dialogue call → reset streaming
-              if (hasEmittedStreaming) {
+              // Reset streaming when starting a new dialogue call (e.g. correction)
+              if (streamingNeedsReset) {
+                toolRawArgs = "";
                 events.emitStreamingReset();
-                hasEmittedStreaming = false;
+                streamingNeedsReset = false;
               }
               // Accumulate args across deltas
               toolRawArgs += event.argsDelta;
@@ -358,7 +360,6 @@ export async function generateTurn(
                   (parsed.messages as any[]).length > 0
                 ) {
                   finalMessages = parsed.messages as Record<string, unknown>[];
-                  hasEmittedStreaming = true;
                   events.emitStreamingMessages(
                     (finalMessages as any[])
                       .filter((m: any) => m.speaker && m.text)
@@ -435,6 +436,9 @@ export async function generateTurn(
           break;
         }
         case "tool_result": {
+          if (event.name === TOOL_NAMES.GENERATE_DIALOGUE) {
+            streamingNeedsReset = true;
+          }
           if (DEBUG_PRINT_LLM_GENERATIONS) {
             console.log(SEP);
             console.log(chalk.bold.yellow(`[TOOL RESULT: ${event.name}]`));

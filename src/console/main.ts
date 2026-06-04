@@ -37,7 +37,6 @@ let history: Message[] = [];
 let currentOptions: DialogueOption[] = [];
 let _lastStepId: string | null = null;
 let streamingMessages: Message[] = [];
-let isRetrying = false;
 let sseClient: ConsoleSseClient | null = null;
 let messageIdCounter = 0;
 
@@ -157,7 +156,6 @@ function createSseCallbacks(): SseCallbacks {
       _lastStepId = data.stepId;
     },
     onStreamingMessages: (messages) => {
-      if (isRetrying) return;
       streamingMessages = messages.map((m, i) => ({
         id: `stream-${i}`,
         speaker: m.speaker,
@@ -168,13 +166,13 @@ function createSseCallbacks(): SseCallbacks {
       logUpdate(formatStreamingMessages());
     },
     onStreamingReset: () => {
-      isRetrying = true;
+      streamingMessages = [];
+      logUpdate(formatStreamingMessages());
     },
     onOptions: (options) => {
       currentOptions = options as unknown as DialogueOption[];
     },
     onParsed: (data) => {
-      isRetrying = false;
       logUpdate.clear();
       logUpdate.done();
       streamingMessages = [];
@@ -201,7 +199,6 @@ function createSseCallbacks(): SseCallbacks {
       }
     },
     onError: (message) => {
-      isRetrying = false;
       logUpdate.clear();
       logUpdate.done();
       streamingMessages = [];
@@ -245,7 +242,6 @@ function createSseCallbacks(): SseCallbacks {
 
 async function postChatStream(userInput: string, hist: Message[], check?: DialogueOption["check"]) {
   state = "WAITING";
-  isRetrying = false;
   streamingMessages = [];
   currentOptions = [];
   sseClient?.abort();
@@ -346,7 +342,6 @@ async function handleRegenerate() {
   sseClient?.abort();
   currentOptions = [];
   streamingMessages = [];
-  isRetrying = false;
 
   console.log(chalk.dim("\nRegenerating response...\n"));
   emitYouMessage(lastPlayerMsg.text);
