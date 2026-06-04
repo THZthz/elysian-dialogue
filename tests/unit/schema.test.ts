@@ -147,8 +147,6 @@ describe("SchemaRegistry", () => {
   it("getInternalTypeNames excludes hidden types from schema dump", () => {
     const schema = SchemaRegistry.getInstance();
     const internals = schema.getInternalTypeNames();
-    expect(internals).toContain("Conversation");
-    expect(internals).toContain("GMTurnMessage");
     expect(internals).toContain("IdCounter");
     expect(internals).not.toContain("Character");
   });

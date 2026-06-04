@@ -23,7 +23,6 @@ import { SchemaRegistry } from "@/server/db/schema";
 import { CheckpointManager } from "@/server/db/checkpoint";
 import { HybridSearcher } from "@/server/search/hybridSearch";
 import { getEmbedder, initEmbedder } from "@/server/search/embedder";
-import { MessageModel } from "@/server/db/models/messages";
 import { EntityModel } from "@/server/db/models/entities";
 import { NoteModel } from "@/server/db/models/notes";
 import { PlotModel } from "@/server/db/models/plots";
@@ -36,7 +35,6 @@ export class Database {
   search!: HybridSearcher;
   readonly checkpoint: CheckpointManager;
 
-  messages!: MessageModel;
   entities!: EntityModel;
   notes!: NoteModel;
   plots!: PlotModel;
@@ -119,7 +117,6 @@ export class Database {
     await initEmbedder();
     const embedder = getEmbedder();
     this.search = new HybridSearcher(this.vectors, embedder);
-    this.messages = new MessageModel(this.graph);
     this.entities = new EntityModel(this.graph, this.vectors, embedder);
     this.notes = new NoteModel(this.graph, this.vectors, embedder);
     this.plots = new PlotModel(this.graph, this.vectors, embedder);

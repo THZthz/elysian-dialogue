@@ -242,31 +242,6 @@ const PREDEFINED_NODES: NodeTypeDef[] = [
     ],
   },
   {
-    name: "Conversation",
-    category: "INTERNAL",
-    description: "Singleton game session",
-    properties: [
-      { name: "_uid", description: "UUID", tags: ["string", "unique"] },
-      CREATED_AT_PROP,
-      UPDATED_AT_PROP,
-    ],
-  },
-  {
-    name: "GMTurnMessage",
-    category: "INTERNAL",
-    description:
-      "Singleton node storing the game session. Internal bookkeeping — not visible to GM.",
-    properties: [
-      { name: "_uid", description: "UUID.", tags: ["string", "unique"] },
-      { name: "turn_number", description: "Turn number.", tags: ["number"] },
-      { name: "message_index", description: "Message index within turn.", tags: ["number"] },
-      { name: "role", description: "Message role.", tags: ["string"] },
-      { name: "content", description: "JSON message content.", tags: ["json"] },
-      { name: "provider_options", description: "JSON provider options.", tags: ["json"] },
-      CREATED_AT_PROP,
-    ],
-  },
-  {
     name: "IdCounter",
     category: "INTERNAL",
     description: "Atomic message ID counter.",
@@ -303,30 +278,6 @@ const PREDEFINED_NODES: NodeTypeDef[] = [
 ];
 
 const PREDEFINED_RELS: RelTypeDef[] = [
-  {
-    name: "_HAS_GM_MESSAGE",
-    sourceLabel: "Conversation",
-    targetLabel: "GMTurnMessage",
-    category: "INTERNAL",
-    description: "GM message container.",
-    properties: [CREATED_AT_PROP],
-  },
-  {
-    name: "_FIRST_GM_MESSAGE",
-    sourceLabel: "Conversation",
-    targetLabel: "GMTurnMessage",
-    category: "INTERNAL",
-    description: "First GM message.",
-    properties: [CREATED_AT_PROP],
-  },
-  {
-    name: "_NEXT_GM_MESSAGE",
-    sourceLabel: "GMTurnMessage",
-    targetLabel: "GMTurnMessage",
-    category: "INTERNAL",
-    description: "GM message chain.",
-    properties: [CREATED_AT_PROP],
-  },
   {
     name: "LOCATED_AT",
     sourceLabel: "Character",
@@ -711,7 +662,7 @@ export class SchemaRegistry {
   }
 
   getInternalTypeNames(): string[] {
-    return ["Conversation", "GMTurnMessage", "IdCounter", "NodeType", "RelationshipType"];
+    return ["IdCounter", "NodeType", "RelationshipType"];
   }
 
   private static instance: SchemaRegistry | null = null;

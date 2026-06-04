@@ -179,8 +179,7 @@ export async function generateTurn(
     events.startStep(`step_${Date.now()}`);
 
     // ── Load turn state ──
-    // Count existing checkpoints — GMTurnMessage nodes are not the canonical
-    // turn counter (generateDialogueStep persistence is optional).
+    // Count existing checkpoints to determine current turn number.
     let turnNumber = 1;
     try {
       const checkpoints = await db.checkpoint.list();
