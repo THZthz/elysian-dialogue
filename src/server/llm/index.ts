@@ -171,9 +171,14 @@ export async function generateTurn(
     events.startStep(`step_${Date.now()}`);
 
     // ── Load turn state ──
+    // Count existing checkpoints — GMTurnMessage nodes are not the canonical
+    // turn counter (generateDialogueStep persistence is optional).
     let turnNumber = 1;
     try {
-      turnNumber = await db.messages.getNextTurnNumber();
+      const checkpoints = await db.checkpoint.list();
+      if (checkpoints.length > 0) {
+        turnNumber = Math.max(...checkpoints.map((c) => c.turn)) + 1;
+      }
     } catch {
       /* use default */
     }
@@ -307,18 +312,21 @@ export async function generateTurn(
       console.log(chalk.bold.magenta("\n══════════════════════════════════════════"));
       console.log(chalk.bold.magenta("  LLM GENERATION — Turn"), turnNumber);
       console.log(chalk.bold.magenta("══════════════════════════════════════════"));
-      console.log(SEP);
-      console.log(chalk.bold.blue("[SYSTEM PROMPT]"));
-      console.log(highlightMarkdown(prefix.system));
-      console.log(SEP);
-      console.log(chalk.bold.blue("[USER PROMPT]"));
-      console.log(highlightMarkdown(promptText));
-      console.log(SEP);
-      console.log(chalk.bold.cyan("[TOOL SCHEMAS]"));
-      for (const spec of prefix.toolSpecs) {
-        console.log(chalk.cyan(`${spec.function.name}`));
-        console.log(highlightJson(JSON.stringify(spec, null, 2)));
-        console.log("\n");
+
+      if (turnNumber == 1) {
+        console.log(SEP);
+        console.log(chalk.bold.blue("[SYSTEM PROMPT]"));
+        console.log(highlightMarkdown(prefix.system));
+        console.log(SEP);
+        console.log(chalk.bold.blue("[USER PROMPT]"));
+        console.log(highlightMarkdown(promptText));
+        console.log(SEP);
+        console.log(chalk.bold.cyan("[TOOL SCHEMAS]"));
+        for (const spec of prefix.toolSpecs) {
+          console.log(chalk.cyan(`${spec.function.name}`));
+          console.log(highlightJson(JSON.stringify(spec, null, 2)));
+          console.log("\n");
+        }
       }
     }
 

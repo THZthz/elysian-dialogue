@@ -28,19 +28,23 @@ export interface CheckpointEntry {
   createdAt: string;
 }
 
-async function reopenWithRetry(
-  reopenCallback: () => Promise<void>,
-  copyError: unknown,
-): Promise<void> {
+async function reopenWithRetry(reopenCallback: () => Promise<void>): Promise<void> {
   for (let attempt = 0; attempt < 10; attempt++) {
     try {
       await reopenCallback();
       return;
     } catch (err) {
-      if (attempt === 9) throw copyError ?? err;
+      if (attempt === 9) throw err;
       await new Promise((r) => setTimeout(r, 500));
     }
   }
+}
+
+/** Copy a file by reading into memory then writing — avoids Windows EBUSY on
+ *  copyFile() which can fail even when open(O_RDONLY) succeeds. */
+async function copyViaBuffer(src: string, dest: string): Promise<void> {
+  const buf = await fsp.readFile(src);
+  await fsp.writeFile(dest, buf);
 }
 
 export class CheckpointManager {
@@ -67,36 +71,36 @@ export class CheckpointManager {
     const graphDest = path.join(turnDir, "graph.lbug");
     const vectorDest = path.join(turnDir, "vectors.db");
 
-    // closeCallback uses Database.closeSync() under the hood, so the
-    // LadybugDB file lock is released before this Promise resolves.
+    // closeCallback calls Database.closeSync() — LadybugDB lock is released
+    // before this Promise resolves, but Windows OS handles may linger.
     await closeCallback();
+    await new Promise((r) => setTimeout(r, 250));
 
-    // On Windows the OS file handle may outlive LadybugDB's close().
-    // Poll until the file becomes readable, then copy with retry.
     let copyError: unknown = null;
     try {
-      for (let attempt = 0; attempt < 30; attempt++) {
+      for (let attempt = 0; attempt < 10; attempt++) {
         try {
-          // Test readability first — a successful open-for-read means the
-          // OS handle has been released and we can proceed.
-          const handle = await fsp.open(this.graphPath, fs.constants.O_RDONLY);
-          await handle.close();
-          await fsp.copyFile(this.graphPath, graphDest);
+          await copyViaBuffer(this.graphPath, graphDest);
           break;
         } catch (err) {
-          if (attempt === 29) {
-            copyError = err;
-          } else {
-            await new Promise((r) => setTimeout(r, 500));
-          }
+          if (attempt === 9) copyError = err;
+          else await new Promise((r) => setTimeout(r, 500));
         }
       }
+
       if (!copyError) {
+        // Copy WAL if present (may contain unflushed data on Windows)
+        const walPath = this.graphPath + ".wal";
+        if (fs.existsSync(walPath)) {
+          await fsp.copyFile(walPath, graphDest + ".wal");
+        }
         await fsp.copyFile(this.vectorPath, vectorDest);
       }
     } finally {
-      await reopenWithRetry(reopenCallback, copyError);
+      // Always reopen — if this fails the server is dead regardless
+      await reopenWithRetry(reopenCallback);
     }
+
     if (copyError) throw copyError;
 
     const index = this.loadIndex();
