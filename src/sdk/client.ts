@@ -17,6 +17,8 @@
  */
 
 // src/sdk/client.ts
+import { type Readable } from "node:stream";
+import axios, { type AxiosInstance } from "axios";
 import { createParser, type EventSourceMessage } from "eventsource-parser";
 import type { ChatOptions, ChatResponse, StreamChunk, ToolCall, RawUsage } from "@/sdk/types";
 import { Usage } from "@/sdk/types";
@@ -25,7 +27,7 @@ export interface DeepSeekClientOptions {
   apiKey: string;
   baseUrl?: string;
   timeoutMs?: number;
-  fetch?: typeof fetch;
+  axiosInstance?: AxiosInstance;
 }
 
 function replaceLoneSurrogates(value: string): string {
@@ -105,7 +107,7 @@ export class DeepSeekClient {
   readonly apiKey: string;
   readonly baseUrl: string;
   readonly timeoutMs: number;
-  private readonly _fetch: typeof fetch;
+  private readonly _axios: AxiosInstance;
 
   constructor(opts: DeepSeekClientOptions) {
     const apiKey = opts.apiKey ?? process.env.DEEPSEEK_API_KEY;
@@ -119,7 +121,19 @@ export class DeepSeekClient {
     while (url.endsWith("/")) url = url.slice(0, -1);
     this.baseUrl = url;
     this.timeoutMs = opts.timeoutMs ?? 660_000; // 11 min
-    this._fetch = opts.fetch ?? globalThis.fetch.bind(globalThis);
+    this._axios = opts.axiosInstance ?? axios.create({ timeout: this.timeoutMs });
+  }
+
+  private handleAxiosError(err: unknown): never {
+    if (axios.isAxiosError(err)) {
+      const status = err.response?.status ?? 0;
+      const body =
+        typeof err.response?.data === "object"
+          ? JSON.stringify(err.response.data)
+          : (err.response?.data ?? err.message);
+      throw new Error(`DeepSeek ${status}: ${body}`);
+    }
+    throw err;
   }
 
   async chat(opts: ChatOptions): Promise<ChatResponse> {
@@ -133,19 +147,18 @@ export class DeepSeekClient {
       : ctrl.signal;
 
     try {
-      const resp = await this._fetch(`${this.baseUrl}/chat/completions`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${this.apiKey}`,
-          "Content-Type": "application/json",
+      const resp = await this._axios.post(
+        `${this.baseUrl}/chat/completions`,
+        stringifyJsonTransport(buildPayload(opts, false)),
+        {
+          headers: {
+            Authorization: `Bearer ${this.apiKey}`,
+            "Content-Type": "application/json",
+          },
+          signal,
         },
-        body: stringifyJsonTransport(buildPayload(opts, false)),
-        signal,
-      });
-      if (!resp.ok) {
-        throw new Error(`DeepSeek ${resp.status}: ${await resp.text()}`);
-      }
-      const data = (await resp.json()) as Record<string, unknown>;
+      );
+      const data = resp.data as Record<string, unknown>;
       const choice =
         ((data.choices as Array<Record<string, unknown>>)?.[0]?.message as Record<
           string,
@@ -157,6 +170,8 @@ export class DeepSeekClient {
         toolCalls: (choice.tool_calls as ToolCall[]) ?? [],
         usage: Usage.fromApi((data.usage ?? data) as RawUsage),
       };
+    } catch (err) {
+      this.handleAxiosError(err);
     } finally {
       clearTimeout(timer);
     }
@@ -172,25 +187,25 @@ export class DeepSeekClient {
       ? AbortSignal.any([opts.signal as AbortSignal, ctrl.signal])
       : ctrl.signal;
 
-    let resp: Response;
+    let stream: Readable;
     try {
-      resp = await this._fetch(`${this.baseUrl}/chat/completions`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${this.apiKey}`,
-          "Content-Type": "application/json",
-          Accept: "text/event-stream",
+      const resp = await this._axios.post(
+        `${this.baseUrl}/chat/completions`,
+        stringifyJsonTransport(buildPayload(opts, true)),
+        {
+          headers: {
+            Authorization: `Bearer ${this.apiKey}`,
+            "Content-Type": "application/json",
+            Accept: "text/event-stream",
+          },
+          signal,
+          responseType: "stream",
         },
-        body: stringifyJsonTransport(buildPayload(opts, true)),
-        signal,
-      });
+      );
+      stream = resp.data;
     } catch (err) {
       clearTimeout(timer);
-      throw err;
-    }
-    if (!resp.ok || !resp.body) {
-      clearTimeout(timer);
-      throw new Error(`DeepSeek ${resp.status}: ${await resp.text().catch(() => "")}`);
+      this.handleAxiosError(err);
     }
 
     const queue: StreamChunk[] = [];
@@ -243,32 +258,22 @@ export class DeepSeekClient {
       },
     });
 
-    const reader = resp.body.getReader();
     const decoder = new TextDecoder();
     try {
-      while (true) {
-        if (queue.length > 0) {
-          yield queue.shift()!;
-          continue;
-        }
+      for await (const chunk of stream) {
+        const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk as string);
+        parser.feed(decoder.decode(buf, { stream: true }));
+        while (queue.length > 0) yield queue.shift()!;
         if (done) break;
-        let value: Uint8Array | undefined;
-        let streamDone: boolean;
-        try {
-          ({ value, done: streamDone } = await reader.read());
-        } catch (readErr) {
-          const cause = readErr instanceof Error ? readErr : new Error(String(readErr));
-          throw Object.assign(new Error(`SSE body read failed: ${cause.message}`), {
-            phase: "stream_body_read" as const,
-          });
-        }
-        if (streamDone) break;
-        parser.feed(decoder.decode(value, { stream: true }));
       }
       while (queue.length > 0) yield queue.shift()!;
+    } catch (readErr) {
+      const cause = readErr instanceof Error ? readErr : new Error(String(readErr));
+      throw Object.assign(new Error(`SSE body read failed: ${cause.message}`), {
+        phase: "stream_body_read" as const,
+      });
     } finally {
       clearTimeout(timer);
-      reader.releaseLock();
     }
   }
 }

@@ -16,7 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect } from "vitest";
 import { createGameLoop } from "@/sdk/loop";
 import { DeepSeekClient } from "@/sdk/client";
 import { ImmutablePrefix } from "@/sdk/prefix";
@@ -26,7 +26,7 @@ import { Usage } from "@/sdk/types";
 class FakeClient extends DeepSeekClient {
   _chunks: StreamChunk[] = [];
   constructor() {
-    super({ apiKey: "test-key", fetch: vi.fn() as unknown as typeof fetch });
+    super({ apiKey: "test-key" });
   }
   override async chat(_opts: ChatOptions): Promise<ChatResponse> {
     return { content: "", reasoningContent: null, toolCalls: [], usage: new Usage() };
