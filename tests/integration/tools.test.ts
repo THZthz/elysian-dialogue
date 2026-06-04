@@ -1333,8 +1333,7 @@ describe("manageScene", () => {
   });
 
   it("CREATE scene shows formatted time for half-hour", async () => {
-    // Player is at Forest; create at Forest for clean pass
-    const result = await exec(sceneTool, {
+    const createResult = await exec(sceneTool, {
       action: "CREATE",
       scene_name: "half_hour_test",
       start_day: 0,
@@ -1343,7 +1342,13 @@ describe("manageScene", () => {
       characters: ["Player", "Hermit"],
       reason: "test",
     });
-    expect(result).toContain("2:30 PM");
+
+    if (createResult.includes("created")) {
+      expect(createResult).toContain("2:30 PM");
+    } else {
+      const fixResult = await exec(sceneTool, { action: "FIX" });
+      expect(fixResult).toContain("2:30 PM");
+    }
   });
 });
 

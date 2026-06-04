@@ -184,9 +184,7 @@ async function* streamModelResponse(
 export function createGameLoop(opts: GameLoopOptions) {
   const client = opts.client;
   const prefix = opts.prefix;
-  const log = opts.sessionName
-    ? new AppendOnlyLog({ persistence: opts.persistence })
-    : new AppendOnlyLog();
+  const log = new AppendOnlyLog({ persistence: opts.persistence });
 
   // Heal messages loaded from persistence on resume — oversized tool results,
   // missing reasoning_content, unpaired tool calls would 400 the next API call.

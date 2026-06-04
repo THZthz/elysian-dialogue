@@ -19,7 +19,7 @@
 import { getActiveSeedStory } from "@/server/stories";
 import { TOOL_NAMES } from "@/shared/constants";
 
-const MAX_GM_STEPS = 10;
+const MAX_GM_STEPS = 15;
 
 const DEFAULT_SYSTEM_PROMPT_TEMPLATE = `
 You are the Game Master, proficient in telling scene-based story.

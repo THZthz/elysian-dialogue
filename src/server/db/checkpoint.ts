@@ -25,6 +25,7 @@ export interface CheckpointEntry {
   turn: number;
   graphFile: string;
   vectorFile: string;
+  messageFile: string;
   createdAt: string;
 }
 
@@ -50,11 +51,18 @@ async function copyViaBuffer(src: string, dest: string): Promise<void> {
 export class CheckpointManager {
   private readonly graphPath: string;
   private readonly vectorPath: string;
+  private readonly messageLogPath: string;
   private readonly dir: string;
 
-  constructor(graphPath: string, vectorPath: string, checkpointDir: string) {
+  constructor(
+    graphPath: string,
+    vectorPath: string,
+    checkpointDir: string,
+    messageLogPath: string,
+  ) {
     this.graphPath = graphPath;
     this.vectorPath = vectorPath;
+    this.messageLogPath = messageLogPath;
     this.dir = checkpointDir;
   }
 
@@ -70,6 +78,7 @@ export class CheckpointManager {
 
     const graphDest = path.join(turnDir, "graph.lbug");
     const vectorDest = path.join(turnDir, "vectors.db");
+    const messageDest = path.join(turnDir, path.basename(this.messageLogPath));
 
     // closeCallback calls Database.closeSync() — LadybugDB lock is released
     // before this Promise resolves, but Windows OS handles may linger.
@@ -95,6 +104,9 @@ export class CheckpointManager {
           await fsp.copyFile(walPath, graphDest + ".wal");
         }
         await fsp.copyFile(this.vectorPath, vectorDest);
+        if (fs.existsSync(this.messageLogPath)) {
+          await fsp.copyFile(this.messageLogPath, messageDest);
+        }
       }
     } finally {
       // Always reopen — if this fails the server is dead regardless
@@ -108,6 +120,7 @@ export class CheckpointManager {
       turn: turnNumber,
       graphFile: graphDest,
       vectorFile: vectorDest,
+      messageFile: messageDest,
       createdAt: new Date().toISOString(),
     });
     fs.writeFileSync(path.join(this.dir, "index.json"), JSON.stringify(index, null, 2));
@@ -142,6 +155,10 @@ export class CheckpointManager {
       fs.unlinkSync(currentWal); // Remove stale WAL from different version
     }
     fs.copyFileSync(entry.vectorFile, this.vectorPath);
+
+    if (fs.existsSync(entry.messageFile)) {
+      fs.copyFileSync(entry.messageFile, this.messageLogPath);
+    }
 
     // Validate restored file before removing sentinel
     try {

@@ -16,6 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+import * as path from "node:path";
 import { parse as parsePartial } from "partial-json";
 import type { Response } from "express";
 import type { Message, DialogueOption } from "@/types/dialogue";
@@ -45,7 +46,14 @@ import {
 } from "@/shared/constants";
 
 const SEP = chalk.dim("─".repeat(48));
-import { DeepSeekClient, ImmutablePrefix, createGameLoop, toolToSpec, type ToolSpec } from "@/sdk";
+import {
+  DeepSeekClient,
+  ImmutablePrefix,
+  createGameLoop,
+  toolToSpec,
+  type ToolSpec,
+  JsonlPersistence,
+} from "@/sdk";
 
 let generating = false;
 
@@ -69,7 +77,7 @@ function getDeepSeekClient(): DeepSeekClient {
 export async function getPrefix(): Promise<ImmutablePrefix> {
   if (_cachedPrefix) return _cachedPrefix;
   const systemPrompt = await buildSystemPrompt();
-  const allTools = [
+  const dbTools = [
     queryWorld,
     searchWorld,
     manageSchema,
@@ -79,7 +87,7 @@ export async function getPrefix(): Promise<ImmutablePrefix> {
     editPlot,
     getContext,
   ];
-  const toolSpecs: ToolSpec[] = allTools.map((t) => toolToSpec(t));
+  const toolSpecs: ToolSpec[] = dbTools.map((t) => toolToSpec(t));
 
   // Per-turn tools have factory-created state, but their schemas are static —
   // register specs here so the LLM knows the exact parameter names.
@@ -261,6 +269,10 @@ export async function generateTurn(
     const manageSceneTool = createManageSceneTool(events);
     dialogueStepTool.resetForTurn();
 
+    const messageLogDir = path.dirname(db.messageLogPath);
+    const sessionName = path.basename(db.messageLogPath, ".jsonl");
+    const persistence = new JsonlPersistence(messageLogDir, sessionName);
+
     let dialogueStepCalled = false;
     let nudgeCount = 0;
     const handlers = createToolHandlers(dialogueStepTool, manageSceneTool);
@@ -268,6 +280,8 @@ export async function generateTurn(
     const loop = createGameLoop({
       client,
       prefix,
+      sessionName,
+      persistence,
       model: process.env.DEEPSEEK_MODEL || "deepseek-v4-flash",
       reasoningEffort: "max",
       maxIterPerTurn: MAX_GM_STEPS,

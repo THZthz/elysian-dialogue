@@ -41,6 +41,6 @@ export function describeTime(time: { day: number; hour: number }): string {
 export function describeInternalTime(time: number): string {
   const day = Math.floor(time / 48);
   const halfHours = time % 48;
-  const hour = Math.floor(halfHours / 2);
+  const hour = halfHours / 2;
   return describeTime({ day, hour });
 }

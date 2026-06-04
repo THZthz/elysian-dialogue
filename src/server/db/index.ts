@@ -44,16 +44,23 @@ export class Database {
 
   private readonly graphPath: string;
   private readonly vectorPath: string;
+  readonly messageLogPath: string;
   private readonly checkpointDir: string;
 
-  private constructor(graphPath: string, vectorPath: string, checkpointDir: string) {
+  private constructor(
+    graphPath: string,
+    vectorPath: string,
+    checkpointDir: string,
+    messageLogPath: string,
+  ) {
     this.graphPath = graphPath;
     this.vectorPath = vectorPath;
     this.checkpointDir = checkpointDir;
+    this.messageLogPath = messageLogPath;
     this.graph = new LadybugClient(graphPath);
     this.vectors = new VectorStore(vectorPath);
     this.schema = SchemaRegistry.getInstance();
-    this.checkpoint = new CheckpointManager(graphPath, vectorPath, checkpointDir);
+    this.checkpoint = new CheckpointManager(graphPath, vectorPath, checkpointDir, messageLogPath);
   }
 
   async init(): Promise<void> {
@@ -149,12 +156,14 @@ export class Database {
       if (fs.existsSync(path + ".wal")) fs.unlinkSync(path + ".wal");
       if (fs.existsSync(path + "-shm")) fs.unlinkSync(path + "-shm");
     }
+    if (fs.existsSync(this.messageLogPath)) fs.unlinkSync(this.messageLogPath);
     Database.instance = null;
     SchemaRegistry.resetInstance();
     await Database.getInstance({
       graphPath: this.graphPath,
       vectorPath: this.vectorPath,
       checkpointDir: this.checkpointDir,
+      messageLogPath: this.messageLogPath,
     });
   }
 
@@ -166,14 +175,16 @@ export class Database {
     graphPath?: string;
     vectorPath?: string;
     checkpointDir?: string;
+    messageLogPath?: string;
   }): Promise<Database> {
     if (Database.instance) return Database.instance;
 
     const graphPath = options?.graphPath ?? "data/chorus.lbug";
     const vectorPath = options?.vectorPath ?? "data/chorus_vectors.db";
     const checkpointDir = options?.checkpointDir ?? "data/checkpoints";
+    const messageLogPath = options?.messageLogPath ?? "data/chorus-session.jsonl";
 
-    Database.instance = new Database(graphPath, vectorPath, checkpointDir);
+    Database.instance = new Database(graphPath, vectorPath, checkpointDir, messageLogPath);
     await Database.instance.init();
     return Database.instance;
   }
