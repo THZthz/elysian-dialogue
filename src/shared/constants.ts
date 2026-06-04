@@ -32,7 +32,7 @@ export const SKILL_NAMES = [
 ] as const;
 export type SkillName = (typeof SKILL_NAMES)[number];
 
-/** Print system prompt, user prompt, LLM reasoning, text output, tool calls, and tool results to server console. */
+/** Print system prompt, user prompt, tool schema, LLM reasoning, text output, tool calls, and tool results to server console. */
 export const DEBUG_PRINT_LLM_GENERATIONS = true;
 
 export const TOOL_NAMES = {

@@ -27,20 +27,12 @@
 import type { z } from "zod";
 import type { ToolSpec } from "@/sdk/types";
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
 export interface Tool<S extends z.ZodTypeAny = z.ZodTypeAny> {
   name: string;
   description: string;
   schema: S;
   execute: (args: z.infer<S>) => Promise<string>;
 }
-
-// ---------------------------------------------------------------------------
-// Public API
-// ---------------------------------------------------------------------------
 
 /**
  * Convert a Tool (with a Zod v4 schema) into an OpenAI-compatible

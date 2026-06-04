@@ -117,6 +117,7 @@ of action or allegiance, not a single line of dialogue.
     const newStatus = (args.status ?? oldStatus) as typeof oldStatus;
 
     const changes: string[] = [];
+    // != null catches both null and undefined (LLM may output null for omitted fields).
     if (args.description != null) changes.push("description");
     if (args.brief != null) changes.push("brief");
     if (args.status != null) changes.push(`status (${oldStatus} → ${newStatus})`);

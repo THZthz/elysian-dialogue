@@ -113,7 +113,7 @@ export interface ChatOptions {
   tools?: readonly ToolSpec[];
   signal?: AbortSignal;
   thinking?: "enabled" | "disabled";
-  reasoningEffort?: "low" | "medium" | "high";
+  reasoningEffort?: "high" | "max";
   maxTokens?: number;
 }
 
@@ -191,8 +191,10 @@ export interface GameLoopOptions {
   prefix: ImmutablePrefix;
   sessionName?: string;
   model?: string;
-  thinking?: boolean;
-  reasoningEffort?: "low" | "medium" | "high";
+  /** In thinking mode, 'low' and 'medium' are mapped to 'high', and 'xhigh' is mapped to 'max',
+   *  these thinking effort control correspond to 'reasoning_effort' in API request. Setting
+   *  'reasoningEffort' to 'none' will set 'thinking' to '{"type": "disabled" }' in request. */
+  reasoningEffort?: "none" | "high" | "max";
   maxOutputTokens?: number;
   maxIterPerTurn?: number;
   runTool: (name: string, args: string, signal: AbortSignal) => Promise<ToolResult>;

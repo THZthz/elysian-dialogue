@@ -39,16 +39,8 @@ import type {
   Usage as UsageType,
 } from "@/sdk/types";
 
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
-
 const DEFAULT_MAX_ITER_PER_TURN = 10;
 const TURN_START_FOLD_THRESHOLD = 0.9;
-
-// ---------------------------------------------------------------------------
-// Accumulator
-// ---------------------------------------------------------------------------
 
 interface Accumulator {
   content: string;
@@ -56,10 +48,6 @@ interface Accumulator {
   toolCalls: Map<number, ToolCall>;
   usage: UsageType | null;
 }
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
 
 function looksLikeCompleteJson(s: string): boolean {
   if (!s.trim()) return false;
@@ -105,10 +93,6 @@ function trimTrailingToolCalls(log: AppendOnlyLog): boolean {
   return false;
 }
 
-// ---------------------------------------------------------------------------
-// streamModelResponse
-// ---------------------------------------------------------------------------
-
 async function* streamModelResponse(
   client: DeepSeekClient,
   model: string,
@@ -133,7 +117,7 @@ async function* streamModelResponse(
     messages,
     tools: tools.length ? (tools as ChatOptions["tools"]) : undefined,
     thinking: thinking ? "enabled" : "disabled",
-    reasoningEffort: reasoningEffort as "low" | "medium" | "high" | undefined,
+    reasoningEffort: reasoningEffort as "high" | "max" | undefined,
     maxTokens,
     signal,
   };
@@ -194,10 +178,6 @@ async function* streamModelResponse(
   return acc;
 }
 
-// ---------------------------------------------------------------------------
-// createGameLoop
-// ---------------------------------------------------------------------------
-
 export function createGameLoop(opts: GameLoopOptions) {
   const client = opts.client;
   const prefix = opts.prefix;
@@ -210,7 +190,7 @@ export function createGameLoop(opts: GameLoopOptions) {
   if (log.totalLength > 0) {
     const loaded = log.toFullHistory();
     const healed = healMessages(loaded, {
-      thinkingModeModel: (opts.thinking ?? true) ? (opts.model ?? "deepseek-v4-flash") : null,
+      thinkingModeModel: ((opts.reasoningEffort && opts.reasoningEffort !== "none") ?? true) ? (opts.model ?? "deepseek-v4-flash") : null,
     });
     if (healed.healedCount > 0) {
       log.compactInPlace(healed.messages);
@@ -223,7 +203,7 @@ export function createGameLoop(opts: GameLoopOptions) {
   const rebuildSystem = opts.rebuildSystem;
 
   let model = opts.model ?? "deepseek-v4-flash";
-  let thinking = opts.thinking ?? true;
+  let thinking = (opts.reasoningEffort && opts.reasoningEffort !== "none") ?? true;
   const reasoningEffort = opts.reasoningEffort;
   let maxOutputTokens = opts.maxOutputTokens;
   const maxIterPerTurn = opts.maxIterPerTurn ?? DEFAULT_MAX_ITER_PER_TURN;

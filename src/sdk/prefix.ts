@@ -28,7 +28,7 @@ export interface ImmutablePrefixOptions {
 
 export class ImmutablePrefix {
   system: string;
-  private _toolSpecs: ToolSpec[];
+  private readonly _toolSpecs: ToolSpec[];
   readonly fewShots: readonly ChatMessage[];
   private _fingerprintCache: string | null = null;
   private _frozenToolsCache: ToolSpec[] | null = null;

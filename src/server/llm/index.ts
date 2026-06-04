@@ -259,8 +259,7 @@ export async function generateTurn(
       client,
       prefix,
       model: process.env.DEEPSEEK_MODEL || "deepseek-v4-flash",
-      thinking: true,
-      reasoningEffort: "high",
+      reasoningEffort: "max",
       maxIterPerTurn: MAX_GM_STEPS,
       runTool: async (name, args, _signal) => {
         const handler = handlers[name as keyof typeof handlers];

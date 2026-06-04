@@ -24,8 +24,8 @@ const DEFAULT_WINDOW = 200;
 
 export class AppendOnlyLog {
   private _entries: ChatMessage[] = [];
-  private _windowSize: number;
-  private _persistence: SessionPersistence | null;
+  private readonly _windowSize: number;
+  private readonly _persistence: SessionPersistence | null;
   private _totalLength: number;
   private _version = 0;
   private _fullHistoryCache: { version: number; messages: ChatMessage[] } | null = null;

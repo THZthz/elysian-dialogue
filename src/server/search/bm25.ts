@@ -444,11 +444,11 @@ interface IndexedDocument {
  * BM25+ scorer. Build once per query from candidate texts, then score all documents.
  */
 export class BM25Scorer {
-  private k1: number;
-  private b: number;
-  private delta: number;
-  private sublinearTf: boolean;
-  private coverageBonus: boolean;
+  private readonly k1: number;
+  private readonly b: number;
+  private readonly delta: number;
+  private readonly sublinearTf: boolean;
+  private readonly coverageBonus: boolean;
 
   private documents: IndexedDocument[] = [];
   private docTfs: Array<Map<string, number>> = [];
