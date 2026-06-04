@@ -23,6 +23,54 @@ import { createParser, type EventSourceMessage } from "eventsource-parser";
 import type { ChatOptions, ChatResponse, StreamChunk, ToolCall, RawUsage } from "@/sdk/types";
 import { Usage } from "@/sdk/types";
 
+/** HTTP status → retryable? */
+const RETRYABLE_STATUS: Record<number, boolean> = {
+  429: true,
+  500: true,
+  503: true,
+};
+
+export class DeepSeekError extends Error {
+  constructor(
+    message: string,
+    public readonly status: number,
+    public readonly retryable: boolean,
+    public readonly retryAfterMs?: number,
+  ) {
+    super(message);
+    this.name = "DeepSeekError";
+  }
+
+  static fromStatus(status: number, body: string, retryAfterMs?: number): DeepSeekError {
+    const prefix = STATUS_PREFIX[status] ?? `API error (${status})`;
+    return new DeepSeekError(
+      `DeepSeek ${prefix}: ${body}`,
+      status,
+      RETRYABLE_STATUS[status] ?? false,
+      retryAfterMs,
+    );
+  }
+}
+
+const STATUS_PREFIX: Record<number, string> = {
+  400: "Invalid request format",
+  401: "Authentication failed — check your API key",
+  402: "Insufficient balance — top up your account",
+  422: "Invalid parameters",
+  429: "Rate limited — retry after a pause",
+  500: "Server error — retry after a moment",
+  503: "Server overloaded — retry after a moment",
+};
+
+/** Retry-After can be seconds ("5") or HTTP-date ("Wed, 21 Oct 2015 07:28:00 GMT"). */
+function parseRetryAfter(value: string): number {
+  const seconds = parseInt(value, 10);
+  if (!isNaN(seconds)) return seconds * 1000;
+  const date = Date.parse(value);
+  if (!isNaN(date)) return Math.max(0, date - Date.now());
+  return 0;
+}
+
 export interface DeepSeekClientOptions {
   apiKey: string;
   baseUrl?: string;
@@ -128,11 +176,22 @@ export class DeepSeekClient {
   private handleAxiosError(err: unknown): never {
     if (axios.isAxiosError(err)) {
       const status = err.response?.status ?? 0;
-      const body =
-        typeof err.response?.data === "object"
-          ? JSON.stringify(err.response.data)
-          : (err.response?.data ?? err.message);
-      throw new Error(`DeepSeek ${status}: ${body}`);
+      const isStream = err.config?.responseType === "stream";
+      const data = err.response?.data;
+      let body: string;
+      if (isStream) {
+        body = err.message;
+      } else {
+        const errorMsg = (data as any)?.error?.message as string | undefined;
+        body =
+          errorMsg ??
+          (typeof data === "object" ? JSON.stringify(data) : String(data ?? err.message));
+      }
+      const retryAfter = (err.response?.headers as Record<string, string> | undefined)?.[
+        "retry-after"
+      ];
+      const retryAfterMs = retryAfter ? parseRetryAfter(retryAfter) : undefined;
+      throw DeepSeekError.fromStatus(status, body, retryAfterMs);
     }
     throw err;
   }
@@ -270,9 +329,7 @@ export class DeepSeekClient {
       while (queue.length > 0) yield queue.shift()!;
     } catch (readErr) {
       const cause = readErr instanceof Error ? readErr : new Error(String(readErr));
-      throw Object.assign(new Error(`SSE body read failed: ${cause.message}`), {
-        phase: "stream_body_read" as const,
-      });
+      throw new DeepSeekError(`SSE body read failed: ${cause.message}`, 0, true);
     } finally {
       clearTimeout(timer);
     }

@@ -37,7 +37,12 @@ import { validateAndExecute } from "@/server/llm/tools/shared";
 import { performSkillCheck } from "@/server/llm/rollSkillCheck";
 import chalk from "chalk";
 import { highlightJson, highlightMarkdown } from "@/shared/highlight";
-import { type SkillName, TOOL_NAMES, DEBUG_PRINT_LLM_GENERATIONS, ROLE_NAMES } from "@/shared/constants";
+import {
+  type SkillName,
+  TOOL_NAMES,
+  DEBUG_PRINT_LLM_GENERATIONS,
+  ROLE_NAMES,
+} from "@/shared/constants";
 
 const SEP = chalk.dim("─".repeat(48));
 import { DeepSeekClient, ImmutablePrefix, createGameLoop, toolToSpec, type ToolSpec } from "@/sdk";
@@ -317,6 +322,8 @@ export async function generateTurn(
       }
     }
 
+    let hadError = false;
+
     for await (const event of loop.step(promptText)) {
       switch (event.role) {
         case "tool_call_delta": {
@@ -430,6 +437,7 @@ export async function generateTurn(
           break;
         }
         case "error": {
+          hadError = true;
           events.emitError(event.error);
           break;
         }
@@ -471,7 +479,7 @@ export async function generateTurn(
     }
 
     if (finalMessages.length === 0) {
-      events.emitError("Failed to generate valid dialogue");
+      if (!hadError) events.emitError("Failed to generate valid dialogue");
     } else {
       events.emitParsed(
         finalMessages.map((m: any) => ({

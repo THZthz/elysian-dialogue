@@ -20,7 +20,7 @@
 // GameLoop — generator-based turn loop that streams model output, dispatches
 // tool calls, detects storms, and folds history via ContextManager.
 import { jsonrepair } from "jsonrepair";
-import type { DeepSeekClient } from "@/sdk/client";
+import { type DeepSeekClient, DeepSeekError } from "@/sdk/client";
 import { AppendOnlyLog } from "@/sdk/log";
 import { ContextManager } from "@/sdk/context";
 import { healMessages } from "@/sdk/healing";
@@ -193,7 +193,10 @@ export function createGameLoop(opts: GameLoopOptions) {
   if (log.totalLength > 0) {
     const loaded = log.toFullHistory();
     const healed = healMessages(loaded, {
-      thinkingModeModel: ((opts.reasoningEffort && opts.reasoningEffort !== "none") ?? true) ? (opts.model ?? "deepseek-v4-flash") : null,
+      thinkingModeModel:
+        ((opts.reasoningEffort && opts.reasoningEffort !== "none") ?? true)
+          ? (opts.model ?? "deepseek-v4-flash")
+          : null,
     });
     if (healed.healedCount > 0) {
       log.compactInPlace(healed.messages);
@@ -270,7 +273,7 @@ export function createGameLoop(opts: GameLoopOptions) {
         severity: "high",
         content: `Context at ${Math.round(tsEstimate.ratio * 100)}% — folding history before starting turn.`,
       };
-      await context.compact(model, undefined,{ requireTailBoundary: true });
+      await context.compact(model, undefined, { requireTailBoundary: true });
     }
 
     let foldedThisTurn = false;
@@ -295,7 +298,7 @@ export function createGameLoop(opts: GameLoopOptions) {
           log.append({
             role: "assistant",
             content: "[aborted by user — ask again or retry when ready]",
-            name: ROLE_NAMES.GM
+            name: ROLE_NAMES.GM,
           });
         }
         yield { turn, role: "done", content: "[aborted]" };
@@ -307,18 +310,42 @@ export function createGameLoop(opts: GameLoopOptions) {
       const requestMessages = buildMessages();
       const toolsSnap = prefix.tools();
 
-      const acc = yield* streamModelResponse(
-        client,
-        model,
-        requestMessages,
-        toolsSnap,
-        thinking,
-        reasoningEffort,
-        maxOutputTokens,
-        toolChoice,
-        signal,
-        turn,
-      );
+      let acc: Accumulator;
+      try {
+        acc = yield* streamModelResponse(
+          client,
+          model,
+          requestMessages,
+          toolsSnap,
+          thinking,
+          reasoningEffort,
+          maxOutputTokens,
+          toolChoice,
+          signal,
+          turn,
+        );
+      } catch (err) {
+        if (err instanceof DeepSeekError) {
+          yield {
+            turn,
+            role: "error",
+            content: "",
+            error: err.message,
+            retryable: err.retryable,
+          };
+        } else {
+          console.error("[loop] unexpected error in streamModelResponse:", err);
+          const msg = err instanceof Error ? err.message : String(err);
+          yield {
+            turn,
+            role: "error",
+            content: "",
+            error: `API request failed: ${msg}`,
+            retryable: false,
+          };
+        }
+        return;
+      }
 
       if (!acc.usage) {
         yield {

@@ -224,11 +224,12 @@ export class ContextManager {
 
     const healed = healMessages(head).messages;
     // TODO: Need more tailored version for GM.
-    instruction = instruction ??
+    instruction =
+      instruction ??
       "Summarize the conversation above as one self-contained prose recap. " +
-      "Preserve the user's ORIGINAL OBJECTIVE, all decisions reached, " +
-      "tool results still relevant, and any open todos. " +
-      "Output plain prose only.";
+        "Preserve the user's ORIGINAL OBJECTIVE, all decisions reached, " +
+        "tool results still relevant, and any open todos. " +
+        "Output plain prose only.";
 
     const fewShots = this.deps.getFewShots?.() ?? [];
     const msgs: ChatMessage[] = [

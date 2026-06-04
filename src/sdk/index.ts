@@ -20,7 +20,7 @@
 // DeepSeek API SDK — public entry point.
 // Re-exports every symbol that callers need.
 
-export { DeepSeekClient } from "@/sdk/client";
+export { DeepSeekClient, DeepSeekError } from "@/sdk/client";
 export type { DeepSeekClientOptions } from "@/sdk/client";
 
 export { ImmutablePrefix } from "@/sdk/prefix";

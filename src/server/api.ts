@@ -30,6 +30,7 @@ import { manageSchema } from "@/server/llm/tools/manageSchema";
 import type { Message, DialogueOption } from "@/types/dialogue";
 import { getContext } from "@/server/llm/tools/getContext";
 import { seedDatabase } from "@/server/stories/seed";
+import { DeepSeekError } from "@/sdk";
 
 const debugToolRegistry: Record<string, { execute: (args: any) => Promise<string> }> = {
   queryWorld: queryWorld as any,
@@ -41,6 +42,12 @@ const debugToolRegistry: Record<string, { execute: (args: any) => Promise<string
   editPlot: editPlot as any,
   getContext: getContext as any,
 };
+
+function mapUpstreamStatus(status: number): number {
+  if (status === 0 || status === 429 || status === 500 || status === 503) return 503;
+  if (status === 400 || status === 422) return 500;
+  return status; // 401, 402 pass through (GM is the operator)
+}
 
 const apiRouter = express.Router();
 
@@ -62,7 +69,8 @@ apiRouter.post("/chat/stream", async (req, res) => {
     const message = error instanceof Error ? error.message : String(error);
     console.error("Chat stream error:", message);
     if (!res.headersSent) {
-      res.status(500).json({ error: message });
+      const httpStatus = error instanceof DeepSeekError ? mapUpstreamStatus(error.status) : 500;
+      res.status(httpStatus).json({ error: message });
     } else {
       res.write(`event: error\ndata: ${JSON.stringify({ message })}\n\n`);
       res.end();
