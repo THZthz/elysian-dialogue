@@ -1,6 +1,6 @@
 ## Storytelling Curriculum
 
-Call `getContext` with any topic name below to load the full guide.
+Call `{{TOOL_NAMES.GET_CONTEXT}}` with any topic name below to load the full guide.
 
 ### A. Core Storytelling Principles
 - CROSS_SECTION_PRINCIPLE — "Film is a cross-section of real life"

@@ -65,10 +65,13 @@ curl -s -X POST "http://localhost:3000/api/debug/tools/getContext" -H "Content-T
 curl -s -X POST "http://localhost:3000/api/debug/tools/getContext" -H "Content-Type: application/json" -d '{"types":["TIMELINE"]}'
 
 # getContext — ENTITY_PROFILE
-curl -s -X POST "http://localhost:3000/api/debug/tools/getContext" -H "Content-Type: application/json" -d '{"types":["ENTITY_PROFILE"],"entityName":"Player","entityLabel":"Character"}'
+curl -s -X POST "http://localhost:3000/api/debug/tools/getContext" -H "Content-Type: application/json" -d '{"types":["ENTITY_PROFILE"],"subquery":{"entityName":"Player","entityLabel":"Character"}}'
 
 # getContext — RELATIONSHIP_DUMP with history
-curl -s -X POST "http://localhost:3000/api/debug/tools/getContext" -H "Content-Type: application/json" -d '{"types":["RELATIONSHIP_DUMP"],"relationshipHistory":true}'
+curl -s -X POST "http://localhost:3000/api/debug/tools/getContext" -H "Content-Type: application/json" -d '{"types":["RELATIONSHIP_DUMP"],"subquery":{"relationshipHistory":true}}'
+
+# getContext — STORYTELLING_GUIDE sub-prompt
+curl -s -X POST "http://localhost:3000/api/debug/tools/getContext" -H "Content-Type: application/json" -d '{"types":["STORYTELLING_GUIDE"],"subquery":{"prompt":"CHARACTER_ARC"}}'
 
 # Reset database
 curl -s -X POST "http://localhost:3000/api/reset"
