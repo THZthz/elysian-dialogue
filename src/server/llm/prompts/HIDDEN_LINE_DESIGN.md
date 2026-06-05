@@ -2,9 +2,9 @@
 
 A hidden line is a storyline not on the front stage — the audience may not notice it on first experience, but on second experience discovers "it was being laid from the very beginning."
 
-### Hidden Line vs Subplot
-- Subplot is the second storyline the audience CAN see — it advances explicitly.
-- Hidden line runs beneath the water's surface — it operates through foreshadowing, details, casual dialogue, until surfacing at a certain moment.
+### Hidden Line vs. Subplot
+- A subplot is the second storyline the audience CAN see — it advances explicitly.
+- A hidden line runs beneath the water's surface — it operates through foreshadowing, details, and casual dialogue, until surfacing at a certain moment.
 
 ### Design Method
 1. First determine the hidden line's endpoint — what does it reveal when it surfaces?

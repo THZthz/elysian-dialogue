@@ -15,15 +15,15 @@ The director stage adds execution-layer refinement on top of the writer's establ
 - **Shot group division** within each scene (which shots form a single narrative unit)
 
 ### Shot Groups
-A single narrative purpose may be served by a group of shots working together. Shot groups are the bridge between pacing planning and shot breakdown — smaller than a "scene," larger than a "single shot," a sequence of shots with tight logical connection.
+A single narrative purpose may be served by a group of shots working together. Shot groups are the bridge between pacing planning and shot breakdown — smaller than a "scene," larger than a "single shot," a sequence of shots with a tight logical connection.
 
 **Four Types of Shot Groups:**
 
-**Montage Group**: Multiple parallel images rapidly cutting together, showing "multiple similar things." Each shot 1-3 seconds, parallel relationship between shots. Typical uses: establishing atmosphere, showing scale, compressing time.
+**Montage Group**: Multiple parallel images rapidly cutting together, showing "multiple similar things." Each shot lasts 1-3 seconds, with a parallel relationship between shots. Typical uses: establishing atmosphere, showing scale, compressing time.
 
 **Progressive Group**: Shots build layer upon layer — each shot adds information or intensifies emotion on top of the previous shot. Typical uses: character introduction, setting/show, emotional escalation.
 
-**Causal Group**: Shots are in action→reaction causal relationship, tightly connected. Typical uses: dialogue shot-reverse-shot, action scene attack-defense.
+**Causal Group**: Shots are in an action→reaction causal relationship, tightly connected. Typical uses: dialogue shot-reverse-shot, action scene attack-defense.
 
 **Contrast Group**: Two or more images form a comparison relationship. Typical uses: before-after echo/resonance, parallel narrative, irony.
 
@@ -31,14 +31,14 @@ A single narrative purpose may be served by a group of shots working together. S
 Each scene in the director stage should be annotated:
 ```
 【Scene 5: Rooftop / Evening】
-  Plot rhythm: Loose (a quiet conversation)
-  Emotional rhythm: Heavy (character faces the truth for the first time)
-  ──────────────────────────
-  Shot strategy: Primarily fixed camera, mid-shots maintain spatial relationship between two people
-  Shot scale focus: Mid-shot → push to close-up on the last line
-  Estimated duration: 2 minutes
-  Transition strategy: Hard cut to contrasting space in next scene
-  Rhythm intent: Loose plot + heavy emotion misalignment — the calmer the image, the heavier the emotion
+Plot rhythm: Loose (a quiet conversation)
+Emotional rhythm: Heavy (character faces the truth for the first time)
+──────────────────────────
+Shot strategy: Primarily fixed camera, mid-shots maintain spatial relationship between two people
+Shot scale focus: Mid-shot → push to close-up on the last line
+Estimated duration: 2 minutes
+Transition strategy: Hard cut to contrasting space in next scene
+Rhythm intent: Loose plot + heavy emotion misalignment — the calmer the image, the heavier the emotion
 ```
 
 ### Director's Rhythm Wave Diagram

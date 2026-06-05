@@ -20,7 +20,7 @@ Trial and error in the new environment. Encounters allies and obstacles. The cha
 Corresponds to the Midpoint. The character achieves the surface goal. But this "getting" will bring unexpected costs.
 
 **6. TAKE — Character pays the price for what they obtained**
-After getting what they wanted, the costs begin to surface. This section is the bottom of the circle — the character is at the furthest point from the comfort zone. Internal and external pressure is maximum; the old self begins to disintegrate.
+After getting what they wanted, the costs begin to surface. This section is the bottom of the circle — the character is at the furthest point from the comfort zone. Internal and external pressure is at its maximum; the old self begins to disintegrate.
 
 **7. RETURN — Character returns to familiar circumstances**
 The character (physically or psychologically) returns to the starting point. But the character has changed — the old comfort zone no longer fits.

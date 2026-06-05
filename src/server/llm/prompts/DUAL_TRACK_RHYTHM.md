@@ -1,9 +1,9 @@
 ## Dual-Track Rhythm System
 
-Excellent stories have rhythm that is tense-and-release. Rhythm is not a single line — it has two parallel tracks. The two can synchronize or misalign, and misalignment itself is a powerful narrative tool.
+Excellent stories have a rhythm of tension and release. Rhythm is not a single line — it has two parallel tracks. The two can synchronize or misalign, and misalignment itself is a powerful narrative tool.
 
 ### External Plot Rhythm
-The "density and intensity of events" — how much is happening in the scene, how intense is the conflict, how much information is being transmitted.
+The "density and intensity of events" — how much is happening in the scene, how intense the conflict is, how much information is being transmitted.
 
 - **Tight**: High-density events, rapid-fire dialogue, chase, confrontation, revelation
 - **Loose**: Daily scenes, solitary moments, transitions, landscape, silence
@@ -27,7 +27,7 @@ Emotional rhythm and plot rhythm are not always synchronized. Some of the most p
 ### Rhythm Wave Diagram
 At the outline and scene breakdown stages, draw a "rhythm wave diagram" for the entire work — annotate each section's external plot intensity and internal emotional intensity, checking whether there is sufficient fluctuation and contrast.
 
-The two lines need not synchronize, but should avoid:
-- Both lines at low position for extended periods (audience has nothing to watch and nothing to feel)
-- Both lines at high position for extended periods (audience fatigues; climax stops being special)
+The two lines need not synchronize, but you should avoid:
+- Both lines at a low position for extended periods (audience has nothing to watch and nothing to feel)
+- Both lines at a high position for extended periods (audience fatigues; the climax stops being special)
 - Either line monotonically rising without easing/falling back (no breathing room)

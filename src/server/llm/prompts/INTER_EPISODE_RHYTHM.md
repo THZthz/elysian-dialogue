@@ -21,7 +21,7 @@ Choose a dominant emotion for each episode (can mix, but should have a clear dom
 - Tension/pressure episodes need at least 1 breathing or light episode afterward
 - Collapse and dark night can be consecutive (forming "the valley"), but the valley before and after must have contrast
 - Mid-season (40-60% position) is suitable for a pivot — changing the direction of the second half
-- Breathing episodes are not wasted episodes — their function is to deepen character relationships and advance B Plot
+- Breathing episodes are not wasted episodes — their function is to deepen character relationships and advance the B Plot
 
 ### Reference Rhythm Template (by percentage)
 - First 10%: Setup

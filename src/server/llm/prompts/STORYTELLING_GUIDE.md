@@ -1,17 +1,17 @@
 ## Storytelling Curriculum
 
-Call getContext with any topic name below to load the full guide.
+Call `getContext` with any topic name below to load the full guide.
 
 ### A. Core Storytelling Principles
 - CROSS_SECTION_PRINCIPLE — "Film is a cross-section of real life"
 - WRITING_RED_LINES — Forbidden patterns and mandatory practices
 - SHOW_DONT_TELL — Audio-visual writing: only what can be filmed
-- SUBTEXT_TECHNIQUES — Dialogue as iceberg: surface vs submerged
+- SUBTEXT_TECHNIQUES — Dialogue as iceberg: surface vs. submerged
 - DIALOGUE_STYLE — Colloquial speech, character-distinct voices
 
 ### B. Character Design
-- CHARACTER_ARC — Want vs Need, arc, bio, contradiction
-- GHOST_LIE_FLAW — Ghost→Lie→Flaw→Want→Need chain
+- CHARACTER_ARC — Want vs. Need, arc, bio, contradiction
+- GHOST_LIE_FLAW — Ghost → Lie → Flaw → Want → Need chain
 - SECONDARY_CHARACTER_DESIGN — Four functions, design rules, ensemble
 
 ### C. Story Structure
@@ -63,9 +63,9 @@ Call getContext with any topic name below to load the full guide.
 - AV_LANGUAGE_ARSENAL — Camera, editing, composition, sound, interface
 
 ### I. World-Building & Information Management
-- WORLD_BUILDING_MODEL — Three-layer model: surface→logic→truth
+- WORLD_BUILDING_MODEL — Three-layer model: surface → logic → truth
 - INFORMATION_RELEASE_SCHEDULE — Five-layer timed release
-- HIDDEN_LINE_DESIGN — Hidden line vs subplot, reverse-engineering
+- HIDDEN_LINE_DESIGN — Hidden line vs. subplot, reverse-engineering
 
 ### J. Campaign & Series Management
 - SERIES_TYPES — 4 types with independence/continuity ratios

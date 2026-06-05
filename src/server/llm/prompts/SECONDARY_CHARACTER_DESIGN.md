@@ -12,11 +12,11 @@ Secondary characters are not background decoration. Every character with dialogu
 ### Design Rules
 - Each secondary character should fulfill at least one function, ideally two
 - Characters without function should be merged or deleted — two functionally identical characters can be combined into one
-- Secondary characters don't need a full Ghost/Lie/Flaw, but need a clear Want and at least one contradiction
+- Secondary characters don't need a full Ghost/Lie/Flaw, but they need a clear Want and at least one contradiction
 - Secondary character dialogue style must be clearly distinct from the protagonist — the audience should be able to tell who is speaking even with names covered
 
 ### Ensemble Additional Requirements
 For stories with 3+ equally important characters (ensemble structure):
 - Character relationship matrix — the relationship state between every pair of characters
-- Perspective switching rules — when to follow whose perspective, whether switching has rhythm
+- Perspective switching rules — when to follow whose perspective, and whether the switching has rhythm
 - Each character has their own Want/Need, but everyone's pursuit points toward the same theme

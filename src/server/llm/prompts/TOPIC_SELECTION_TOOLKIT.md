@@ -3,8 +3,8 @@
 ### Five Paths to Generate Story Ideas
 
 **Path 1: From Theme**
-Signal: gives an abstractpremise, social issue, philosophical question. "I want to tell a story about X."
-Method: Help convert abstract theme into concrete dramatic action — "about memory" is not a story; "a person about to lose all memory must choose whichfragment to keep within 24 hours" IS a story. Ask: under this theme, what person in what situation would be forced to make a choice?
+Signal: gives an abstract premise, social issue, philosophical question. "I want to tell a story about X."
+Method: Help convert abstract theme into concrete dramatic action — "about memory" is not a story; "a person about to lose all memory must choose which fragment to keep within 24 hours" IS a story. Ask: under this theme, what person in what situation would be forced to make a choice?
 
 **Path 2: From Character**
 Signal: describes a type of person, a contradictory personality. "I want to write a person who is X."
@@ -12,7 +12,7 @@ Method: Help extract dramatic action from the contradictory personality — cont
 
 **Path 3: From Space / Environment**
 Signal: gives a specific location, environment, enclosed space, special world.
-Method: Space IS rules — a special spacehints at its own operating rules and power structure. Ask: who is above and who is below in this space? What resource is scarce? What behavior is forbidden here? These rules themselves ARE the story's engine. The more enclosed the space and extreme the rules, the stronger the dramatic tension.
+Method: Space IS rules — a special space hints at its own operating rules and power structure. Ask: who is above and who is below in this space? What resource is scarce? What behavior is forbidden here? These rules themselves ARE the story's engine. The more enclosed the space and extreme the rules, the stronger the dramatic tension.
 
 **Path 4: From Relationship**
 Signal: describes tension between two people. "I want to write a story between two X."

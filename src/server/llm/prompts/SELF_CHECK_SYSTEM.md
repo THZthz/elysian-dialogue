@@ -8,11 +8,11 @@
 - Is the obstacle at a reasonable scale, not artificially exaggerated?
 
 ### Self-Check 2: Character & Arc
-- Are Want and Need clear andopposition?
-- Is irreversible internal changepresupposed?
-- Does the ending show "new normal"?
+- Are Want and Need clear and in opposition?
+- Is irreversible internal change presupposed?
+- Does the ending show a "new normal"?
 - Is there contradiction?
-- Does behavior match bio logic?
+- Does behavior match bio-logic?
 
 ### Self-Check 3: Structure & Rhythm
 - Are structural sections clear?

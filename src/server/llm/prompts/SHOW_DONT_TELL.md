@@ -9,4 +9,4 @@ Psychological descriptions are forbidden ("he thought", "she realized"). Only wr
 
 ### Action Is Subtext
 
-All emotional transmission must be filmable. Replace any explanatory dialogue with the character's concrete actions. A good script: remove all dialogue and the audience can still roughly understand what happened.
+All emotional transmission must be filmable. Replace any explanatory dialogue with the character's concrete actions. In a good script: remove all dialogue and the audience can still roughly understand what happened.

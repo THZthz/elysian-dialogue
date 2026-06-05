@@ -8,16 +8,16 @@ Narrative purpose has two layers:
 
 **Structural Layer (Narrative Function)**: What position and role does this scene play in the overall structure?
 - Conveying information (character, space, time, rules)
-- Establishing / reinforcing character traits
+- Establishing/reinforcing character traits
 - Advancing plot (creating conflict, escalating conflict, reversal)
-- Planting / paying off foreshadowing
+- Planting/paying off foreshadowing
 - Presenting thematic argument
 - Opening-ending echo/resonance / structural symmetry
-- Emotional transition / rhythm regulation (breathing point)
+- Emotional transition/rhythm regulation (breathing point)
 
 **Director Execution Layer (Audiovisual Intent)**: What effect does the director hope to produce on the audience through this scene?
-- Creating unease / oppression /suffocating feeling
-- Controlling the viewer's gaze / guiding attention
+- Creating unease/oppression/suffocating feeling
+- Controlling the viewer's gaze/guiding attention
 - Building a certain atmosphere (warmth, desolation, alienation...)
 - Creating temporal sensation (compression, stretching, stagnation)
 - Using visual metaphor to convey the unspeakable
@@ -30,7 +30,7 @@ Narrative purpose has two layers:
 
 **Second pass: Function annotation.** Scene by scene, annotate structural-layer narrative purpose. Each scene has at least one, at most three. If a scene cannot find any narrative purpose — it probably should be deleted or merged.
 
-**Third pass: Director intent overlay.** On top of structural function, overlay director execution layer intent — "what audiovisual technique will I use to make this structural function takes effect?"
+**Third pass: Director intent overlay.** On top of structural function, overlay director execution layer intent — "what audiovisual technique will I use to make this structural function take effect?"
 
 **Fourth pass: Merge into narrative purpose statement.** Compress the two layers into one complete audiovisual analysis sentence.
 

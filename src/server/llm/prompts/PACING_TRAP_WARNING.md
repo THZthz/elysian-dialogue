@@ -7,6 +7,6 @@
 **The true meaning of restraint is "controlling the amplitude of variation," not "having no variation."**
 
 ### Concrete Checks
-- Does the entire work have at least one section with noticeably different rhythm from the overall tone? (A section of fast cutting in a quiet film, a jump-cut montage in a long-take style) — this "alien" section is often the most powerful moment in the entire work.
-- Do the long takes have internal "events"? (Character entering/leaving frame, focus shift, light change, sound abrupt change) — a 5-minute fixed shot where nothing changes in the frame is not restraint, it's stagnation.
+- Does the entire work have at least one section with a noticeably different rhythm from the overall tone? (A section of fast cutting in a quiet film, a jump-cut montage in a long-take style) — this "alien" section is often the most powerful moment in the entire work.
+- Do the long takes have internal "events"? (Character entering/leaving frame, focus shift, light change, abrupt sound change) — a 5-minute fixed shot where nothing changes in the frame is not restraint, it's stagnation.
 - Are all dialogue scenes using the same cutting rhythm? — Even when the overall style is slow, different dialogue scenes should have different cutting frequencies depending on the dialogue's internal tension.

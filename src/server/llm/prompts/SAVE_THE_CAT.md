@@ -25,18 +25,18 @@ The protagonist's hesitation in the face of change. Should they accept the chall
 The protagonist makes a decision and enters the "new world." This is an active choice, not being pushed along.
 
 **7. B Story**
-Introduces the B Story line — typically a new relationship (love line, friendship line, mentor line). The B Story carries the thematic argument. A Plot asks "Can the protagonist achieve their goal?" B Plot asks "Can the protagonist grow?"
+Introduces the B Story line — typically a new relationship (love line, friendship line, mentor line). The B Story carries the thematic argument. The A Plot asks "Can the protagonist achieve their goal?" The B Plot asks "Can the protagonist grow?"
 
 **8. Fun and Games (minutes 30-55)**
 This is "the section that dominates the trailer." The protagonist tries old methods to solve new problems in the new world. There are successes and setbacks, but the overall rhythm is lighter.
 
 **9. Midpoint (approximately minute 55)**
-A Plot and B Plot converge here. False victory (appears to have won but it's fake) or false defeat (appears to have lost but it's a turning point). Stakes escalate — from personal level to a larger level.
+The A Plot and B Plot converge here. False victory (appears to have won but it's fake) or false defeat (appears to have lost but it's a turning point). Stakes escalate — from a personal level to a larger level.
 
 ### Act 2, Second Half (approximately 30 minutes)
 
 **10. Bad Guys Close In (minutes 55-75)**
-Internal and external pressure tighten simultaneously. External: antagonist/obstacle escalates. Internal: team fractures, self-doubt. The protagonist's Flaw begins to produce real costs.
+Internal and external pressure tighten simultaneously. External: the antagonist/obstacle escalates. Internal: the team fractures, self-doubt emerges. The protagonist's Flaw begins to produce real costs.
 
 **11. All Is Lost (approximately minute 75)**
 The lowest point. The protagonist loses what matters most. "The whiff of death" — literal or metaphorical death. Old methods have completely failed.
@@ -47,7 +47,7 @@ The protagonist confronts their own Lie and Ghost directly. Not enlightened by o
 ### Act 3 (approximately 15 minutes)
 
 **13. Break into Three (approximately minute 85)**
-The protagonist has figured it out — not an upgraded version of old methods, but a completely new approach. The realizations from A Plot and B Plot merge here.
+The protagonist has figured it out — not an upgraded version of old methods, but a completely new approach. The realizations from the A Plot and B Plot merge here.
 
 **14. Finale (minutes 85-105)**
 Five-step finale:
