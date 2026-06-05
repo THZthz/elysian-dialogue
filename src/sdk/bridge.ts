@@ -39,6 +39,9 @@ export interface Tool<S extends z.ZodTypeAny = z.ZodTypeAny> {
  * ToolSpec suitable for DeepSeek's API.
  */
 export function toolToSpec(tool: Tool): ToolSpec {
+  if (!tool?.schema || typeof tool.schema.toJSONSchema !== "function") {
+    throw new Error(`toolToSpec: missing or invalid schema on tool "${tool?.name ?? "?"}"`);
+  }
   const jsonSchema = tool.schema.toJSONSchema() as Record<string, unknown>;
   // Strip Zod-internal properties that aren't part of standard JSON Schema.
 

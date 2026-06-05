@@ -60,7 +60,10 @@ function loadPrompt(name: string): string {
     const file = files[0];
     const fullPath = join(file.parentPath, file.name);
 
-    _promptsDict[name] = readFileSync(fullPath, "utf-8");
+    _promptsDict[name] = readFileSync(fullPath, "utf-8").replace(
+      /\{\{TOOL_NAMES\.(\w+)\}\}/g,
+      (_, key) => (TOOL_NAMES as Record<string, string>)[key] ?? `{{TOOL_NAMES.${key}}}`,
+    );
   }
   return _promptsDict[name];
 }

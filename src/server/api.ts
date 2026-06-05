@@ -27,6 +27,9 @@ import { manageRelationship } from "@/server/llm/tools/manageRelationship";
 import { editNote } from "@/server/llm/tools/editNote";
 import { editPlot } from "@/server/llm/tools/editPlot";
 import { manageSchema } from "@/server/llm/tools/manageSchema";
+import { createGenerateDialogueStepTool } from "@/server/llm/tools/generateDialogueStep";
+import { createManageSceneTool } from "@/server/llm/tools/manageScene";
+import { toolToSpec } from "@/sdk/bridge";
 import type { Message, DialogueOption } from "@/types/dialogue";
 import { getContext } from "@/server/llm/tools/getContext";
 import { seedDatabase } from "@/server/stories/seed";
@@ -136,6 +139,33 @@ apiRouter.get("/game/current", async (_req, res) => {
     console.error("Session state fetch error:", message);
     res.json(null);
   }
+});
+
+// ── Debug: dump all tool schemas ──
+
+const allTools = [
+  queryWorld,
+  searchWorld,
+  manageNode,
+  manageRelationship,
+  editNote,
+  editPlot,
+  manageSchema,
+  getContext,
+  createGenerateDialogueStepTool().tool,
+  createManageSceneTool({} as any),
+];
+
+apiRouter.get("/debug/tools", async (_req, res) => {
+  const specs = allTools.map((t) => {
+    try {
+      return toolToSpec(t as any);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      return { error: `Failed to convert tool: ${msg}`, name: (t as any)?.name ?? "(unnamed)" };
+    }
+  });
+  res.json(specs);
 });
 
 // ── Debug tool invocation ──

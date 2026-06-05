@@ -1,14 +1,15 @@
 ## Six-Dimension Tone-Setting Method
 
 ### Core Problem per Dimension
-| Dimension | Core Question |
-|---|---|
-| A. Emotional Mood | What is the work's emotional temperature and aesthetic posture? |
-| B. Genre Conventions | What genre conventions does it follow? Where does it break them? |
-| C. Action & Conflict | How does physical confrontation generate impact and narrative meaning? |
-| D. Theme & Relationships | How does audiovisual language present interpersonal relationships and emotion? |
-| E. Narrative Form | What special requirements does the narrative form itself impose on audiovisuals? |
-| F. Social Perspective | How does the work relate to reality / society / history? |
+
+| Dimension                | Core Question                                                                    |
+|--------------------------|----------------------------------------------------------------------------------|
+| A. Emotional Mood        | What is the work's emotional temperature and aesthetic posture?                  |
+| B. Genre Conventions     | What genre conventions does it follow? Where does it break them?                 |
+| C. Action & Conflict     | How does physical confrontation generate impact and narrative meaning?           |
+| D. Theme & Relationships | How does audiovisual language present interpersonal relationships and emotion?   |
+| E. Narrative Form        | What special requirements does the narrative form itself impose on audiovisuals? |
+| F. Social Perspective    | How does the work relate to reality / society / history?                         |
 
 Not every dimension needs a choice. A project typically involves 2-4 dimensions. For example:
 - A black comedy road movie → A7 Black Humor (Coen Bros) + E2 Road Movie (Payne) + D1 Love (Linklater's dialogue approach)
