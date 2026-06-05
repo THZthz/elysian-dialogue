@@ -252,6 +252,7 @@ export async function generateTurn(
         `This is first turn, you should call \`${TOOL_NAMES.GET_CONTEXT}\` with ["SCHEMA_DUMP", "CHARACTERS_BRIEF", "LOCATIONS_BRIEF", "OBJECTS_BRIEF", "PLOTS_BRIEF", "RELATIONSHIP_DUMP"].`,
         `Explore with \`${TOOL_NAMES.QUERY_WORLD}\`.`,
         `Check notes/plots by \`${TOOL_NAMES.SEARCH_WORLD}\`. Search note with "Opening Scene" (limit: 1) is recommended.`,
+        `Call \`${TOOL_NAMES.GET_CONTEXT}\` with \`STORYTELLING_GUIDE\` to see the storytelling curriculum — load any guides you need before narrating.`,
         "",
         "---",
         "",

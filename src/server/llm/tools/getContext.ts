@@ -35,10 +35,19 @@ import {
 } from "@/server/llm/sceneContext";
 import { Database } from "@/server/db";
 import { SchemaRegistry } from "@/server/db/schema";
+import { CURRICULUM } from "@/server/llm/curriculum";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-let _cypherCookbookCache: string | null = null;
+let _promptsDict: Record<string, string> = {};
+
+function loadPrompt(name: string) {
+  if (!_promptsDict[name]) {
+    const p = join(__dirname, "..", "prompts", name);
+    _promptsDict[name] = readFileSync(p, "utf-8");
+  }
+  return _promptsDict[name];
+}
 
 const CONTEXT_TYPES = [
   "CHARACTERS_BRIEF",
@@ -51,6 +60,62 @@ const CONTEXT_TYPES = [
   "TIMELINE",
   "ENTITY_PROFILE",
   "CYPHER_COOKBOOK",
+  "STORYTELLING_GUIDE",
+  "CROSS_SECTION_PRINCIPLE",
+  "WRITING_RED_LINES",
+  "SHOW_DONT_TELL",
+  "SUBTEXT_TECHNIQUES",
+  "DIALOGUE_STYLE",
+  "CHARACTER_ARC",
+  "GHOST_LIE_FLAW",
+  "SECONDARY_CHARACTER_DESIGN",
+  "DRAMATIC_ACTION",
+  "STRUCTURE_SELECTION_GUIDE",
+  "SAVE_THE_CAT",
+  "STORY_CIRCLE",
+  "MCKEE_PRINCIPLES",
+  "LITERARY_STYLE_VARIANTS",
+  "SUBPLOT_INTERWEAVING",
+  "FORESHADOWING_SYSTEM",
+  "DUAL_TRACK_RHYTHM",
+  "DURATION_ESTIMATION",
+  "PACING_PLANNING",
+  "PACING_TRAP_WARNING",
+  "PACING_DIAGNOSTICS",
+  "INTER_EPISODE_RHYTHM",
+  "NARRATIVE_PURPOSE",
+  "ACTION_REACTION",
+  "CUT_CONNECTION_LOGIC",
+  "DIALOGUE_SCENE_DIVERSITY",
+  "SHOT_GROUPS",
+  "STORYBOARD_DOUBLE_CHECK",
+  "IMAGE_SYSTEM",
+  "SCRIPT_MICRO_ADJUSTMENT",
+  "DURATION_ESTIMATION_DATA",
+  "TONE_SETTING_FRAMEWORK",
+  "NARRATIVE_STANCE",
+  "MOOD_LIBRARY",
+  "GENRE_CONVENTIONS",
+  "ACTION_CONFLICT",
+  "RELATIONSHIP_DRAMA",
+  "NARRATIVE_FORM",
+  "SOCIAL_PERSPECTIVE",
+  "OPENING_HOOKS",
+  "ULTRA_SHORT_STRUCTURES",
+  "CONCEPT_COMBINATION_METHODS",
+  "HOW_TO_TELL_METHODS",
+  "AV_LANGUAGE_ARSENAL",
+  "WORLD_BUILDING_MODEL",
+  "INFORMATION_RELEASE_SCHEDULE",
+  "HIDDEN_LINE_DESIGN",
+  "SERIES_TYPES",
+  "ARC_BUDGET_ALLOCATION",
+  "CONTINUITY_MANAGEMENT",
+  "TOPIC_SELECTION_TOOLKIT",
+  "CROSS_FORMAT_BORROWING",
+  "SELF_CHECK_SYSTEM",
+  "WORKFLOW_DISCIPLINE",
+  "INPUT_COMPATIBILITY",
 ] as const;
 
 type ContextType = (typeof CONTEXT_TYPES)[number];
@@ -208,13 +273,63 @@ Pull pre-built context from the world. Nothing is auto-loaded — you choose wha
         const extra = args as any;
         return buildEntityProfile(extra.entityName, extra.entityLabel);
       },
-      CYPHER_COOKBOOK: async () => {
-        if (!_cypherCookbookCache) {
-          const p = join(__dirname, "..", "..", "..", "..", "CYPHER.md");
-          _cypherCookbookCache = readFileSync(p, "utf-8");
-        }
-        return _cypherCookbookCache;
-      },
+      CYPHER_COOKBOOK: async () => loadPrompt("CYPHER_COOKBOOK"),
+      STORYTELLING_GUIDE: async () => loadPrompt("STORYTELLING_GUIDE"),
+      CROSS_SECTION_PRINCIPLE: async () => loadPrompt("CROSS_SECTION_PRINCIPLE"),
+      WRITING_RED_LINES: async () => loadPrompt("WRITING_RED_LINES"),
+      SHOW_DONT_TELL: async () => loadPrompt("SHOW_DONT_TELL"),
+      SUBTEXT_TECHNIQUES: async () => loadPrompt("SUBTEXT_TECHNIQUES"),
+      DIALOGUE_STYLE: async () => loadPrompt("DIALOGUE_STYLE"),
+      CHARACTER_ARC: async () => loadPrompt("CHARACTER_ARC"),
+      GHOST_LIE_FLAW: async () => loadPrompt("GHOST_LIE_FLAW"),
+      SECONDARY_CHARACTER_DESIGN: async () => loadPrompt("SECONDARY_CHARACTER_DESIGN"),
+      DRAMATIC_ACTION: async () => loadPrompt("DRAMATIC_ACTION"),
+      STRUCTURE_SELECTION_GUIDE: async () => loadPrompt("STRUCTURE_SELECTION_GUIDE"),
+      SAVE_THE_CAT: async () => loadPrompt("SAVE_THE_CAT"),
+      STORY_CIRCLE: async () => loadPrompt("STORY_CIRCLE"),
+      MCKEE_PRINCIPLES: async () => loadPrompt("MCKEE_PRINCIPLES"),
+      LITERARY_STYLE_VARIANTS: async () => loadPrompt("LITERARY_STYLE_VARIANTS"),
+      SUBPLOT_INTERWEAVING: async () => loadPrompt("SUBPLOT_INTERWEAVING"),
+      FORESHADOWING_SYSTEM: async () => loadPrompt("FORESHADOWING_SYSTEM"),
+      DUAL_TRACK_RHYTHM: async () => loadPrompt("DUAL_TRACK_RHYTHM"),
+      DURATION_ESTIMATION: async () => loadPrompt("DURATION_ESTIMATION"),
+      PACING_PLANNING: async () => loadPrompt("PACING_PLANNING"),
+      PACING_TRAP_WARNING: async () => loadPrompt("PACING_TRAP_WARNING"),
+      PACING_DIAGNOSTICS: async () => loadPrompt("PACING_DIAGNOSTICS"),
+      INTER_EPISODE_RHYTHM: async () => loadPrompt("INTER_EPISODE_RHYTHM"),
+      NARRATIVE_PURPOSE: async () => loadPrompt("NARRATIVE_PURPOSE"),
+      ACTION_REACTION: async () => loadPrompt("ACTION_REACTION"),
+      CUT_CONNECTION_LOGIC: async () => loadPrompt("CUT_CONNECTION_LOGIC"),
+      DIALOGUE_SCENE_DIVERSITY: async () => loadPrompt("DIALOGUE_SCENE_DIVERSITY"),
+      SHOT_GROUPS: async () => loadPrompt("SHOT_GROUPS"),
+      STORYBOARD_DOUBLE_CHECK: async () => loadPrompt("STORYBOARD_DOUBLE_CHECK"),
+      IMAGE_SYSTEM: async () => loadPrompt("IMAGE_SYSTEM"),
+      SCRIPT_MICRO_ADJUSTMENT: async () => loadPrompt("SCRIPT_MICRO_ADJUSTMENT"),
+      DURATION_ESTIMATION_DATA: async () => loadPrompt("DURATION_ESTIMATION_DATA"),
+      TONE_SETTING_FRAMEWORK: async () => loadPrompt("TONE_SETTING_FRAMEWORK"),
+      NARRATIVE_STANCE: async () => loadPrompt("NARRATIVE_STANCE"),
+      MOOD_LIBRARY: async () => loadPrompt("MOOD_LIBRARY"),
+      GENRE_CONVENTIONS: async () => loadPrompt("GENRE_CONVENTIONS"),
+      ACTION_CONFLICT: async () => loadPrompt("ACTION_CONFLICT"),
+      RELATIONSHIP_DRAMA: async () => loadPrompt("RELATIONSHIP_DRAMA"),
+      NARRATIVE_FORM: async () => loadPrompt("NARRATIVE_FORM"),
+      SOCIAL_PERSPECTIVE: async () => loadPrompt("SOCIAL_PERSPECTIVE"),
+      OPENING_HOOKS: async () => loadPrompt("OPENING_HOOKS"),
+      ULTRA_SHORT_STRUCTURES: async () => loadPrompt("ULTRA_SHORT_STRUCTURES"),
+      CONCEPT_COMBINATION_METHODS: async () => loadPrompt("CONCEPT_COMBINATION_METHODS"),
+      HOW_TO_TELL_METHODS: async () => loadPrompt("HOW_TO_TELL_METHODS"),
+      AV_LANGUAGE_ARSENAL: async () => loadPrompt("AV_LANGUAGE_ARSENAL"),
+      WORLD_BUILDING_MODEL: async () => loadPrompt("WORLD_BUILDING_MODEL"),
+      INFORMATION_RELEASE_SCHEDULE: async () => loadPrompt("INFORMATION_RELEASE_SCHEDULE"),
+      HIDDEN_LINE_DESIGN: async () => loadPrompt("HIDDEN_LINE_DESIGN"),
+      SERIES_TYPES: async () => loadPrompt("SERIES_TYPES"),
+      ARC_BUDGET_ALLOCATION: async () => loadPrompt("ARC_BUDGET_ALLOCATION"),
+      CONTINUITY_MANAGEMENT: async () => loadPrompt("CONTINUITY_MANAGEMENT"),
+      TOPIC_SELECTION_TOOLKIT: async () => loadPrompt("TOPIC_SELECTION_TOOLKIT"),
+      CROSS_FORMAT_BORROWING: async () => loadPrompt("CROSS_FORMAT_BORROWING"),
+      SELF_CHECK_SYSTEM: async () => loadPrompt("SELF_CHECK_SYSTEM"),
+      WORKFLOW_DISCIPLINE: async () => loadPrompt("WORKFLOW_DISCIPLINE"),
+      INPUT_COMPATIBILITY: async () => loadPrompt("INPUT_COMPATIBILITY"),
     };
 
     const tasks: Promise<void>[] = [];
