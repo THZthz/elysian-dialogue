@@ -1,14 +1,14 @@
-## Image System / Visual Motif Planning
+## Image System / Narrative Motif Planning
 
-A system of recurring visual elements planned across the entire work that reinforce theme and character arc.
+A system of recurring sensory elements — objects, colors, spaces, gestures, sounds — planned across the entire story that reinforce theme and character arc. The GM weaves these motifs into NARRATOR messages and character actions so they accumulate meaning through repetition and variation.
 
 ### Components
 
-**Visual Motif**: Visual elements that recur throughout the work — an object, a color, a type of space, a gesture. Each recurrence accumulates meaning. The opening is where the first instance of the motif system is established.
+**Recurring Motif**: A sensory element that recurs throughout the story — a physical object, a specific color, a type of space, a posture or gesture, a quality of light, a sound. Each recurrence adds another layer of meaning. The first appearance of a motif is typically placed early to establish it.
 
-**Imagery Direction**: The style of environmental imagery that echoes the theme / character arc. What kind of spaces, weather, and light quality will recur?
+**Imagery Direction**: The recurring texture of environments that echoes the theme or character arc. What kinds of spaces, weather, light quality, or ambient sound will return throughout the story?
 
-**Visual Elements to Emphasize**: Which objects / spaces / actions carry special weight throughout the work and need sufficient presence in the narrative.
+**Elements to Emphasize**: Which objects, spaces, or actions carry special symbolic weight and need to be given descriptive attention whenever they appear.
 
 ### Implementation
-During script micro-adjustment: concretely embed the motif's first, second, and Nth appearance into specific scene positions. This is not "redesigning imagery" — it's materializing already-planned motifs at the script text level.
+When writing NARRATOR messages or NPC actions, concretely embed the motif's first, second, and subsequent appearances into specific scenes. The camera-like stance of the NARRATOR can be used to describe a composition, a light condition, or a color at key moments — not as a film technique, but as deliberate narrative imagery. This is not "redesigning imagery" — it is materializing already-planned motifs at the level of narration text. By controlling what the NARRATOR focuses on, the GM creates the textual equivalent of a visual motif system.

@@ -40,6 +40,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 
 let _promptsDict: Record<string, string> = {};
 
+// NOTE: Do we need to clean prompts when it is not used? Load all prompts into memory seems fine for now.
 function loadPrompt(name: string): string {
   if (!_promptsDict[name]) {
     const promptsDir = join(__dirname, "..", "prompts");

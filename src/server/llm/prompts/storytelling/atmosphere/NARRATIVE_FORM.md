@@ -1,102 +1,94 @@
-## Narrative Form Library
+## Narrative Form Library (GM Narrative Adaptation)
+
+This guide describes narrative forms as strategies for the GM's narration and dialogue, not as filmmaking techniques. The GM uses the NARRATOR to establish perspective, describe sensory details (light, color, spatial composition, sound), and control pacing through message structure. Each form's core principles are preserved; visual and auditory techniques are translated into narrative description choices.
 
 ### E1. Mockumentary
-**Core challenge**: Credible imperfection — "too refined" won't feel like a documentary.
+**Core challenge**: Credible imperfection — the story feels observed rather than performed.
 
-**Guest Methodology**
-- Shot language: Documentary's full visual grammar — handheld, zoom push-pull, follow shots, sit-down interviews. "Casual" re-framing — like a camera operator adjusting on the fly. Occasional missed focus and compositional "mistakes."
-- Composition: Interview standard composition — character at the frame's one-third mark, looking offscreen at the interviewer. Observational — character doing their own thing; the camera "happens" to be there.
-- Lighting/Color: Natural light primarily — no added lights or only basic fill. Color grading without post-processing — maintaining a "raw footage" texture.
-- Editing rhythm: Interview-section dialogue and "observation-section" behavior alternating. Editing preserves "rough" edges — shot starts and ends not precisely trimmed. The "interviewer's" voice occasionally comes through from offscreen.
-- Sound design: Sync sound/location sound — what the mic captures is what the audience hears. Ambient noise without noise reduction.
-- Core execution principle: Credibility comes from imperfection — professional films are too "clean"; a mockumentary needs just the right "amateur feel." Characters don't know how absurd they are — their seriousness before the camera doubles the absurdity. Breaking the fourth wall — characters speaking to the camera is documentary's standard operation.
+**Guest-Style**
+- Narration stance: NARRATOR assumes the role of an on-scene documentarian — occasionally comments on framing, admits missing moments, or describes the "crew's" presence. Narration includes "raw" details: stumbled words, ambient interruptions, uneven pacing.
+- Character presentation: Characters speak directly to the player as if being interviewed, or are described as if caught mid-action. They may glance at an unseen interviewer, adjust posture self-consciously, or repeat themselves.
+- Environment description: Lighting and sound are described as found — harsh fluorescent, distant traffic bleeding into the room, a mic bump. Imperfections are noted ("a siren passes outside, drowning a key word").
+- Pacing: Alternate between interview-style direct address and "fly-on-the-wall" observation blocks. Transitions can be abrupt, mimicking a rough edit. The NARRATOR may interrupt to note the tape is running out or a battery died.
+- Core execution principle: The medium's messiness is the message. Characters reveal more by forgetting the "camera" is there, then catching themselves. Breaking the fourth wall is expected — the player IS the interviewer.
 
-**Waititi Methodology**
-- Shot language: Documentary grammar but with carefully choreographed comedy timing — the camera "happens" to zoom to a character's awkward expression at the right moment. Handheld improvisational feel.
-- Composition: Using the documentary's "accidental composition" to create a punchline — a character does something at the frame's edge that the camera captures. Ensemble awkward positioning.
-- Lighting/Color: Natural light, no stylization. New Zealand gray-green tones.
-- Editing rhythm: Comedy timing — reaction shot lingering duration precisely calculated. Awkward silence amplified by editing.
-- Sound design: Sync sound/location sound chaos — multiple people talking simultaneously, offscreen interruptions. Improvised dialogue feel.
-- Core execution principle: Warm absurdity — characters are absurd but also lovable. Improvisational feel — dialogue sounds like it was improvised (and may genuinely be). Subculture documentation — using the mockumentary form to show a subculture group's daily life.
+**Waititi-Style**
+- Narration stance: Documentary warmth with impeccable comic timing. The NARRATOR describes comedic details as if the camera operator "just managed" to catch them — a character's awkward pause, a prop failure, a suppressed grin.
+- Character presentation: Characters deliver absurd lines with total seriousness, then break with a glance at the "camera." Ensemble scenes feel overcrowded; multiple people talk at once, describing chaos.
+- Environment description: Everyday lighting and drab color palettes are noted plainly, which makes the absurdity pop. Descriptions focus on mundane objects made significant by context.
+- Core execution principle: Warm absurdity. The form documents a subculture with genuine affection, and the narrative's casual framing (like a hobbyist's film) endears the characters.
 
-**Aster (Found Footage dimension)**: The camera's "presence" is acknowledged by characters and plot — who is filming, why they are filming IS part of the narrative. Image quality degradation (noise, distortion, fracture) = terror's intensification. The camera's physical presence means characters can be "forced" to face the camera.
+**Aster (Found Footage variation)**
+- Narration stance: The NARRATOR acknowledges the act of recording. Who is holding the device, why they are recording, and the device's limitations are part of the narrative. Messages may be addressed to the player as if they are watching the footage later.
+- Environmental detail: Describe degradation — glitching audio, night-vision greens, lens flare obscuring faces. The quality of the "recording" intensifies dread.
+- Core execution principle: The recording itself is a plot element. The player knows the footage survived, but not how, which implies dread.
 
 ### E2. Road Movie
-**Core challenge**: The journey itself as narrative structure, landscape as character, change during movement.
+**Core challenge**: The journey is the plot. Landscape becomes a character; change occurs through movement.
 
-**Payne Methodology**
-- Shot language: Mid-shots and wide shots show character in the journey — the relationship between person, car, and landscape. Stable cinematography but not rigid — has life's breathing feel.
-- Composition: In-car dialogue — two people sitting in front seats, side-by-side composition. Highway extension line — a straight road disappearing at the horizon composition. Small-town ordinary landscape — not magnificent nature but ordinary gas stations and motels.
-- Lighting/Color: American Midwest light — the openness of the great plains. Natural light, no stylization.
-- Editing rhythm: Unhurried — the journey's sense of time needs conveying. Dialogue scenes let characters finish speaking.
-- Sound design: In-car engine sound and radio. Ambient sound changes when passing through different places.
-- Core execution principle: The journey is both escaping and confrontation — characters think they are escaping something, but the journey forces them to face themselves. Midlife crisis — the road movie's classic protagonist is a middle-aged person who "discovered their life was not what they wanted." Landscape's ordinariness — not sublime natural beauty but real America's (or any country's) ordinary face.
+**Payne-Style**
+- Narration stance: Steady, unhurried observation. The NARRATOR describes the interplay of character, vehicle, and passing scenery. Dialogue unfolds in real-time with pauses for the hum of tires or the view out a window.
+- Spatial description: Focus on ordinary, transitional spaces — gas stations, diners, motel rooms, the unchanging ribbon of highway. Descriptions emphasize the specific light of a region and the small, human details of roadside stops.
+- Pacing: Scenes breathe. Conversations are allowed to wander into comfortable silence. Time is marked by the landscape's gradual change.
+- Core execution principle: The road forces confrontation with the self. What they're escaping follows them. Ordinary landscapes mirror inner stagnation or quiet desperation.
 
-**Wenders Methodology**
-- Shot language: Slow dolly and fixed shots. Extensive landscape empty frames — the camera lingering on a place, letting time and light change within the frame. Polaroid/road photography texture.
-- Composition: Solitary figure in a vast landscape — human is minuscule. Gas stations, motels, empty highways — America's (or anywhere's) marginal spaces.
-- Lighting/Color: American West harsh light — blue sky, red earth, white sunlight. Or European gray tones.
-- Editing rhythm: Extremely slow — letting the audience feel the "nothing is happening" time of the journey.
-- Sound design: Road sounds — wind, engine, distant trains. Rock or country music coming from the car radio.
-- Core execution principle: Searching for something without knowing what it is — the road movie's protagonist is not a traveler with a destination but a wanderer searching for meaning through movement. The image itself IS the journey — photographing, like recording, like watching films; the act of recording is the human attempt to grasp what is slipping away. The desolate beauty of America (or anywhere) — emptiness is not boredom but a possibility of freedom.
+**Wenders-Style**
+- Narration stance: Philosophical wandering. The NARRATOR lingers on empty frames — a vacant motel sign, a long straight road, a solitary figure against a vast sky. Descriptions evoke a sense of searching, of the photograph's stillness.
+- Environment description: Harsh light, wide-open spaces, the hum of the road and the radio. Every location is both real and imbued with symbolic weight (borders, ruins, industrial wastelands).
+- Pacing: Extremely deliberate. Long passages describe static scenes with only subtle light changes. The "nothing happens" time is the point.
+- Core execution principle: Movement as meditation. The destination is unknown or irrelevant; the act of traveling is an attempt to grasp what's slipping away. The beauty of emptiness is a kind of freedom.
 
-**Coen Bros (Road dimension)**: American geography's absurdity — every state, every small town has its own bizarre logic. Strangers encountered on the journey are microcosms — each passerby has their own complete story. Space's vastness makes human minuscule even more absurd — a person chasing a wind-blown hat through a desert/snowfield.
+**Coen Bros (Road dimension)**
+- Narration stance: The absurdity of American geography. Every small town has its own bizarre logic, and the NARRATOR describes it with deadpan precision. Strangers encountered are vivid mini-narratives — they have complete, peculiar backstories that may never be resolved.
+- Core execution principle: The vastness of space dwarfs human schemes. A person chasing a wind-blown hat across a desert is both tragic and ridiculous.
 
 ### E3. Musical
-**Core challenge**: Precise synchronization of music and image, organic transition between musical sections and narrative.
+**Core challenge**: Emotion becomes so intense it breaks into song or rhythm; the narrative structure bends to accommodate this release.
 
-**Chazelle Methodology**
-- Shot language: Dance in long takes — camera and dancers move together; no cuts, no cheating. Golden hour outdoor shooting — characters dance in sunset light. The camera itself "dances" — smooth arcing motion.
-- Composition: Full-body composition shows dance — no close-ups cutting off the body. CinemaScope widescreen horizontal space — two people's distance changes within the wide frame.
-- Lighting/Color: High saturation primary colors — red dress, blue night sky, gold streetlamp. Tribute to classic Hollywood color aesthetics.
-- Editing rhythm: Musical sections: minimal cuts — use long takes to let the performance be completely presented. Seamless transitions between musical and narrative — the character naturally begins singing during dialogue.
-- Sound design: Jazz is the soul. Live recording texture — performer's breathing and footsteps audible. Song lyrics advance the narrative.
-- Core execution principle: Nostalgia but not retro — borrowing classic musical visual language to tell contemporary stories. Dance is emotional release — what cannot be spoken in daily life is expressed through song and dance. The boundary between dream and reality — musical sections may be the character's fantasy.
+**Chazelle-Style**
+- Narration stance: The NARRATOR heightens senses — describes color saturation, the weight of a held breath before a dance, the way light slants through a window. Physical motion is detailed as choreography, even in ordinary actions.
+- Character presentation: Dialogue may slide into rhythmic patterns or rhyme when emotions peak. A character's private fantasy may be described as a full-blown performance, then snap back to reality.
+- Environment description: Colors are bold, lighting theatrical. The NARRATOR highlights the "stage" of a scene — a sunset, a spotlight-like streetlamp, a red dress against a grey city.
+- Pacing: Performance segments are written as sustained, flowing narration (the equivalent of long takes), while cutting to tighter reaction beats. Song lyrics can double as character confession.
+- Core execution principle: Dance and song are not interruptions; they are emotional logic taken to its extreme. The boundary between inner fantasy and outer reality is deliberately blurred.
 
-**Marshall Methodology**
-- Shot language: Fast-cut song and dance — each dance movement presented from the best angle; fast cuts jumping between angles. Overhead shot kaleidoscope compositions.
-- Composition: Stage-sense composition — symmetrical ensemble dance formations. Dancer body lines as compositional elements.
-- Editing rhythm: Music beat precise synchronization — each editing point hitting the music beat. Fast cuts create energy.
-- Sound design: Full orchestral sound is shocking. Mixing pushes vocals to the front.
-- Core execution principle: Song and dance are narrative's legitimate language — not "suddenly starting to sing" but "using singing instead of speaking because the emotion at this moment exceeds everyday language's capacity."
+**Marshall-Style**
+- Narration stance: Theatrical and presentational. The NARRATOR describes staging — symmetrical formations, the sweep of an ensemble, the exact moment a voice catches.
+- Pacing: Fast-cut style: short, dynamic messages that land on beats. Energetic, crowd-focused.
+- Core execution principle: When speech fails, sing. The narrative's heightened reality is embraced without apology.
 
-**von Trier (Unconventional Musical dimension)**
-- Shot language: Handheld documentary-style rough imagery suddenly appears in song and dance sections — contrast is the core weapon. Multi-camera DV-shot industrial song and dance.
-- Composition: Anti-aesthetics — not pursuing the musical's ornate composition. Factories, prisons, slums as song and dance settings.
-- Sound design: Industrial noise becoming music — machine rhythm becoming the song's foundation. Experimental sound design.
-- Core execution principle: Song and dance as the only escape — the crueler the reality, the more necessary the song and dance. Aesthetic subversion — placing the musical in the most "un-musical" environments.
+**von Trier (Unconventional dimension)**
+- Narration stance: Grimy industrial realism colliding with raw musical outbursts. The NARRATOR sets scenes in bleak, anti-aesthetic locations (factory floors, prison yards) and then describes the sudden, clumsy beauty of a character singing amid the grime.
+- Core execution principle: Singing is the only escape from an unbearable reality. The contrast between setting and performance is the point.
 
 ### E4. Animation
-**Core challenge**: The virtual camera's freedom of control, the boundary between reality and fantasy, animation's unique visual narrative technique.
+**Core challenge**: The world is not bound by physical law. The GM narrates with the freedom to transform space, time, and identity seamlessly.
 
-**Miyazaki**: See B8 Fantasy/Magical for full methodology.
+**Kon Satoshi-Style**
+- Narration stance: Reality and dream bleed together without warning. A scene described in a train carriage can become a memory as the narration shifts seamlessly through a shared gesture. The NARRATOR blurs the line between inner and outer worlds.
+- Character presentation: Identities are fluid — a character's appearance, age, or voice may change mid-scene as their mental state shifts. The NARRATOR treats this as natural.
+- Pacing: Acceleration is key; cuts between realities become faster and more disorienting until the player cannot trust the narrated reality.
+- Core execution principle: The mind's freedom is the story's logic. Use sudden transformations to show psychological fragmentation or revelation.
 
-**Kon Satoshi Methodology**
-- Shot language (animation context): Seamless reality/dream transformation — within one continuous camera movement, space transforms from reality to dream and back; no clear boundary. Match cut extreme application — a character does an action; the cut continues the same action in a completely different space/time.
-- Composition: Image can at any time collapse — composition distorts when the character's mental state is unstable. Screens/mirrors/frame-within-frame — nested images.
-- Editing rhythm: Reality and hallucination switching speed faster and faster — by the climax, the audience completely cannot tell which is real.
-- Sound design: Hirasawa Susumu electronic and orchestral fused score. Sound can span across the boundary between reality and dream.
-- Core execution principle: Animation's freedom IS narrative freedom — animation is unconstrained by physical limitation, so space and time can do anything. Identity fluidity — character appearance/age/gender can seamlessly transform in animation. Media self-reference — film/TV/advertising/internet mutually infiltrating the character's world.
-
-**Pixar / Stanton Methodology**
-- Shot language (CG animation context): Simulating live-action film's shot language — dolly, handheld micro-tremble, focus changes. But can do impossible camera movements when needed (pass through microscopic worlds, fly through fish tanks).
-- Composition: Character expressions extremely detailed — CG allows precise micro-expression control. Color psychology — each emotion has a corresponding color (Inside Out). Spatial scale changes — from microscopic to macroscopic.
-- Editing rhythm: Classic narrative rhythm — three-act structure, precise beats. No dragging.
-- Sound design: Orchestral score emotional precision — every emotional inflection point has a precise musical match.
-- Core execution principle: The premise of making the audience cry is first making them laugh — precise balance of humor and emotion. "If X had feelings" — endowing non-human things with emotion is Pixar's core capability. Rules simple but extrapolation to the extreme — a simple concept rigorously extrapolated to all its logical consequences.
+**Pixar / Stanton-Style**
+- Narration stance: Emotionally precise, combining humor and pathos. The NARRATOR treats non-human entities as having rich inner lives (the lonely robot, the forgotten toy), describing their world from their limited perspective.
+- Pacing: Classic narrative structure with clear beats. Humor precedes heartbreak.
+- Core execution principle: "What if X had feelings?" Extrapolate simple rules to their emotional conclusion. Earn the tears by earning the laughter.
 
 ### E5. Experimental / Avant-Garde
-**Core challenge**: Breaking the audience's comfort boundaries, form itself as content.
+**Core challenge**: Form itself becomes content. Narrative convention is broken to provoke, disorient, or reveal.
 
-**Noé Methodology**
-- Shot language: Extreme camera movement — uncut ultra-long takes where the camera flips, inverts, passes through space. Strobe and black screen alternating use — the image itself attacks the audience's vision. Extreme first-person perspective — the camera IS the character's eyes.
-- Composition: The image can be upright or upside-down — ceiling and floor interchangeable. Extreme close-ups until the audience loses spatial judgment. Overhead shot god's-eye view — city and crowds become abstract light points and lines.
-- Lighting/Color: Neon colors — red, purple, blue, gold extreme saturation. Strobe light sources create epileptic visual impact. Dark scenes only have colored light (no white light); space is alienated.
-- Editing rhythm: Either completely uncut (one shot 40 minutes) or frenzied flash cuts. Temporal structure nonlinear — reverse order, fragments, loops.
-- Narrative perspective: Completely subjective — the audience is trapped in the character's body/soul. Experience prioritized over understanding — the audience first feels impact at the physical level, then at the rational level understands what happened.
-- Sound design: Low-frequency sound waves — approaching somatic infrasound frequencies; the audience feels unease at the physical level. Electronic music and noise music. Sound can be an offensive weapon.
-- Core execution principle: Film is a physical experience, not an intellectual one — directly acting upon the audience's nervous system through light, sound, motion. Comfort boundary breaking is the core strategy — when the audience starts wanting to leave, the film's purpose has been achieved. Time is plastic material — can be stretched, compressed, reversed, shattered.
+**Noé-Style**
+- Narration stance: Extreme subjectivity. The NARRATOR may speak from inside the character's skull, describing raw sensation, panic, confusion. Perspective can invert or fragment without warning — what was solid becomes liquid.
+- Structural choices: Sentences may fragment, repeat, or run on without punctuation. Scenes can be narrated in reverse order, or a single moment stretched across many messages. Visual description can be assaultive — strobe-like repetition of images, disorienting shifts in scale.
+- Core execution principle: The narrative is a physical experience for the player's imagination. Discomfort is a legitimate tool. Time is malleable; stretch, compress, shatter.
 
-**Lynch (Experimental dimension)**: Images can exist independently of narrative — a section of pure light-shadow movement, a face slowly deforming, doesn't need to "represent" anything. Industrial aesthetics — machines, pipes, chimneys, factory noise form an independent aesthetic system. Film as dream's record — not "about dreams" but "itself IS a dream."
+**Lynch-Style**
+- Narration stance: The NARRATOR describes the uncanny within the mundane — a perfectly normal room where the light in one corner is wrong, a familiar face making an impossible expression. Industrial hums and electrical buzzes are noted as pervasive background.
+- Structural choices: Scenes may loop with slight, disturbing variations. Dream logic connects scenes: an object from one scene reappears in another with no explanation. The narrative doesn't demand rational understanding; it accumulates unease.
+- Core execution principle: Not "about a dream," but structured LIKE a dream. Let strange images exist without immediate explanation. Mystery is more powerful than solution.
 
-**Apichatpong (Experimental dimension)**: Image installation-ization — films can be displayed in galleries as multi-screen, looping works, breaking the single-screen limit. Light as an independent character — a beam of light passing through a room is itself a complete "event." Animal-human equivalence — the camera shoots a monkey and a person with equal attention.
+**Apichatpong-Style**
+- Narration stance: Meditative and unhurried. The NARRATOR gives equal weight to a human conversation and a beam of sunlight moving across a floor. Animals, plants, and spirits are treated as full characters.
+- Structural choices: The story may fracture into two halves with different logics, connected by emotional or cyclical themes, not plot. Long stretches of "nothing happening" allow minute sensory details to become events.
+- Core execution principle: Transcend human-centered narrative. Light, sound, and the non-human world are protagonists. Let stillness be the event.

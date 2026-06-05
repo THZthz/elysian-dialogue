@@ -1,48 +1,48 @@
-## Script Micro-Adjustment
+## Narrative Micro-Adjustment
 
-### Pre-Step: Audio-Visual Correction
-Before entering formal fine-tuning, do one round of purely audiovisual correction — **only fix content that cannot be captured by a camera**:
-- "Character feels X", "Character senses X", "Character realizes X" → change to visible action or expression
-- "The atmosphere became tense" → change to specific environmental change or character's physical reaction
+### Pre-Step: Sensory Correction
+Before fine-tuning, do one round of pure sensory correction — **only fix content that the player cannot perceive through words on screen**:
+- "Character feels X", "Character senses X", "Character realizes X" → change to visible action, audible sound, or dialogue that implies the feeling.
+- "The atmosphere became tense" → change to a specific environmental detail or a character's physical reaction (e.g., "The hum of the engine was the only sound between them").
 
-**The following are normal audiovisual language and should NOT be modified**:
-- Special effects descriptions — this is visual presentation
-- Internal monologue / voiceover — this is audio presentation
-- Sound effect / music cues — this is auditory presentation
-- Subtitles / text on screen — this is visual presentation
+**The following are legitimate narrative tools and should NOT be modified**:
+- NARRATOR descriptions of visuals, sounds, or spatial composition — this is how the GM paints the scene.
+- Inner voice messages (INNER_VOICE type) — these are the player's internal perceptions and are valid.
+- Sound effects or ambient cues described in narration — these are auditory presentation.
+- Any text that can be read as part of the stream (e.g., a note, a sign) — this is visible to the player.
 
-Audiovisual correction is minor surgery — it changes no narrative content, only translates the "unfilmable" into the "filmable."
+Sensory correction is minor surgery — it changes no story content, only translates the "imperceptible" into the "perceptible."
 
 ### Four Adjustment Focus Areas
 
-**Focus 1: Performance Rhythm**
-Check whether the character's action rhythm in each scene matches the target rhythm. Core technique: splitting or merging actions.
-- **Split actions to lengthen rhythm**: Take one general action and break it into multiple concrete micro-actions, increasing time capacity and performance layering.
-- **Merge actions to shorten rhythm**: Compress multiple fragmented actions into one clean action, accelerating the section.
+**Focus 1: Action Rhythm**
+Check whether the sequence and density of character actions in a turn match the intended pacing. Core technique: splitting or merging described actions.
+- **Split actions to slow rhythm**: Take one general action and break it into multiple concrete micro-actions across consecutive messages, increasing time weight and performance layering.
+- **Merge actions to accelerate rhythm**: Compress multiple fragmented actions into one clean sentence or gesture, quickening the moment.
 
 **Focus 2: Dialogue**
-Check whether the dialogue matches the target rhythm and character state. Core techniques:
-- **Lengthen dialogue**: At key emotional nodes, add hesitation, repetition, digression — let the character's "inability to get to the point" itself become performance.
-- **Shorten dialogue**: Compress verbose explanations into one word or one sentence, or delete the line entirely and replace with silence.
-- **Rewrite content**: Without changing information transmission, adjust the dialogue's expression — more colloquial, more aligned with the character's current emotional state.
-- **Adjust phrasing and pause points**: The same sentence with different pause positions affects rhythm. Pauses also affect visual cutting points — each pause is a potential cut timing.
+Check whether dialogue matches the target rhythm and the character's emotional state. Core techniques:
+- **Lengthen dialogue**: At key emotional nodes, add hesitation, repetition, digression — let the character's struggle to speak become the performance.
+- **Shorten dialogue**: Compress verbose explanations into a single word or sentence, or replace the line with an action or a silence.
+- **Rewrite content**: Without changing the information transmitted, adjust expression to be more colloquial and aligned with the character's current state.
+- **Adjust phrasing and pause points**: The same sentence with different breaks affects rhythm. Pauses can be created by splitting lines into separate dialogue messages, giving weight to each segment.
 
-**Focus 3: Visual Content**
-Check whether there is sufficient visual detail in the frame to support narrative and emotion, or whether there are redundant images dragging rhythm. Core techniques:
-- **Add detail actions**: In heavy emotional scenes, add micro-actions and environmental details to elevate image texture.
-- **Delete redundant images**: If a scene has an image that neither advances plot nor transmits emotion nor establishes atmosphere, delete it.
-- **Replace images**: The same narrative purpose can be achieved with different images — choose the one with stronger visual impact or better match to the director's tone-setting.
+**Focus 3: Descriptive Content**
+Check whether the NARRATOR messages and action descriptions provide enough sensory detail to support emotion and narrative, or whether redundant descriptions are dragging rhythm. Core techniques:
+- **Add detail**: In emotionally heavy moments, add micro-actions, environmental details, or specific sounds to deepen texture.
+- **Remove redundancy**: If a description neither advances the plot, nor reveals character, nor establishes atmosphere, delete it.
+- **Replace imagery**: The same narrative purpose can be achieved with different sensory details — choose the one with stronger impact or better alignment with the tone.
 
-**Focus 4: Image System Implementation**
-The image system (visual motifs, imagery direction, visual elements to emphasize) was already determined during tone-setting. This focus area's task is to concretely embed the already-determined imagery into specific scene positions:
-- In which scenes does the visual motif's first, second, Nth appearance occur?
-- Which scenes need added environmental details that echo the character's state?
-- Do the visual elements that need emphasis have sufficient presence in the script?
+**Focus 4: Narrative Motif Implementation**
+The motif system (recurring objects, colors, spaces, gestures, sounds) was already determined during tone-setting. This focus area's task is to concretely embed the planned motifs into specific messages:
+- In which turns or scenes does the motif's first, second, Nth appearance occur?
+- Which moments need added environmental details that echo a character's internal state?
+- Do the symbols and recurring elements have sufficient presence across the narrative?
 
-This is not "redesigning imagery" — it's materializing already-planned motifs at the script text level.
+This is not "redesigning motifs" — it is materializing already-planned motifs at the level of NARRATOR and character messages.
 
 ### What Micro-Adjustment Does NOT Do
 - Change the story's core dramatic action
 - Change the direction of the character arc
 - Add new main characters or major plotlines
-- Treat normal audiovisual language (special effects, voiceover, subtitles, etc.) as "non-visual" and forcibly modify
+- Treat legitimate narrative tools (NARRATOR description, inner voice, audio cues) as "imperceptible" and forcibly remove them
