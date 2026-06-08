@@ -242,7 +242,7 @@ export class ContextManager {
       { role: "system", content: this.deps.getSystemPrompt() },
       ...fewShots.map((m) => ({ ...m })),
       ...healed,
-      { role: "user", content: instruction, name: ROLE_NAMES.GM_ASSISTANT },
+      { role: "user", content: instruction, name: SCRIBE },
     ];
 
     // Wire turn abort → fold abort so Esc cancels a running fold immediately.
@@ -275,7 +275,7 @@ export class ContextManager {
       const summary: ChatMessage = {
         role: "assistant",
         content: `[History summary]\n${stripHallucinatedToolMarkup(resp.content)}${constraintTail}`,
-        name: ROLE_NAMES.GM,
+        name: STORYTELLER,
       };
       // In thinking mode, stamp empty reasoning_content to prevent 400
       // on the next API call — DeepSeek requires it on ALL assistant messages.

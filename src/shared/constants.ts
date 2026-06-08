@@ -49,6 +49,6 @@ export const TOOL_NAMES = {
 } as const;
 
 export const ROLE_NAMES = {
-  GM: "GM",
-  GM_ASSISTANT: "GM Assistant",
+  STORYTELLER: "Storyteller",
+  SCRIBE: "Scribe",
 } as const;

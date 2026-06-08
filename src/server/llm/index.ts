@@ -302,7 +302,7 @@ export async function generateTurn(
         nudgeCount++;
         const prefix_ = nudgeCount === 1 ? "Reminder:" : "ERROR:";
         const msg = `${prefix_} You have not yet called ${TOOL_NAMES.GENERATE_DIALOGUE}. The player cannot see any response. You MUST call ${TOOL_NAMES.GENERATE_DIALOGUE} now — do not output text, call the tool.`;
-        log.append({ role: "user", content: msg, name: ROLE_NAMES.GM_ASSISTANT });
+        log.append({ role: "user", content: msg, name: SCRIBE });
       },
       canEndTurn: () => {
         if (dialogueStepCalled) return null;
