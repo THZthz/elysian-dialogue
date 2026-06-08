@@ -4,5 +4,3 @@
 - If `// TODO:`, `// WARNING:` or `// NOTE:` is found in code, preserve it.
 - No need to add license header for new files, user will add it manually.
 - No need to consider backward compatibility (anything including database), we always start fresh.
-- If you meet a problem regarding to Cypher usage in LadybugDB, check CYPHER.md in the project root.
-
