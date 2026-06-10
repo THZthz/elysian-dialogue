@@ -17,6 +17,7 @@
  */
 
 import { Database } from "@/server/db";
+import { getSchemaRegistry } from "@/server/db/schema";
 import { TOOL_NAMES } from "@/shared/constants";
 
 // ── Types ──
@@ -69,27 +70,53 @@ async function querySingleEntity(
 ): Promise<EnrichmentRow[]> {
   const { where, params } = buildWhereClause(match);
   const isCharacter = label === "Character";
+  const registry = getSchemaRegistry();
+  const allTypes = registry.getAllRelTypes();
+  const temporalTypes = new Set(
+    allTypes.filter((t) => registry.isTemporalRelType(t)).map((t) => t.name),
+  );
 
-  // Build UNION query: outgoing + incoming + (optional) dispositions
-  const outBranch = `MATCH (n:\`${label}\`) WHERE ${where}
-     MATCH (n)-[r]->(m) WHERE r.valid_at IS NULL
-     RETURN 'out' AS dir, type(r) AS relType, label(m) AS otherLabel,
-            COALESCE(m.name, CAST(m._uid, 'STRING')) AS otherName, m.brief AS otherBrief`;
-  const inBranch = `MATCH (n:\`${label}\`) WHERE ${where}
-     MATCH (m)-[r]->(n) WHERE r.valid_at IS NULL
-     RETURN 'in' AS dir, type(r) AS relType, label(m) AS otherLabel,
-            COALESCE(m.name, CAST(m._uid, 'STRING')) AS otherName, m.brief AS otherBrief`;
+  // Build per-type UNION branches to avoid using type(r), which is unavailable
+  // in the current LadybugDB version.
+  const branches: string[] = [];
 
-  let query = `${outBranch}\nUNION\n${inBranch}`;
+  for (const t of allTypes) {
+    const safeName = t.name.replace(/'/g, "''");
+    const validAtFilter = temporalTypes.has(t.name) ? " AND r.valid_at IS NULL" : "";
 
-  if (isCharacter) {
-    const dispBranch = `MATCH (n:\`${label}\`) WHERE ${where}
-       MATCH (n)-[:HAS_DISPOSITION]->(d:Disposition)
-       RETURN 'disp' AS dir, d.sentiment AS relType, 'Character' AS otherLabel,
-              d.target_name AS otherName, d.summary AS otherBrief`;
-    query = `${query}\nUNION\n${dispBranch}`;
+    // Outgoing: entity's label matches sourceLabel
+    if (t.sourceLabel === label) {
+      branches.push(
+        `MATCH (n:\`${label}\`) WHERE ${where}
+         MATCH (n)-[r:\`${t.name}\`]->(m) WHERE 1=1${validAtFilter}
+         RETURN 'out' AS dir, '${safeName}' AS relType, label(m) AS otherLabel,
+                COALESCE(m.name, CAST(m._uid, 'STRING')) AS otherName, m.brief AS otherBrief`,
+      );
+    }
+
+    // Incoming: entity's label matches targetLabel
+    if (t.targetLabel === label) {
+      branches.push(
+        `MATCH (n:\`${label}\`) WHERE ${where}
+         MATCH (m)-[r:\`${t.name}\`]->(n) WHERE 1=1${validAtFilter}
+         RETURN 'in' AS dir, '${safeName}' AS relType, label(m) AS otherLabel,
+                COALESCE(m.name, CAST(m._uid, 'STRING')) AS otherName, m.brief AS otherBrief`,
+      );
+    }
   }
 
+  if (isCharacter) {
+    branches.push(
+      `MATCH (n:\`${label}\`) WHERE ${where}
+       MATCH (n)-[:HAS_DISPOSITION]->(d:Disposition)
+       RETURN 'disp' AS dir, d.sentiment AS relType, 'Character' AS otherLabel,
+              d.target_name AS otherName, d.summary AS otherBrief`,
+    );
+  }
+
+  if (branches.length === 0) return [];
+
+  const query = branches.join("\nUNION\n");
   const result = await withTimeout(db.graph.query(query, params), 2000);
   return result.rows as unknown as EnrichmentRow[];
 }
@@ -174,6 +201,39 @@ function formatEntityContext(rows: EnrichmentRow[], entityName: string): string 
   return output;
 }
 
+async function queryEntityRelationships(
+  db: Database,
+  name: string,
+  label: string,
+): Promise<Array<{ relType: string; targetName: string }>> {
+  const registry = getSchemaRegistry();
+  const allTypes = registry.getAllRelTypes();
+  const temporalTypes = new Set(
+    allTypes.filter((t) => registry.isTemporalRelType(t)).map((t) => t.name),
+  );
+
+  const escapedLabel = label.replace(/`/g, "``");
+  const branches: string[] = [];
+  for (const t of allTypes) {
+    const safeName = t.name.replace(/'/g, "''");
+    const validAtFilter = temporalTypes.has(t.name) ? " AND r.valid_at IS NULL" : "";
+    if (t.sourceLabel === label) {
+      branches.push(
+        `MATCH (n:\`${escapedLabel}\`) WHERE n.name = $val MATCH (n)-[r:\`${t.name}\`]->(m) WHERE 1=1${validAtFilter} RETURN '${safeName}' AS relType, COALESCE(m.name, CAST(m._uid, 'STRING')) AS targetName`,
+      );
+    }
+    if (t.targetLabel === label) {
+      branches.push(
+        `MATCH (n:\`${escapedLabel}\`) WHERE n.name = $val MATCH (m)-[r:\`${t.name}\`]->(n) WHERE 1=1${validAtFilter} RETURN '${safeName}' AS relType, COALESCE(m.name, CAST(m._uid, 'STRING')) AS targetName`,
+      );
+    }
+  }
+
+  if (branches.length === 0) return [];
+  const result = await withTimeout(db.graph.query(branches.join("\nUNION ALL\n"), { val: name }), 2000);
+  return result.rows as Array<{ relType: string; targetName: string }>;
+}
+
 async function enrichEntityBatch(db: Database, entities: EntityBatchEntry[]): Promise<string> {
   if (entities.length === 0) return "";
 
@@ -181,38 +241,41 @@ async function enrichEntityBatch(db: Database, entities: EntityBatchEntry[]): Pr
 
   for (const ent of entities) {
     try {
-      const result = await withTimeout(
+      // Phase 1: get label and brief (no type(r))
+      const metaResult = await withTimeout(
         db.graph.query(
-          `MATCH (n) WHERE n.name = $val
-           OPTIONAL MATCH (n)-[r]->(m) WHERE r.valid_at IS NULL
-           RETURN label(n) AS _label, n.brief AS brief,
-                  collect(DISTINCT {relType: type(r), targetName: COALESCE(m.name, CAST(m._uid, 'STRING'))}) AS rels`,
+          `MATCH (n) WHERE n.name = $val RETURN label(n) AS _label, n.brief AS brief`,
           { val: ent.value },
         ),
         2000,
       );
-
-      const row = result.rows[0] as
-        | {
-            _label: string;
-            brief: string | null;
-            rels: Array<{ relType: string; targetName: string }>;
-          }
+      const metaRow = metaResult.rows[0] as
+        | { _label?: string; brief?: string | null }
         | undefined;
-      if (!row) continue;
+      if (!metaRow) continue;
+      const label = metaRow._label || "";
+      if (!label) continue;
+
+      // Phase 2: query relationships per type to avoid type(r)
+      let rels: Array<{ relType: string; targetName: string }> = [];
+      try {
+        rels = await queryEntityRelationships(db, ent.value, label);
+      } catch {
+        // Relationships are best-effort
+      }
 
       // Count relationships by type
       const byType = new Map<string, number>();
-      for (const r of row.rels) {
+      for (const r of rels) {
         if (!r.relType) continue;
         byType.set(r.relType, (byType.get(r.relType) || 0) + 1);
       }
       const relCounts = [...byType.entries()].map(([t, c]) => `${t}(${c})`).join(", ");
 
       rows.push({
-        label: row._label,
+        label,
         name: ent.value,
-        brief: row.brief,
+        brief: metaRow.brief ?? null,
         relCounts,
       });
     } catch {

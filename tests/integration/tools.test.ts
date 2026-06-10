@@ -1597,10 +1597,7 @@ describe("enrichment — editNode", () => {
     );
   });
 
-  // NOTE: Enrichment query uses type(r) which is not yet available in this
-  // LadybugDB version. When type(r) is supported, this test should verify
-  // that [Context] shows LOCATED_AT Silver Tankard and CARRIES Rusty Dagger.
-  it("enriches successful UPSERT — passes through raw result when query fails", async () => {
+  it("enriches successful UPSERT — appends context with relationships", async () => {
     const args = JSON.stringify({
       nodeLabel: "Character",
       match: { name: "Orin Fell" },
@@ -1609,9 +1606,9 @@ describe("enrichment — editNode", () => {
     const rawResult = `Node "Character" "Orin Fell" updated properties: brief.`;
     const enriched = await enrichResult(TOOL_NAMES.MANAGE_NODE, args, rawResult);
 
-    // Enrichment query fails gracefully (type(r) not available), so rawResult is
-    // returned unchanged rather than crashing.
-    expect(enriched).toBe(rawResult);
+    expect(enriched).toContain("[Context]");
+    expect(enriched).toContain("LOCATED_AT Silver Tankard");
+    expect(enriched).toContain("CARRIES Rusty Dagger");
   });
 
   it("skips enrichment for DELETE action", async () => {
@@ -1693,7 +1690,7 @@ describe("enrichment — editRelationship", () => {
     );
   });
 
-  it("enriches successful UPSERT — passes through on query failure (graceful)", async () => {
+  it("enriches successful UPSERT — includes context for source entity", async () => {
     const args = JSON.stringify({
       relationshipType: "CARRIES",
       sourceLabel: "Character",
@@ -1704,9 +1701,11 @@ describe("enrichment — editRelationship", () => {
     const rawResult = `Relationship (:Character)-[:CARRIES]->(:Object) created successfully.`;
     const enriched = await enrichResult(TOOL_NAMES.MANAGE_RELATIONSHIP, args, rawResult);
 
-    // Enrichment attempt is made but query may fail (type(r) limitation in test DB).
-    // Verify no crash — rawResult preserved.
+    // Base context line is always present; source entity should show existing
+    // LOCATED_AT relationship.
     expect(enriched).toContain("Mira Voss now CARRIES Rusty Dagger");
+    expect(enriched).toContain("[Context]");
+    expect(enriched).toContain("LOCATED_AT");
   });
 
   it("produces minimal output when endpoints have no other relationships", async () => {
@@ -1801,7 +1800,6 @@ describe("enrichment — queryWorld", () => {
       ],
     });
     const enriched = await enrichResult(TOOL_NAMES.QUERY_WORLD, args, rawResult);
-    // Enrichment may fail gracefully (type(r) limitation) — verify no crash
     expect(typeof enriched).toBe("string");
     expect(enriched.length).toBeGreaterThan(0);
   });

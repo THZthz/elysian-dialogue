@@ -161,6 +161,8 @@ export async function generateTurn(
   }
   generating = true;
 
+  const turnStartMs = Date.now();
+
   try {
     const events = new TurnEventEmitter(res);
     const db = Database.getExisting();
@@ -293,7 +295,12 @@ export async function generateTurn(
         if (name === TOOL_NAMES.GENERATE_DIALOGUE) {
           dialogueStepCalled = true;
           nudgeCount = 0;
-          if (dialogueStepTool.wasValid()) return { result, turnComplete: true };
+          if (dialogueStepTool.wasValid()) {
+            console.log(
+              `[generateTurn] generateDialogueStep validated in ${Date.now() - turnStartMs}ms`,
+            );
+            return { result, turnComplete: true };
+          }
         }
         return { result };
       },
