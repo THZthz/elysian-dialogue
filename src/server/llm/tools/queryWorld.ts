@@ -75,6 +75,7 @@ Internal properties prefixed with "_" are hidden from READ results.
 
 ## Forbidden
 - Do not call this tool multiple times when the queries are similar in structure, combine queries.
+- Use \`${TOOL_NAMES.MANAGE_SCENE}\` (READ) to get the information for a specific scene.
 `.trim(),
   schema: inputSchema,
   execute: wrapSafe(async (args: z.infer<typeof inputSchema>) => {

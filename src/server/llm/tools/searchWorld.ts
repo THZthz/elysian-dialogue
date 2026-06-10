@@ -102,15 +102,14 @@ export const searchWorld: Tool<typeof inputSchema> = {
 ## Brief
 Search the archive by semantic MEANING (vector similarity search with reranking).
 
-Use 'target' to restrict to only nodes or only relationships. Pass one or more domains (node labels
-or relationship types) via 'domains' to scope the search (e.g. ["Character", "Location", "Message"], ["LOCATED_AT"]).
-Omit to search all searchable types.
+Use \`target\` to restrict to only nodes or only relationships. Pass one or more domains (node labels
+or relationship types) via \`domains\` to scope the search (e.g. ["Character", "Location", "Message"], ["LOCATED_AT"]). Omit to search all searchable types.
 
-Search your notes at the start of every turn with domains: ["Note"].
+In most cases, use of \`${TOOL_NAMES.QUERY_WORLD}\` is preferred to exploit the advantage of graph database.
 
 ## Forbidden
-Do not combine multiple search attempts into a single call.
-Do not forget to use parameter \`limit\` wisely, if the search should be exact, set it to 1.
+- Do not combine multiple search attempts into a single call.
+- Do not forget to use parameter \`limit\` wisely, if the search should be exact, set it to 1.
 `.trim(),
   schema: inputSchema,
   execute: wrapSafe(async (args: z.infer<typeof inputSchema>) => {
@@ -150,7 +149,6 @@ Do not forget to use parameter \`limit\` wisely, if the search should be exact, 
 
     const db = Database.getExisting();
     const result: Record<string, Record<string, unknown>[]> = {};
-
     const tasks: Promise<void>[] = [];
 
     for (const label of nodeDomains) {

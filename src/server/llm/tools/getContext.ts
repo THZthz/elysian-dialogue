@@ -38,7 +38,7 @@ import {
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-let _promptsDict: Record<string, string> = {};
+const _promptsDict: Record<string, string> = {};
 
 // NOTE: Do we need to clean prompts when it is not used? Load all prompts into memory seems fine for now.
 function loadPrompt(name: string): string {
@@ -80,7 +80,6 @@ const CONTEXT_TYPES = [
   "TIMELINE",
   "ENTITY_PROFILE",
   "CYPHER_COOKBOOK",
-  "STORYTELLING_GUIDE",
 ] as const;
 
 type ContextType = (typeof CONTEXT_TYPES)[number];
@@ -109,7 +108,9 @@ const inputSchema = z.object({
       .string()
       .optional()
       .nullable()
-      .describe("For ENTITY_PROFILE: the label of the entity to profile (e.g. 'Character', 'Object')."),
+      .describe(
+        "For ENTITY_PROFILE: the label of the entity to profile (e.g. 'Character', 'Object').",
+      ),
   }),
 });
 
@@ -130,7 +131,6 @@ Pull pre-built context from the world. Nothing is auto-loaded — you choose wha
 - TIMELINE — Chronological log of all temporal relationship changes (created/expired), most recent first.
 - ENTITY_PROFILE — Everything about one node: properties, location, carried items, dispositions, notes, scene appearances, and relationship history.
 - CYPHER_COOKBOOK — The graph database is LadybugDB, its Cypher syntax is slightly different from most-used graph database Neo4j.
-- STORYTELLING_GUIDE — Main storytelling guide. Use \`subquery\` to load specific sub-prompts (e.g., CHARACTER_ARC, DIALOGUE_STYLE, etc.).
 `.trim(),
   schema: inputSchema,
   execute: wrapSafe(async (args: z.infer<typeof inputSchema>) => {
@@ -146,12 +146,8 @@ Pull pre-built context from the world. Nothing is auto-loaded — you choose wha
       SCHEMA_DUMP: buildSchemaDump,
       RELATIONSHIP_DUMP: () => buildRelationshipDump(!!sq?.relationshipHistory),
       TIMELINE: buildTimeline,
-      ENTITY_PROFILE: () => buildEntityProfile(sq?.entityName, sq?.entityLabel),
+      ENTITY_PROFILE: () => buildEntityProfile(sq?.entityName!, sq?.entityLabel!),
       CYPHER_COOKBOOK: async () => loadPrompt("CYPHER_COOKBOOK"),
-      STORYTELLING_GUIDE: async () => {
-        const promptName = sq?.prompt;
-        return promptName ? loadPrompt(promptName) : loadPrompt("STORYTELLING_GUIDE");
-      },
     };
 
     const tasks: Promise<void>[] = [];

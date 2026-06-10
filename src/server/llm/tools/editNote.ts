@@ -60,19 +60,13 @@ export const editNote: Tool<typeof inputSchema> = {
   name: TOOL_NAMES.EDIT_NOTE,
   description: `
 ## Brief
-Your scratchpad — CREATE, UPDATE (partial overwrite), or DELETE a note. Notes can be
-linked to entities via \`aboutEntities\` (ABOUT_CHARACTER / ABOUT_OBJECT / ABOUT_LOCATION), scenes via \`aboutScenes\`
-(ABOUT_SCENE), and plots via \`aboutPlots\` (ABOUT_PLOT) for cross-referencing to the world,
-timeline, and story arcs.
+Your scratchpad — CREATE, UPDATE (partial overwrite), or DELETE a note. Notes can be linked to entities via \`aboutEntities\` (ABOUT_CHARACTER / ABOUT_OBJECT / ABOUT_LOCATION), scenes via \`aboutScenes\` (ABOUT_SCENE), and plots via \`aboutPlots\` (ABOUT_PLOT) for cross-referencing to the world, timeline, and story arcs.
 
 ## Write a note
-Write a note when tracking a suspicion or theory, an NPC made a promise/plan/threat,
-a clue appeared but its meaning is unresolved, a player choice deserves future consequence.
-A good note reads like a concise reminder to yourself, and positively contributes to story progression.
+Write a note when tracking a suspicion or theory, an NPC made a promise/plan/threat, a clue appeared but its meaning is unresolved, a player choice deserves future consequence, characters' biography/backstory, etc.
 
 ## Search a note
-Do not readily use \`${TOOL_NAMES.SEARCH_WORLD}\`, consider relationships ABOUT_CHARACTER, ABOUT_OBJECT, ABOUT_LOCATION, ABOUT_PLOT
-or ABOUT_SCENE first if you have a clear target.
+Do not readily use \`${TOOL_NAMES.SEARCH_WORLD}\`, consider relationships ABOUT_CHARACTER, ABOUT_OBJECT, ABOUT_LOCATION, ABOUT_PLOT or ABOUT_SCENE first if you have a clear target. \`${TOOL_NAMES.SEARCH_WORLD}\` often return unrelated results and will pollute your context.
 `.trim(),
   schema: inputSchema,
   execute: wrapSafe(async (args: z.infer<typeof inputSchema>) => {

@@ -31,7 +31,6 @@ function loadSeedStory(filename: string): SeedStory {
 }
 
 const STORIES: Record<string, SeedStory> = {
-  "glass-cage": loadSeedStory("glass-cage.toml"),
   "express-cult": loadSeedStory("express-cult.toml"),
 };
 

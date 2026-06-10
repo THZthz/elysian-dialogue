@@ -302,7 +302,7 @@ export async function generateTurn(
         nudgeCount++;
         const prefix_ = nudgeCount === 1 ? "Reminder:" : "ERROR:";
         const msg = `${prefix_} You have not yet called ${TOOL_NAMES.GENERATE_DIALOGUE}. The player cannot see any response. You MUST call ${TOOL_NAMES.GENERATE_DIALOGUE} now — do not output text, call the tool.`;
-        log.append({ role: "user", content: msg, name: SCRIBE });
+        log.append({ role: "user", content: msg, name: ROLE_NAMES.SCRIBE });
       },
       canEndTurn: () => {
         if (dialogueStepCalled) return null;
@@ -333,7 +333,6 @@ export async function generateTurn(
         for (const spec of prefix.toolSpecs) {
           console.log(chalk.cyan(`${spec.function.name}`));
           console.log(highlightJson(JSON.stringify(spec, null, 2)));
-          console.log("\n");
         }
         console.log(SEP);
         console.log(chalk.bold.blue("[SYSTEM PROMPT]"));

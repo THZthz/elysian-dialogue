@@ -140,7 +140,7 @@ At most one Scene has \`end_time = NULL\` (the active scene). When CREATE is cal
             start_time: startTime,
             location_name: p.location_name,
             characters: p.characters,
-            reason: p.reason,
+            reason: p.reason ?? "",
           });
 
           events.emitSceneUpdate({
@@ -246,7 +246,7 @@ At most one Scene has \`end_time = NULL\` (the active scene). When CREATE is cal
             start_time: startTime,
             location_name: args.location_name,
             characters: args.characters,
-            reason: args.reason,
+            reason: args.reason ?? "",
           });
 
           events.emitSceneUpdate({

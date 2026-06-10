@@ -261,7 +261,7 @@ export function createGameLoop(opts: GameLoopOptions) {
   async function* step(userInput: string): AsyncGenerator<LoopEvent> {
     turn++;
     const turnStartLogIndex = log.length;
-    log.append({ role: "user", content: userInput, name: SCRIBE });
+    log.append({ role: "user", content: userInput, name: ROLE_NAMES.SCRIBE });
 
     turnAbort = new AbortController();
     discardAbortRequested = false;
@@ -302,7 +302,7 @@ export function createGameLoop(opts: GameLoopOptions) {
           log.append({
             role: "assistant",
             content: "[aborted by user — ask again or retry when ready]",
-            name: STORYTELLER,
+            name: ROLE_NAMES.STORYTELLER,
           });
         }
         yield { turn, role: "done", content: "[aborted]" };
@@ -393,7 +393,7 @@ export function createGameLoop(opts: GameLoopOptions) {
       const assistantMsg: ChatMessage = {
         role: "assistant",
         content: acc.content || null,
-        name: STORYTELLER,
+        name: ROLE_NAMES.STORYTELLER,
       };
       if (toolCalls.length > 0) {
         assistantMsg.tool_calls = toolCalls;
@@ -407,7 +407,7 @@ export function createGameLoop(opts: GameLoopOptions) {
       if (toolCalls.length === 0) {
         const blockReason = canEndTurn?.();
         if (blockReason) {
-          log.append({ role: "user", content: blockReason, name: SCRIBE });
+          log.append({ role: "user", content: blockReason, name: ROLE_NAMES.SCRIBE });
           continue;
         }
         yield { turn, role: "done", content: acc.content };

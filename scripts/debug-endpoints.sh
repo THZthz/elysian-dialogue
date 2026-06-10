@@ -2,7 +2,7 @@
 # Assumes server running on localhost:3000.
 
 # Dump all tool schemas
-curl -s -X GET "http://localhost:3000/api/debug/tools" | python3 -m json.tool
+curl -s -X GET "http://localhost:3000/api/debug/tools"
 
 # queryWorld — READ
 curl -s -X POST "http://localhost:3000/api/debug/tools/queryWorld" -H "Content-Type: application/json" -d '{"action":"READ","query":"MATCH (c:Character) RETURN c.name, c.brief LIMIT 5"}'

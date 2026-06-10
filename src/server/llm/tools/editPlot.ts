@@ -74,13 +74,10 @@ Manage narrative arcs — CREATE, UPDATE (partial overwrite), or DELETE a plot.
 
 ## Status flow
 > PENDING → ACTIVE → COMPLETED / ABANDONED
-Status transitions auto-wire scene relationships (STARTED_AT, COMPLETED_AT) to the active
-Scene — just set the \`status\` parameter.
+Status transitions auto-wire scene relationships (STARTED_AT, COMPLETED_AT) to the active Scene — just set the \`status\` parameter.
 
 ## Flags and branches
-Use \`setFlag\` or \`removeFlags\` to track story milestones within a plot.
-Use \`branchTo\` or \`unbranch\` to connect or disconnect child plots. A branch describes a course
-of action or allegiance, not a single line of dialogue.
+Use \`setFlag\` or \`removeFlags\` to track story milestones within a plot. Use \`branchTo\` or \`unbranch\` to connect or disconnect child plots. A branch describes a course of action or allegiance, not a single line of dialogue.
 `.trim(),
   schema: inputSchema,
   execute: wrapSafe(async (args: z.infer<typeof inputSchema>) => {

@@ -32,15 +32,13 @@ const messageSchema = z.object({
     .min(0)
     .optional()
     .describe(
-      `
-When \`isCorrection\` is true: the 0-based index of the message to correct (shown in the validation error).
-Omit when generating fresh.`.trim(),
+      `When \`isCorrection\` is true: the 0-based index of the message to correct (shown in the validation error). Omit when generating fresh.`,
     ),
   speaker: z
     .string()
     .max(60)
     .describe(
-      "Name of the speaker (no '_' between words, e.g. 'Orin Fell' if the speaker has a clear name, 'NARRATOR', 'INSTINCT' or other inner voices if this is happen inside player's head).",
+      `Name of the speaker (e.g. 'Orin Fell' if the speaker has a clear name, 'NARRATOR' for narration, 'INSTINCT' or other inner voices if this is happen inside player's head).`,
     ),
   type: z
     .enum(
@@ -50,13 +48,14 @@ Omit when generating fresh.`.trim(),
       >[],
     )
     .describe(""),
-  text: z.string().max(MAX_MESSAGE_TEXT_LENGTH).describe("The dialogue text, supports markdown."),
+  text: z.string().max(MAX_MESSAGE_TEXT_LENGTH).describe(`The dialogue text, supports markdown. Dialogue of characters should be italics wrapped in quotes: *"There's no problem that can't be solved with the proper application of high explosives."*`),
   metadata: z
     .object({
       notificationType: z.enum(NOTIFICATION_TYPES).optional(),
     })
     .nullable()
-    .optional(),
+    .optional()
+    .describe(`Not used for now.`),
 });
 
 // NB: .nullable() on optional fields prevents Zod rejection when the LLM
@@ -68,46 +67,32 @@ const optionSchema = z.object({
     .min(0)
     .optional()
     .describe(
-      `When isCorrection is true: the 0-based index of the option to correct (shown in the validation error). Omit when generating fresh.`,
+      `When \`isCorrection\` is true: the 0-based index of the option to correct (shown in the validation error). Omit when generating fresh.`,
     ),
   text: z
     .string()
     .max(200)
-    .describe("Short imperative button label (e.g. 'Try to convince the guard')."),
+    .describe("Short imperative action-oriented label (e.g. 'Try to convince the guard')."),
   hintBefore: z
     .string()
     .max(50)
     .nullable()
     .optional()
     .describe(
-      "Hint shown before the text, e.g. [Logic]. Should not use this when a skill check is active. Do not overuse it.",
+      "Meta hint shown before the text, e.g. [Logic]. This must be left empty when a skill check option is active. Do not overuse it.",
     ),
   hintAfter: z
     .string()
     .max(50)
     .nullable()
     .optional()
-    .describe("Hint shown after the text, e.g. [Check]. Do not overuse it."),
+    .describe("Meta hint shown after the text, e.g. [Check]. Do not overuse it."),
   check: z
     .object({
-      skill: z.enum(SKILL_NAMES).describe("The skill to check (e.g. 'LOGIC')."),
-      difficulty: z.number().describe("Numerical difficulty (e.g. 10)."),
-      difficultyText: z.string().max(30).describe("Textual difficulty (e.g. 'Challenging')."),
-      diceCount: z.number().default(2),
-      conditions: z
-        .array(
-          z.object({
-            expression: z
-              .string()
-              .max(100)
-              .describe(
-                "JS expression e.g. 'success', 'total - statBonus > difficulty' or 'total < difficulty'.",
-              ),
-            label: z.string().max(100).optional(),
-            color: z.string().max(30).optional(),
-          }),
-        )
-        .describe("Outcome conditions."),
+      skill: z.enum(SKILL_NAMES).describe("The skill to check."),
+      difficulty: z.number().describe("Numerical difficulty."),
+      difficultyText: z.string().max(30).describe("Textual difficulty."),
+      diceCount: z.number().default(2).describe("Number of dice to roll."),
     })
     .nullable()
     .optional()
@@ -122,32 +107,21 @@ const inputSchema = z.object({
     .nullable()
     .optional()
     .describe(
-      `
-The sequence of messages in this dialogue step, message should not break into paragraphs (no '\n'). Required for fresh calls; omit during corrections if only fixing options.
-If you fixing invalid messages, make sure your include "index" field to precisely repair the corresponding messages (only send the failing items, no need to copy).
-`.trim(),
+      `The sequence of messages presented to player. 1-3 sentences / 1 paragraph for each message.`,
     ),
   options: z
     .array(optionSchema)
     .nullable()
     .optional()
     .describe(
-      `
-The choices presented to the player (minimum: 2 options, maximum: 4 options).
-Required for fresh calls.
-Omit during corrections if only fixing options.
-If you fixing invalid options, make sure your include "index" field to precisely repair the corresponding options.`.trim(),
+      `The choices presented to the player (2-4 options, 3 is preferred).`,
     ),
   isCorrection: z
     .boolean()
     .optional()
     .nullable()
     .describe(
-      `
-Set to true when correcting specific validation errors from a previous failed call.
-Only include the failing messages/options — set their "index" field to the index shown in the error.
-Valid items are preserved automatically.
-You can omit messages or options if only the other needs correction.`.trim(),
+      `Set to true when correcting specific validation errors from a previous failed call. Only include the failing messages/options — set their \`index\` field to the index shown in the error. Valid items are preserved automatically. You can omit \`messages\` or \`options\` field if only the other needs correction.`,
     ),
 });
 
@@ -378,25 +352,9 @@ export function createGenerateDialogueStepTool(persistMessage?: PersistMessageFn
     name: TOOL_NAMES.GENERATE_DIALOGUE,
     description: `
 ## Brief
-SPEAK to the player. Each turn must include a valid call here.
-Once this call passes validation, your turn ends immediately —
-	no further tool calls or text replies are needed.
+SPEAK to the player. Each turn must include a valid call here. Once this call passes validation, your turn ends immediately — no further tool calls or text replies are needed.
 
-During correction (isCorrection: true), you may call this multiple times until
-validation passes — the turn continues.
-
-Messages — The narrative for this step. 1-3 sentences each.
-
-Options — 2-5 choices for the player (2-3 standard, 4-5 for pivotal moments).
-  All options should be action-oriented (what the player DOES).
-
-Skill checks — Use sparingly, only when failure is interesting. Dice roll automatically —
-narrate the outcome naturally. Omit hintBefore on checked options (the skill name already
-renders). Failure should be interesting, not a dead end.
-
-isCorrection — ONLY set to true when retrying after a validation error.
-  Send ONLY the failing items with their 'index' field from the error message.
-  Valid items are preserved automatically — do NOT copy or resend them.
+During correction (isCorrection: true), you may call this multiple times until validation passes — the turn continues.
 
 ## Speaker names and their type
 | type         | speaker name                   |
@@ -419,13 +377,6 @@ isCorrection — ONLY set to true when retrying after a validation error.
 - MIGHT — raw strength, intimidation, brute force
 - CLOCKWORK — mechanical intuition; understands gears, steam-pressure, alchemical engines
 - ALCHEMY — appetite for transmutation; craves alchemical substances, vice, transformation
-
-## Message formatting
-Message will be displayed as rendered Markdown for player. Formatting for each of the message array
-should follow:
-- Narration should be in plain text
-- Dialogue of characters should be wrapped by \`"\` and in italics
-- Any text that is emphasized should be in bold
 `.trim(),
     schema: inputSchema,
     execute: async (args: DialogueArgs) => {
