@@ -179,7 +179,7 @@ Returns `NULL` for non-matching parts instead of dropping the entire row:
 
 ```cypher
 MATCH (c:Character)
-OPTIONAL MATCH (c)-[:LOCATED_AT]->(loc:Location)
+OPTIONAL MATCH (c)-[:CHARACTER_AT]->(loc:Location)
 RETURN c.name, loc.name;
 ```
 
@@ -820,7 +820,7 @@ RETURN c.value AS value;
 ```cypher
 -- Get characters with location and disposition toward Player
 MATCH (c:Character)
-OPTIONAL MATCH (c)-[:LOCATED_AT]->(loc:Location)
+OPTIONAL MATCH (c)-[:CHARACTER_AT]->(loc:Location)
 OPTIONAL MATCH (c)-[:HAS_DISPOSITION]->(d:Disposition {target_name: 'Player'})
 RETURN c.name, loc.name, d.sentiment;
 
@@ -828,7 +828,7 @@ RETURN c.name, loc.name, d.sentiment;
 -- If a character has 2 dispositions and 1 location, you get 2 rows.
 -- Use WITH to isolate:
 MATCH (c:Character)
-OPTIONAL MATCH (c)-[:LOCATED_AT]->(loc:Location)
+OPTIONAL MATCH (c)-[:CHARACTER_AT]->(loc:Location)
 WITH c, loc
 OPTIONAL MATCH (c)-[:HAS_DISPOSITION]->(d:Disposition {target_name: 'Player'})
 RETURN c.name, loc.name, d.sentiment;

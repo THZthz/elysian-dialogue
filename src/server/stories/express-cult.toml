@@ -21,12 +21,12 @@ characters = ["Player", "Lady Evelyn Ashworth"]
 # ── Characters ──
 
 [[entities]]
-id = "00000000-0000-0000-0000-000000000000"
+id = "00000000-0000-0000-0000-000000000000" # Unique ID for player
 type = "CHARACTER"
 name = "Player"
-brief = "A private inquiry agent with the arcane gift of psychometry."
+brief = "A private inquiry agent named Kael with the arcane gift of psychometry."
 description = """
-A detective of some repute who consults for the Metropolitan Police on esoteric cases. He carries a small silver magnifying glass that serves as a focus for his psychometric talent — the ability to sense emotional residue and fragmented memories by touching objects. He is travelling aboard the Grand Continental Express at the invitation of Lady Evelyn Ashworth. He is observant, methodical, and accustomed to the weight that lingering psychic impressions leave on his mind.
+A detective, Kael with no family name, of some repute who consults for the Metropolitan Police on esoteric cases. He carries a small silver magnifying glass that serves as a focus for his psychometric talent — the ability to sense emotional residue and fragmented memories by touching objects. He is travelling aboard the Grand Continental Express at the invitation of Lady Evelyn Ashworth. He is observant, methodical, and accustomed to the weight that lingering psychic impressions leave on his mind.
 """
 
 [entities.metadata]
@@ -55,8 +55,11 @@ description = """
 Slender and pale, with dark hair typically pinned beneath a travelling hat. She moves with the quiet assurance of old money. Her interests lean towards the esoteric; she owns a respectable private library of forbidden texts and carries a silver athame for protective rituals, along with a leather-bound journal filled with her own sketches of occult symbols. She is travelling with the detective, though the precise nature of their arrangement is her own affair.
 """
 
+# ── Objects ──
+
+
 [[entities]]
-type = "CHARACTER"
+type = "OBJECT"
 name = "Unidentified Victim"
 brief = "An unknown middle-aged man, dead, bearing a ritualistic occult symbol on his chest."
 description = """
@@ -171,24 +174,26 @@ targetName = "First-Class Sleeper Car"
 type = "LOCATED_IN"
 description = "Last compartment on the right-hand side of the corridor."
 
-# ── Character placement (LOCATED_AT) ──
+# ── Character placement (CHARACTER_AT) ──
 
 [[relationships]]
 sourceName = "Player"
 targetName = "First-Class Compartment 12"
-type = "LOCATED_AT"
+type = "CHARACTER_AT"
 description = "Summoned by Lady Evelyn to investigate."
 
 [[relationships]]
 sourceName = "Lady Evelyn Ashworth"
 targetName = "First-Class Compartment 12"
-type = "LOCATED_AT"
+type = "CHARACTER_AT"
 description = "Discovered the body and fetched the detective."
+
+# ── Object placement (OBJECT_AT) ──
 
 [[relationships]]
 sourceName = "Unidentified Victim"
 targetName = "First-Class Compartment 12"
-type = "LOCATED_AT"
+type = "OBJECT_AT"
 description = "The corpse lies on the window seat."
 
 # ═══════════════════════════════════════════════════════════════════
@@ -202,7 +207,7 @@ description = """
 A mysterious murder has occurred in a locked first-class compartment. The victim bears a ritualistic sigil linked to a death cult thought long extinct. The detective must identify the dead man, decipher the meaning of the carving, and uncover the cult’s presence before the train reaches its destination — or before the cult acts again.
 """
 status = "ACTIVE"
-trigger_condition = "Scene starts with the discovery of the body."
+triggerCondition = "Scene starts with the discovery of the body."
 
 # ═══════════════════════════════════════════════════════════════════
 # NOTES
@@ -213,21 +218,72 @@ name = "Opening Scene: The Body"
 content = """
 **When the scene opens**: The player is standing inside First-Class Compartment 12, beside the body of an unidentified man. Lady Evelyn Ashworth is present; she discovered the corpse a few minutes earlier and immediately brought the detective. The compartment door is closed. No other passengers are yet aware of the death.
 
-**Immediate sensory details**:
-- The gas-lamp hisses softly, casting a yellow glow on the dead man’s terrified face.
-- The train sways gently; wheels clatter over a junction.
-- The faint smell of coal smoke and lavender polish hangs in the air.
-
 **What the detective knows**:
 - He boarded at the last station at Lady Ashworth’s request. She spoke of a premonition, a sense of gathering darkness on this journey, but offered no specifics.
 - The victim is a stranger. No passenger has been reported missing.
 - A psychometric touch on the sigil returned only an unnatural emptiness — something the detective has never encountered before.
 
-**Immediate options**:
-- Examine the body and the sigil more closely (use psychometry again?).
-- Question Lady Ashworth about the symbol’s possible origin.
-- Search the compartment for hidden luggage, papers, or other clues.
-- Decide whether to alert the conductor or keep the death secret to avoid panic.
-- Step into the corridor and observe other passengers for signs of guilt or fear.
+**Subtext for the narrator (DO NOT STATE DIRECTLY)**:
+- Lady Evelyn’s hands tremble slightly when she gestures at the body; she hides them in her sleeves.
+- She avoids looking directly at the carved sigil, as if it might recognise her.
+- Her voice is too calm — the calm of someone reciting a prepared story.
 """
+aboutPlots = ["The Cult on the Express"]
+
+[[notes]]
+name = "Evelyn's Secret"
+content = """
+Lady Evelyn was initiated into the “Order of the Ashen Star” at the age of seventeen. She participated in minor rituals but never witnessed a killing. She left the order three years ago, convinced it was harmless mysticism. When she saw the victim’s face, she recognised him as a courier who once delivered grimoires to her. The sigil carved on his chest is the “Mark of the Broken Vow” — a death sentence for defectors. She fears the cult is on the train to eliminate everyone who has abandoned the order, including her. She called the detective not just to solve a murder, but to protect her without revealing her own guilt.
+
+The victim and Evelyn were once acolytes in the same cult. She recognised him immediately. This hidden relationship is the source of her entire behaviour in the opening scene.
+"""
+aboutPlots = ["The Cult on the Express"]
+aboutEntities = ["Lady Evelyn Ashworth", "Unidentified Victim"]
+
+[[notes]]
+name = "Dramatic Core and Subplots"
+content = """
+**Dramatic core of the main plot**: Reveal the identity of the killer and the cult’s goal, while the detective is forced to choose between the truth and the life of someone he has come to trust.
+
+**Subplots**:
+- A second passenger is secretly a cult informant, feeding information back to the cult leader.
+- A young family in second class is transporting a relic without knowing its true power.
+- The train conductor is in debt to criminals; he may be bribed to delay or divert the train.
+"""
+aboutPlots = ["The Cult on the Express"]
+
+[[notes]]
+name = "Pacing Blueprint"
+content = """
+External plot (low) + Internal emotion (heavy): The locked-room investigation, quiet deduction, subtle power plays. Let the detective feel the weight of the emptiness from the sigil. Keep the train’s rhythmic clatter as a counterpoint.
+
+When a second incident occurs (midpoint), shift to external plot (tense) + internal emotion (heavy). Use short, sharp scenes — a scream in the next carriage, a passenger found unconscious. The cult makes its move. End act with a revelation that fractures Evelyn’s mask.
+
+Final act: external plot (tense) + internal emotion (heavy-to-light). After the climax, let the train roll on in silence, dawn breaking. A brief note of release, but never full closure.
+"""
+aboutPlots = ["The Cult on the Express"]
+
+[[notes]]
+name = "Character Designs (Player & Lady Evelyn)"
+content = """
+**Player (Detective)**
+- External Want: Identify the killer and stop the cult before the train reaches the next station.
+- Internal Need: To finally let a psychic impression touch him without armouring himself; to feel again without being overwhelmed.
+- Contradiction: Presents the calm, detached professional, but his gift forces him to relive the worst moments of strangers — he is terrified of losing himself in someone else's death.
+- Arc hint: From guarded observer to someone who risks genuine connection (positive arc), or doubles down on isolation and becomes a hollow shell (tragic arc).
+
+**Lady Evelyn Ashworth**
+- External Want: Have the detective neutralise the cult without exposing her own past involvement.
+- Internal Need: Admit she was once a willing member of the very order she now fears — and seek redemption rather than concealment.
+- Contradiction: Outwardly, she is the wronged patron, a victim of circumstance. Inwardly, she knows the murdered man and the sigil carved on his chest better than she pretends. Every helpful suggestion is a carefully measured lie.
+- Arc hint: Begins as a guide who secretly obstructs the investigation. Her arc culminates either in confession and a desperate act of atonement, or in a final betrayal that makes her the true antagonist.
+"""
+aboutEntities = ["Player", "Lady Evelyn Ashworth"]
+
+[[notes]]
+name = "Unidentified Victim - Backstory"
+content = """
+He was a former cult courier who attempted to leave the order. The sigil carved on his chest is a mark of excommunication — a warning to other defectors. His murder was meant to look ritualistic, but its real purpose is to frame someone else on the train and silence him permanently.
+"""
+aboutEntities = ["Unidentified Victim"]
 aboutPlots = ["The Cult on the Express"]

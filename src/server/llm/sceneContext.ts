@@ -101,7 +101,7 @@ export async function buildCharactersBrief(): Promise<string> {
   const db = Database.getExisting();
   const result = await db.graph.query(
     `MATCH (c:Character)
-OPTIONAL MATCH (c)-[loc_rel:LOCATED_AT]->(loc:Location)
+OPTIONAL MATCH (c)-[loc_rel:CHARACTER_AT]->(loc:Location)
 WHERE loc_rel.valid_at IS NULL
 OPTIONAL MATCH (c)-[:HAS_DISPOSITION]->(d:Disposition {target_name: "Player"})
 RETURN c.name AS name, c.brief AS brief, c.description AS description,
@@ -163,9 +163,9 @@ export async function buildObjectsBrief(): Promise<string> {
   const db = Database.getExisting();
   const result = await db.graph.query(
     `MATCH (o:Object)
-OPTIONAL MATCH (carrier:Character)-[carry_rel:CARRIES]->(o)
+OPTIONAL MATCH (o)-[carry_rel:CARRIED_BY]->(carrier:Character)
 WHERE carry_rel.valid_at IS NULL
-OPTIONAL MATCH (o)-[loc_rel:LOCATED_AT]->(loc:Location)
+OPTIONAL MATCH (o)-[loc_rel:OBJECT_AT]->(loc:Location)
 WHERE loc_rel.valid_at IS NULL
 WITH o, carrier, loc
 WHERE carrier IS NULL
@@ -385,7 +385,7 @@ export async function buildRelationshipDump(history = false): Promise<string> {
   for (const type of sortedTypes) {
     const group = byType.get(type)!;
     lines.push(`### ${type}`);
-    if (type === "LOCATED_AT" || type === "LOCATED_IN") {
+    if (type === "CHARACTER_AT" || type === "OBJECT_AT" || type === "LOCATED_IN") {
       const seen = new Set<string>();
       const byLocation = new Map<string, RelRow[]>();
       for (const r of group) {
@@ -638,7 +638,7 @@ export async function buildEntityProfile(name: string, label: string): Promise<s
     lines.push("### Current Location");
     try {
       const locResult = await db.graph.query(
-        `MATCH (e:\`${label}\` {name: $name})-[r:LOCATED_AT]->(loc:Location)
+        `MATCH (e:\`${label}\` {name: $name})-[r:${label === "Character" ? "CHARACTER_AT" : "OBJECT_AT"}]->(loc:Location)
          WHERE r.valid_at IS NULL
          RETURN loc.name AS locName, r.brief AS brief, r.created_at AS since
          LIMIT 1`,
@@ -663,7 +663,7 @@ export async function buildEntityProfile(name: string, label: string): Promise<s
   try {
     if (label === "Character") {
       const carried = await db.graph.query(
-        `MATCH (e:\`${label}\` {name: $name})-[r:CARRIES]->(obj:Object)
+        `MATCH (obj:Object)-[r:CARRIED_BY]->(e:\`${label}\` {name: $name})
          WHERE r.valid_at IS NULL
          RETURN obj.name AS objName, r.brief AS brief
          LIMIT 50`,
@@ -679,7 +679,7 @@ export async function buildEntityProfile(name: string, label: string): Promise<s
       }
     } else if (label === "Object") {
       const carrier = await db.graph.query(
-        `MATCH (c:Character)-[r:CARRIES]->(e:\`${label}\` {name: $name})
+        `MATCH (e:\`${label}\` {name: $name})-[r:CARRIED_BY]->(c:Character)
          WHERE r.valid_at IS NULL
          RETURN c.name AS charName, r.brief AS brief
          LIMIT 1`,

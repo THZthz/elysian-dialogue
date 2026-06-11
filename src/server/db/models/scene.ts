@@ -88,7 +88,7 @@ export class SceneModel {
   ): Promise<{ missingFromLocation: string[]; extraAtLocation: string[] }> {
     // Which specified characters are already at this location?
     const atLocationResult = await this.graph.query(
-      `MATCH (c:Character)-[r:LOCATED_AT]->(l:Location {name: $loc})
+      `MATCH (c:Character)-[r:CHARACTER_AT]->(l:Location {name: $loc})
        WHERE r.valid_at IS NULL AND c.name IN $names
        RETURN c.name AS name`,
       { loc: locationName, names: characterNames },
@@ -97,7 +97,7 @@ export class SceneModel {
 
     // Which characters are at this location but NOT in the GM's list?
     const extraResult = await this.graph.query(
-      `MATCH (c:Character)-[r:LOCATED_AT]->(l:Location {name: $loc})
+      `MATCH (c:Character)-[r:CHARACTER_AT]->(l:Location {name: $loc})
        WHERE r.valid_at IS NULL AND NOT c.name IN $names
        RETURN c.name AS name`,
       { loc: locationName, names: characterNames },
@@ -119,7 +119,7 @@ export class SceneModel {
 
     // Which specified characters are already at this location?
     const atLocationResult = await this.graph.query(
-      `MATCH (c:Character)-[r:LOCATED_AT]->(l:Location {name: $loc})
+      `MATCH (c:Character)-[r:CHARACTER_AT]->(l:Location {name: $loc})
        WHERE r.valid_at IS NULL AND c.name IN $names
        RETURN c.name AS name`,
       { loc: locationName, names: characterNames },
@@ -128,7 +128,7 @@ export class SceneModel {
 
     // Which characters are at this location but NOT in the GM's list?
     const extraResult = await this.graph.query(
-      `MATCH (c:Character)-[r:LOCATED_AT]->(l:Location {name: $loc})
+      `MATCH (c:Character)-[r:CHARACTER_AT]->(l:Location {name: $loc})
        WHERE r.valid_at IS NULL AND NOT c.name IN $names
        RETURN c.name AS name`,
       { loc: locationName, names: characterNames },
@@ -140,19 +140,19 @@ export class SceneModel {
     for (const name of characterNames) {
       if (alreadyThere.has(name)) continue;
 
-      // End any current LOCATED_AT for this character
+      // End any current CHARACTER_AT for this character
       await this.graph.query(
-        `MATCH (c:Character {name: $name})-[r:LOCATED_AT]->(:Location)
+        `MATCH (c:Character {name: $name})-[r:CHARACTER_AT]->(:Location)
          WHERE r.valid_at IS NULL
          SET r.valid_at = $time, r._updated_at = $now`,
         { name, time: atTime, now },
       );
 
-      // Create new LOCATED_AT to the target location
+      // Create new CHARACTER_AT to the target location
       await this.graph.query(
         `MATCH (c:Character {name: $name})
          MATCH (l:Location {name: $loc})
-         CREATE (c)-[r:LOCATED_AT {created_at: $time, valid_at: NULL, brief: '', _updated_at: $now}]->(l)`,
+         CREATE (c)-[r:CHARACTER_AT {created_at: $time, valid_at: NULL, brief: '', _updated_at: $now}]->(l)`,
         { name, loc: locationName, time: atTime, now },
       );
 

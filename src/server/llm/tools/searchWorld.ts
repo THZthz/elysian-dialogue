@@ -91,7 +91,7 @@ const inputSchema = z.object({
     .array(z.string())
     .optional()
     .describe(
-      "Node labels or relationship types to search (e.g. ['Character', 'Location', 'Message', 'LOCATED_AT']). Omit to search all searchable types.",
+      "Node labels or relationship types to search (e.g. ['Character', 'Location', 'Message', 'CHARACTER_AT']). Omit to search all searchable types.",
     ),
   limit: z.number().default(3).describe("Max results per domain."),
 });
@@ -103,7 +103,7 @@ export const searchWorld: Tool<typeof inputSchema> = {
 Search the archive by semantic MEANING (vector similarity search with reranking).
 
 Use \`target\` to restrict to only nodes or only relationships. Pass one or more domains (node labels
-or relationship types) via \`domains\` to scope the search (e.g. ["Character", "Location", "Message"], ["LOCATED_AT"]). Omit to search all searchable types.
+or relationship types) via \`domains\` to scope the search (e.g. ["Character", "Location", "Message"], ["CHARACTER_AT"]). Omit to search all searchable types.
 
 In most cases, use of \`${TOOL_NAMES.QUERY_WORLD}\` is preferred to exploit the advantage of graph database.
 

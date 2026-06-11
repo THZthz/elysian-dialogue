@@ -47,9 +47,9 @@ describe("SchemaRegistry", () => {
 
   it("generates valid relationship DDL", () => {
     const schema = SchemaRegistry.getInstance();
-    const ddl = schema.generateRelDDL("LOCATED_AT", "Character", "Location");
+    const ddl = schema.generateRelDDL("CHARACTER_AT", "Character", "Location");
     expect(ddl).toContain("CREATE REL TABLE");
-    expect(ddl).toContain("LOCATED_AT");
+    expect(ddl).toContain("CHARACTER_AT");
     expect(ddl).toContain("Character");
     expect(ddl).toContain("Location");
   });
@@ -108,9 +108,9 @@ describe("SchemaRegistry", () => {
 
   it("getRelTypeByName returns all matching rels", () => {
     const schema = SchemaRegistry.getInstance();
-    const results = schema.getRelTypeByName("LOCATED_AT");
+    const results = schema.getRelTypeByName("CHARACTER_AT");
     expect(results.length).toBeGreaterThan(0);
-    expect(results.every((r) => r.name === "LOCATED_AT")).toBe(true);
+    expect(results.every((r) => r.name === "CHARACTER_AT")).toBe(true);
   });
 
   it("generates correct embedding text", () => {
@@ -138,8 +138,8 @@ describe("SchemaRegistry", () => {
   it("getVectorSearchableRelTypes returns embeddable relationships", () => {
     const schema = SchemaRegistry.getInstance();
     const searchable = schema.getVectorSearchableRelTypes();
-    // LOCATED_AT has embedded brief — should appear
-    expect(searchable.some((t) => t.name === "LOCATED_AT")).toBe(true);
+    // CHARACTER_AT has embedded brief — should appear
+    expect(searchable.some((t) => t.name === "CHARACTER_AT")).toBe(true);
     // ABOUT_PLOT has no embedded props — should not appear
     expect(searchable.some((t) => t.name === "ABOUT_PLOT")).toBe(false);
   });

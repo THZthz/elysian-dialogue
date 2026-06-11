@@ -80,7 +80,7 @@ export function createManageSceneTool(events: EventEmitter): Tool<typeof inputSc
 Manage scene transitions. CREATE starts a new scene, MODIFY adjusts or closes the active scene, READ returns info about the active scene, FIX confirms pending creation after discrepancies.
 
 ## CREATE
-Start a new scene. Before creating, validates that all specified characters have active LOCATED_AT pointing to the given location. If discrepancies are found (characters not at the location, or extra characters at the location not in the list), the scene is NOT created. Instead the parameters are held pending and the discrepancies are reported. Call FIX to apply automatic LOCATED_AT fixes and continue.
+Start a new scene. Before creating, validates that all specified characters have active CHARACTER_AT pointing to the given location. If discrepancies are found (characters not at the location, or extra characters at the location not in the list), the scene is NOT created. Instead the parameters are held pending and the discrepancies are reported. Call FIX to apply automatic CHARACTER_AT fixes and continue.
 - \`scene_name\`: Mandatory. Unique name for this scene (e.g. "inn_arrival", "forest_ambush").
 - \`start_day\`: Mandatory. Integer day number. Required for CREATE.
 - \`start_hour\`: Mandatory. Hour in 24h with optional .5 for half-past (e.g. 9, 14.5). Required for CREATE.
@@ -89,7 +89,7 @@ Start a new scene. Before creating, validates that all specified characters have
 - \`reason\`: Mandatory. Why the scene is changing (e.g. "Player traveled to the forest").
 
 ## FIX
-Confirm the pending CREATE. Applies automatic LOCATED_AT fixes (update character locations) and creates the scene with the previously held parameters. Call after reviewing the discrepancies reported by CREATE. Has no parameters.
+Confirm the pending CREATE. Applies automatic CHARACTER_AT fixes (update character locations) and creates the scene with the previously held parameters. Call after reviewing the discrepancies reported by CREATE. Has no parameters.
 
 ## MODIFY
 Adjust a scene. Defaults to the active scene if \`scene_name\` is omitted.
@@ -154,7 +154,7 @@ At most one Scene has \`end_time = NULL\` (the active scene). When CREATE is cal
 
           const parts: string[] = [];
           if (fixed.length > 0) {
-            parts.push(`LOCATED_AT fixed: ${fixed.join(", ")} now at "${p.location_name}".`);
+            parts.push(`CHARACTER_AT fixed: ${fixed.join(", ")} now at "${p.location_name}".`);
           }
           if (extraAtLocation.length > 0) {
             parts.push(

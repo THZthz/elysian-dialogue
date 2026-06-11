@@ -127,10 +127,10 @@ Pull pre-built context from the world. Nothing is auto-loaded — you choose wha
 - OBJECTS_BRIEF — All objects with carrier or location.
 - PLOTS_BRIEF — All plots with status, brief, and flags.
 - SCENES_BRIEF — All scenes ordered by time, with location, characters, and transition reason.
-- RELATIONSHIP_DUMP — All active relationships grouped by type. LOCATED_AT/LOCATED_IN are grouped by location showing occupants and access details.
+- RELATIONSHIP_DUMP — All active relationships grouped by type. CHARACTER_AT/OBJECT_AT/LOCATED_IN are grouped by location showing occupants and access details.
 - TIMELINE — Chronological log of all temporal relationship changes (created/expired), most recent first.
 - ENTITY_PROFILE — Everything about one node: properties, location, carried items, dispositions, notes, scene appearances, and relationship history.
-- CYPHER_COOKBOOK — The graph database is LadybugDB, its Cypher syntax is slightly different from most-used graph database Neo4j.
+- CYPHER_COOKBOOK — Static content. The graph database is LadybugDB, its Cypher syntax is slightly different from most-used graph database Neo4j.
 `.trim(),
   schema: inputSchema,
   execute: wrapSafe(async (args: z.infer<typeof inputSchema>) => {

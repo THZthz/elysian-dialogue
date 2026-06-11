@@ -192,10 +192,10 @@ describe("searchWorld", () => {
     const result = await exec(searchWorld, {
       query: "located",
       target: ["RELATIONSHIP"],
-      domains: ["LOCATED_AT"],
+      domains: ["CHARACTER_AT"],
     });
     const parsed = JSON.parse(result as string);
-    expect(parsed).toHaveProperty("LOCATED_AT");
+    expect(parsed).toHaveProperty("CHARACTER_AT");
   });
 
   it("respects custom limit", async () => {
@@ -276,7 +276,7 @@ describe("manageSchema", () => {
     const result = await exec(manageSchema, {
       target: "RELATIONSHIP",
       action: "REGISTER",
-      name: "LOCATED_AT",
+      name: "CHARACTER_AT",
       sourceLabel: "Character",
       targetLabel: "Location",
     });
@@ -562,10 +562,10 @@ describe("manageRelationship", () => {
     });
   });
 
-  it("UPSERT creates a new LOCATED_AT relationship", async () => {
+  it("UPSERT creates a new CHARACTER_AT relationship", async () => {
     const result = await exec(manageRelationship, {
       action: "UPSERT",
-      relationshipType: "LOCATED_AT",
+      relationshipType: "CHARACTER_AT",
       sourceLabel: "Character",
       sourceMatch: { name: "RelAlice" },
       targetLabel: "Location",
@@ -575,10 +575,10 @@ describe("manageRelationship", () => {
     expect(result).toContain("created successfully");
   });
 
-  it("UPSERT updates an existing LOCATED_AT relationship", async () => {
+  it("UPSERT updates an existing CHARACTER_AT relationship", async () => {
     await exec(manageRelationship, {
       action: "UPSERT",
-      relationshipType: "LOCATED_AT",
+      relationshipType: "CHARACTER_AT",
       sourceLabel: "Character",
       sourceMatch: { name: "RelAlice" },
       targetLabel: "Location",
@@ -587,7 +587,7 @@ describe("manageRelationship", () => {
     });
     const result = await exec(manageRelationship, {
       action: "UPSERT",
-      relationshipType: "LOCATED_AT",
+      relationshipType: "CHARACTER_AT",
       sourceLabel: "Character",
       sourceMatch: { name: "RelAlice" },
       targetLabel: "Location",
@@ -601,7 +601,7 @@ describe("manageRelationship", () => {
   it("temporal relationship auto-sets created_at from active scene", async () => {
     const db = getTestDb();
     const check = await db.graph.query(
-      `MATCH (src:Character {name: "RelAlice"})-[r:LOCATED_AT]->(tgt:Location {name: "Tavern"}) RETURN r`,
+      `MATCH (src:Character {name: "RelAlice"})-[r:CHARACTER_AT]->(tgt:Location {name: "Tavern"}) RETURN r`,
     );
     const rel = check.rows[0]?.r as Record<string, unknown> | undefined;
     expect(rel).toBeDefined();
@@ -612,7 +612,7 @@ describe("manageRelationship", () => {
   it("created_at is immutable on update", async () => {
     await exec(manageRelationship, {
       action: "UPSERT",
-      relationshipType: "LOCATED_AT",
+      relationshipType: "CHARACTER_AT",
       sourceLabel: "Character",
       sourceMatch: { name: "RelAlice" },
       targetLabel: "Location",
@@ -621,7 +621,7 @@ describe("manageRelationship", () => {
     });
     const db = getTestDb();
     const check = await db.graph.query(
-      `MATCH (src:Character {name: "RelAlice"})-[r:LOCATED_AT]->(tgt:Location {name: "Tavern"}) RETURN r`,
+      `MATCH (src:Character {name: "RelAlice"})-[r:CHARACTER_AT]->(tgt:Location {name: "Tavern"}) RETURN r`,
     );
     const rel = check.rows[0]?.r as Record<string, unknown> | undefined;
     expect(rel!.created_at).toBe(96);
@@ -630,7 +630,7 @@ describe("manageRelationship", () => {
   it("endpoint not found returns error", async () => {
     const result = await exec(manageRelationship, {
       action: "UPSERT",
-      relationshipType: "LOCATED_AT",
+      relationshipType: "CHARACTER_AT",
       sourceLabel: "Character",
       sourceMatch: { name: "NonExistent" },
       targetLabel: "Location",
@@ -656,7 +656,7 @@ describe("manageRelationship", () => {
   it("empty sourceMatch returns error", async () => {
     const result = await exec(manageRelationship, {
       action: "UPSERT",
-      relationshipType: "LOCATED_AT",
+      relationshipType: "CHARACTER_AT",
       sourceLabel: "Character",
       sourceMatch: {},
       targetLabel: "Location",
@@ -669,7 +669,7 @@ describe("manageRelationship", () => {
   it("empty targetMatch returns error", async () => {
     const result = await exec(manageRelationship, {
       action: "UPSERT",
-      relationshipType: "LOCATED_AT",
+      relationshipType: "CHARACTER_AT",
       sourceLabel: "Character",
       sourceMatch: { name: "RelAlice" },
       targetLabel: "Location",
@@ -682,7 +682,7 @@ describe("manageRelationship", () => {
   it("internal property key returns error", async () => {
     const result = await exec(manageRelationship, {
       action: "UPSERT",
-      relationshipType: "LOCATED_AT",
+      relationshipType: "CHARACTER_AT",
       sourceLabel: "Character",
       sourceMatch: { name: "RelAlice" },
       targetLabel: "Location",
@@ -696,7 +696,7 @@ describe("manageRelationship", () => {
   it("updating existing rel with empty properties returns error", async () => {
     const result = await exec(manageRelationship, {
       action: "UPSERT",
-      relationshipType: "LOCATED_AT",
+      relationshipType: "CHARACTER_AT",
       sourceLabel: "Character",
       sourceMatch: { name: "RelAlice" },
       targetLabel: "Location",
@@ -706,14 +706,14 @@ describe("manageRelationship", () => {
     expect(result).toContain("already exists");
   });
 
-  it("CARRIES relationship works with embedding", async () => {
+  it("CARRIED_BY relationship works with embedding", async () => {
     const result = await exec(manageRelationship, {
       action: "UPSERT",
-      relationshipType: "CARRIES",
-      sourceLabel: "Character",
-      sourceMatch: { name: "RelBob" },
-      targetLabel: "Object",
-      targetMatch: { name: "Sword" },
+      relationshipType: "CARRIED_BY",
+      sourceLabel: "Object",
+      sourceMatch: { name: "Sword" },
+      targetLabel: "Character",
+      targetMatch: { name: "RelBob" },
       properties: { brief: "carried at the hip" },
     });
     expect(result).toContain("created successfully");
@@ -726,9 +726,9 @@ describe("manageRelationship", () => {
       sourceMatch: { name: "RelAlice" },
       targetLabel: "Location",
       targetMatch: { name: "Tavern" },
-      relationshipType: "LOCATED_AT",
+      relationshipType: "CHARACTER_AT",
     });
-    expect(result).toContain("LOCATED_AT");
+    expect(result).toContain("CHARACTER_AT");
   });
 
   it("READ all outgoing relationships from a node", async () => {
@@ -737,7 +737,7 @@ describe("manageRelationship", () => {
       sourceLabel: "Character",
       sourceMatch: { name: "RelAlice" },
     });
-    expect(result).toContain("LOCATED_AT");
+    expect(result).toContain("CHARACTER_AT");
     expect(result).toContain("Tavern");
   });
 
@@ -747,14 +747,14 @@ describe("manageRelationship", () => {
       targetLabel: "Location",
       targetMatch: { name: "Tavern" },
     });
-    expect(result).toContain("LOCATED_AT");
+    expect(result).toContain("CHARACTER_AT");
     expect(result).toContain("RelAlice");
   });
 
   it("READ without sourceMatch or targetMatch returns error", async () => {
     const result = await exec(manageRelationship, {
       action: "READ",
-      relationshipType: "LOCATED_AT",
+      relationshipType: "CHARACTER_AT",
     });
     expect(result).toContain("ERROR");
   });
@@ -765,37 +765,37 @@ describe("manageRelationship", () => {
       sourceMatch: { name: "RelAlice" },
       targetLabel: "Location",
       targetMatch: { name: "Tavern" },
-      relationshipType: "LOCATED_AT",
+      relationshipType: "CHARACTER_AT",
     });
     expect(result).toContain("ERROR");
   });
 
-  it("creating a new LOCATED_AT auto-expires the previous one", async () => {
+  it("creating a new CHARACTER_AT auto-expires the previous one", async () => {
     const db = getTestDb();
-    // First LOCATED_AT
+    // First CHARACTER_AT
     await exec(manageRelationship, {
       action: "UPSERT",
-      relationshipType: "LOCATED_AT",
+      relationshipType: "CHARACTER_AT",
       sourceLabel: "Character",
       sourceMatch: { name: "RelAlice" },
       targetLabel: "Location",
       targetMatch: { name: "Tavern" },
       properties: { brief: "at the bar" },
     });
-    // Second LOCATED_AT to a different location (should auto-expire the first)
+    // Second CHARACTER_AT to a different location (should auto-expire the first)
     await db.entities.create("Location", { name: "ExpiryForest", brief: "A dark forest" });
     await exec(manageRelationship, {
       action: "UPSERT",
-      relationshipType: "LOCATED_AT",
+      relationshipType: "CHARACTER_AT",
       sourceLabel: "Character",
       sourceMatch: { name: "RelAlice" },
       targetLabel: "Location",
       targetMatch: { name: "ExpiryForest" },
       properties: { brief: "walking through the woods" },
     });
-    // The first LOCATED_AT should now have valid_at != null
+    // The first CHARACTER_AT should now have valid_at != null
     const check = await db.graph.query(
-      `MATCH (src:Character {name: "RelAlice"})-[r:LOCATED_AT]->(tgt:Location {name: "Tavern"}) RETURN r.valid_at AS valid_at`,
+      `MATCH (src:Character {name: "RelAlice"})-[r:CHARACTER_AT]->(tgt:Location {name: "Tavern"}) RETURN r.valid_at AS valid_at`,
     );
     expect(check.rows[0]?.valid_at).not.toBeNull();
   });
@@ -1122,19 +1122,19 @@ describe("manageScene", () => {
     const db = getTestDb();
     await db.entities.create("Location", { name: "Inn", brief: "A roadside inn" });
     await db.entities.create("Location", { name: "Forest", brief: "A dark forest" });
-    // Characters already at Inn (proper LOCATED_AT)
+    // Characters already at Inn (proper CHARACTER_AT)
     await db.entities.create("Character", { name: "Player", brief: "The hero" });
     await db.entities.create("Character", { name: "Bartender", brief: "Serves drinks" });
     await db.graph.query(
       `MATCH (c:Character), (l:Location {name: "Inn"})
        WHERE c.name IN ["Player", "Bartender"]
-       CREATE (c)-[:LOCATED_AT {created_at: 0, valid_at: NULL, brief: "", _updated_at: "now"}]->(l)`,
+       CREATE (c)-[:CHARACTER_AT {created_at: 0, valid_at: NULL, brief: "", _updated_at: "now"}]->(l)`,
     );
     // Character at Forest, not at Inn
     await db.entities.create("Character", { name: "Hermit", brief: "Lives in the woods" });
     await db.graph.query(
       `MATCH (c:Character {name: "Hermit"}), (l:Location {name: "Forest"})
-       CREATE (c)-[:LOCATED_AT {created_at: 0, valid_at: NULL, brief: "", _updated_at: "now"}]->(l)`,
+       CREATE (c)-[:CHARACTER_AT {created_at: 0, valid_at: NULL, brief: "", _updated_at: "now"}]->(l)`,
     );
     const stubEvents = {
       emitSceneUpdate: () => {},
@@ -1178,7 +1178,7 @@ describe("manageScene", () => {
     const result = await exec(sceneTool, { action: "FIX" });
     expect(result).toContain("created");
     expect(result).toContain("forest_scene");
-    expect(result).toContain("LOCATED_AT fixed");
+    expect(result).toContain("CHARACTER_AT fixed");
     expect(result).toContain("Player");
   });
 
@@ -1368,7 +1368,7 @@ describe("getContext", () => {
     const result = await exec(getContext, { types: ["SCHEMA_DUMP"] });
     expect(result).toContain("Schema");
     expect(result).toContain("Character");
-    expect(result).toContain("LOCATED_AT");
+    expect(result).toContain("CHARACTER_AT");
   });
 
   it("CHARACTERS_BRIEF returns character details", async () => {
@@ -1589,11 +1589,11 @@ describe("enrichment — editNode", () => {
     // Set up relationships
     await db.graph.query(
       `MATCH (c:Character {name: 'Orin Fell'}), (l:Location {name: 'Silver Tankard'})
-       MERGE (c)-[r:LOCATED_AT]->(l)`,
+       MERGE (c)-[r:CHARACTER_AT]->(l)`,
     );
     await db.graph.query(
       `MATCH (c:Character {name: 'Orin Fell'}), (o:Object {name: 'Rusty Dagger'})
-       MERGE (c)-[r:CARRIES]->(o)`,
+       MERGE (o)-[r:CARRIED_BY]->(c)`,
     );
   });
 
@@ -1607,8 +1607,8 @@ describe("enrichment — editNode", () => {
     const enriched = await enrichResult(TOOL_NAMES.MANAGE_NODE, args, rawResult);
 
     expect(enriched).toContain("[Context]");
-    expect(enriched).toContain("LOCATED_AT Silver Tankard");
-    expect(enriched).toContain("CARRIES Rusty Dagger");
+    expect(enriched).toContain("CHARACTER_AT Silver Tankard");
+    expect(enriched).toContain("Rusty Dagger now CARRIED_BY");
   });
 
   it("skips enrichment for DELETE action", async () => {
@@ -1686,26 +1686,26 @@ describe("enrichment — editRelationship", () => {
       .catch(() => {});
     await db.graph.query(
       `MATCH (c:Character {name: 'Mira Voss'}), (l:Location {name: 'Silver Tankard'})
-       MERGE (c)-[r:LOCATED_AT]->(l)`,
+       MERGE (c)-[r:CHARACTER_AT]->(l)`,
     );
   });
 
   it("enriches successful UPSERT — includes context for source entity", async () => {
     const args = JSON.stringify({
-      relationshipType: "CARRIES",
-      sourceLabel: "Character",
-      sourceMatch: { name: "Mira Voss" },
-      targetLabel: "Object",
-      targetMatch: { name: "Rusty Dagger" },
+      relationshipType: "CARRIED_BY",
+      sourceLabel: "Object",
+      sourceMatch: { name: "Rusty Dagger" },
+      targetLabel: "Character",
+      targetMatch: { name: "Mira Voss" },
     });
-    const rawResult = `Relationship (:Character)-[:CARRIES]->(:Object) created successfully.`;
+    const rawResult = `Relationship (:Object)-[:CARRIED_BY]->(:Character) created successfully.`;
     const enriched = await enrichResult(TOOL_NAMES.MANAGE_RELATIONSHIP, args, rawResult);
 
-    // Base context line is always present; source entity should show existing
-    // LOCATED_AT relationship.
-    expect(enriched).toContain("Mira Voss now CARRIES Rusty Dagger");
+    // Base context line is always present; should show existing
+    // CHARACTER_AT relationship for the character endpoint.
+    expect(enriched).toContain("Rusty Dagger now CARRIED_BY Mira Voss");
     expect(enriched).toContain("[Context]");
-    expect(enriched).toContain("LOCATED_AT");
+    expect(enriched).toContain("CHARACTER_AT");
   });
 
   it("produces minimal output when endpoints have no other relationships", async () => {
@@ -1716,26 +1716,26 @@ describe("enrichment — editRelationship", () => {
       .catch(() => {});
 
     const args = JSON.stringify({
-      relationshipType: "CARRIES",
-      sourceLabel: "Character",
-      sourceMatch: { name: "Hermit" },
-      targetLabel: "Object",
-      targetMatch: { name: "Lonely Rock" },
+      relationshipType: "CARRIED_BY",
+      sourceLabel: "Object",
+      sourceMatch: { name: "Lonely Rock" },
+      targetLabel: "Character",
+      targetMatch: { name: "Hermit" },
     });
-    const rawResult = `Relationship (:Character)-[:CARRIES]->(:Object) created successfully.`;
+    const rawResult = `Relationship (:Object)-[:CARRIED_BY]->(:Character) created successfully.`;
     const enriched = await enrichResult(TOOL_NAMES.MANAGE_RELATIONSHIP, args, rawResult);
 
     // Should at minimum contain the base context line
-    expect(enriched).toContain("Hermit now CARRIES Lonely Rock");
+    expect(enriched).toContain("Lonely Rock now CARRIED_BY Hermit");
   });
 
   it("skips enrichment for error results", async () => {
     const args = JSON.stringify({
-      relationshipType: "CARRIES",
-      sourceLabel: "Character",
-      sourceMatch: { name: "Nobody" },
-      targetLabel: "Object",
-      targetMatch: { name: "Nothing" },
+      relationshipType: "CARRIED_BY",
+      sourceLabel: "Object",
+      sourceMatch: { name: "Nothing" },
+      targetLabel: "Character",
+      targetMatch: { name: "Nobody" },
     });
     const rawResult = "ERROR: Could not create relationship...";
     const enriched = await enrichResult(TOOL_NAMES.MANAGE_RELATIONSHIP, args, rawResult);
@@ -1910,7 +1910,7 @@ describe("manageRelationship END", () => {
   it("END terminates an active temporal relationship", async () => {
     await exec(manageRelationship, {
       action: "UPSERT",
-      relationshipType: "LOCATED_AT",
+      relationshipType: "CHARACTER_AT",
       sourceLabel: "Character",
       sourceMatch: { name: "EndTest" },
       targetLabel: "Location",
@@ -1920,7 +1920,7 @@ describe("manageRelationship END", () => {
 
     const result = await exec(manageRelationship, {
       action: "END",
-      relationshipType: "LOCATED_AT",
+      relationshipType: "CHARACTER_AT",
       sourceLabel: "Character",
       sourceMatch: { name: "EndTest" },
       targetLabel: "Location",
@@ -1931,7 +1931,7 @@ describe("manageRelationship END", () => {
 
     const db = getTestDb();
     const check = await db.graph.query(
-      `MATCH (src:Character {name: "EndTest"})-[r:LOCATED_AT]->(tgt:Location {name: "EndLocation"}) RETURN r`,
+      `MATCH (src:Character {name: "EndTest"})-[r:CHARACTER_AT]->(tgt:Location {name: "EndLocation"}) RETURN r`,
     );
     const rel = check.rows[0]?.r as Record<string, unknown>;
     expect(rel.valid_at).toBe(250);
@@ -1940,7 +1940,7 @@ describe("manageRelationship END", () => {
   it("END on already-expired relationship returns error", async () => {
     const result = await exec(manageRelationship, {
       action: "END",
-      relationshipType: "LOCATED_AT",
+      relationshipType: "CHARACTER_AT",
       sourceLabel: "Character",
       sourceMatch: { name: "EndTest" },
       targetLabel: "Location",
@@ -1966,7 +1966,7 @@ describe("manageRelationship END", () => {
   it("END without time parameter returns error", async () => {
     const result = await exec(manageRelationship, {
       action: "END",
-      relationshipType: "LOCATED_AT",
+      relationshipType: "CHARACTER_AT",
       sourceLabel: "Character",
       sourceMatch: { name: "EndTest" },
       targetLabel: "Location",
@@ -1983,7 +1983,7 @@ describe("manageRelationship READ atTime", () => {
   it("READ with atTime returns historical state", async () => {
     const result = await exec(manageRelationship, {
       action: "READ",
-      relationshipType: "LOCATED_AT",
+      relationshipType: "CHARACTER_AT",
       sourceLabel: "Character",
       sourceMatch: { name: "EndTest" },
       atTime: 220,
@@ -1994,7 +1994,7 @@ describe("manageRelationship READ atTime", () => {
   it("READ with atTime after expiry returns no results", async () => {
     const result = await exec(manageRelationship, {
       action: "READ",
-      relationshipType: "LOCATED_AT",
+      relationshipType: "CHARACTER_AT",
       sourceLabel: "Character",
       sourceMatch: { name: "EndTest" },
       targetLabel: "Location",
@@ -2007,7 +2007,7 @@ describe("manageRelationship READ atTime", () => {
   it("atTime with UPSERT returns error", async () => {
     const result = await exec(manageRelationship, {
       action: "UPSERT",
-      relationshipType: "LOCATED_AT",
+      relationshipType: "CHARACTER_AT",
       sourceLabel: "Character",
       sourceMatch: { name: "EndTest" },
       targetLabel: "Location",
@@ -2025,7 +2025,7 @@ describe("getContext TIMELINE", () => {
   it("returns timeline with entries", async () => {
     const result = await exec(getContext, { types: ["TIMELINE"] });
     expect(result).toContain("## TIMELINE");
-    expect(result).toContain("LOCATED_AT");
+    expect(result).toContain("CHARACTER_AT");
   });
 });
 
@@ -2070,6 +2070,6 @@ describe("getContext RELATIONSHIP_DUMP history", () => {
       relationshipHistory: true,
     });
     expect(result).toContain("## RELATIONSHIPS");
-    expect(result).toContain("LOCATED_AT");
+    expect(result).toContain("CHARACTER_AT");
   });
 });

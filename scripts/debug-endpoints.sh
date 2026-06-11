@@ -26,16 +26,16 @@ curl -s -X POST "http://localhost:3000/api/debug/tools/manageNode" -H "Content-T
 curl -s -X POST "http://localhost:3000/api/debug/tools/manageNode" -H "Content-Type: application/json" -d '{"nodeLabel":"Character","action":"DELETE","match":{"name":"debug_npc"}}'
 
 # manageRelationship — READ (outgoing from one node)
-curl -s -X POST "http://localhost:3000/api/debug/tools/manageRelationship" -H "Content-Type: application/json" -d '{"action":"READ","sourceLabel":"Character","sourceMatch":{"name":"Player"},"relationshipType":"LOCATED_AT"}'
+curl -s -X POST "http://localhost:3000/api/debug/tools/manageRelationship" -H "Content-Type: application/json" -d '{"action":"READ","sourceLabel":"Character","sourceMatch":{"name":"Player"},"relationshipType":"CHARACTER_AT"}'
 
 # manageRelationship — READ historical (atTime)
-curl -s -X POST "http://localhost:3000/api/debug/tools/manageRelationship" -H "Content-Type: application/json" -d '{"action":"READ","sourceLabel":"Character","sourceMatch":{"name":"Player"},"relationshipType":"LOCATED_AT","atTime":220}'
+curl -s -X POST "http://localhost:3000/api/debug/tools/manageRelationship" -H "Content-Type: application/json" -d '{"action":"READ","sourceLabel":"Character","sourceMatch":{"name":"Player"},"relationshipType":"CHARACTER_AT","atTime":220}'
 
 # manageRelationship — UPSERT (create)
-curl -s -X POST "http://localhost:3000/api/debug/tools/manageRelationship" -H "Content-Type: application/json" -d '{"action":"UPSERT","relationshipType":"LOCATED_AT","sourceLabel":"Character","sourceMatch":{"name":"Player"},"targetLabel":"Location","targetMatch":{"name":"Observation Car"},"properties":{"brief":"standing by the dome"}}'
+curl -s -X POST "http://localhost:3000/api/debug/tools/manageRelationship" -H "Content-Type: application/json" -d '{"action":"UPSERT","relationshipType":"CHARACTER_AT","sourceLabel":"Character","sourceMatch":{"name":"Player"},"targetLabel":"Location","targetMatch":{"name":"Observation Car"},"properties":{"brief":"standing by the dome"}}'
 
 # manageRelationship — END (terminate temporal rel)
-curl -s -X POST "http://localhost:3000/api/debug/tools/manageRelationship" -H "Content-Type: application/json" -d '{"action":"END","relationshipType":"LOCATED_AT","sourceLabel":"Character","sourceMatch":{"name":"Debug_NPC"},"targetLabel":"Location","targetMatch":{"name":"Observation Car"},"time":300}'
+curl -s -X POST "http://localhost:3000/api/debug/tools/manageRelationship" -H "Content-Type: application/json" -d '{"action":"END","relationshipType":"CHARACTER_AT","sourceLabel":"Character","sourceMatch":{"name":"Debug_NPC"},"targetLabel":"Location","targetMatch":{"name":"Observation Car"},"time":300}'
 
 # manageSchema — register node type
 curl -s -X POST "http://localhost:3000/api/debug/tools/manageSchema" -H "Content-Type: application/json" -d '{"target":"NODE","action":"REGISTER","name":"Artifact","description":"A magical or mechanical artifact","properties":[{"name":"power_level","description":"Numeric power rating","tags":["number"]},{"name":"origin","description":"Where it came from","tags":["string"]}]}'

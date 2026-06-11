@@ -279,7 +279,7 @@ const PREDEFINED_NODES: NodeTypeDef[] = [
 
 const PREDEFINED_RELS: RelTypeDef[] = [
   {
-    name: "LOCATED_AT",
+    name: "CHARACTER_AT",
     sourceLabel: "Character",
     targetLabel: "Location",
     category: "PREDEFINED",
@@ -298,7 +298,7 @@ const PREDEFINED_RELS: RelTypeDef[] = [
     ],
   },
   {
-    name: "LOCATED_AT",
+    name: "OBJECT_AT",
     sourceLabel: "Object",
     targetLabel: "Location",
     category: "PREDEFINED",
@@ -316,7 +316,7 @@ const PREDEFINED_RELS: RelTypeDef[] = [
     ],
   },
   {
-    name: "LOCATED_AT",
+    name: "CARRIED_BY",
     sourceLabel: "Object",
     targetLabel: "Character",
     category: "PREDEFINED",
@@ -441,24 +441,6 @@ const PREDEFINED_RELS: RelTypeDef[] = [
     category: "PREDEFINED",
     description: "Note about scene. Managed by editNote.",
     properties: [CREATED_AT_PROP],
-  },
-  {
-    name: "CARRIES",
-    sourceLabel: "Character",
-    targetLabel: "Object",
-    category: "PREDEFINED",
-    description: "Character carries object.",
-    properties: [
-      {
-        name: "brief",
-        description: "How the item is carried.",
-        tags: ["string", "embedded"],
-      },
-      { name: "created_at", description: "Birth time: day * 48 + half-hour.", tags: ["number"] },
-      { name: "valid_at", description: "Death time. NULL = still valid.", tags: ["number"] },
-      UPDATED_AT_PROP,
-      CREATED_AT_PROP,
-    ],
   },
 ];
 

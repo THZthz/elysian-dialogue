@@ -55,7 +55,7 @@ function isTemporalRel(def: RelTypeDef): boolean {
 
 // Relationship types where a source can only have one active relationship at a time.
 // Auto-expiry on UPSERT create applies only to these types.
-const AUTO_EXPIRE_TYPES = new Set(["LOCATED_AT", "CARRIES"]);
+const AUTO_EXPIRE_TYPES = new Set(["CHARACTER_AT", "OBJECT_AT", "CARRIED_BY"]);
 
 function getRelEmbeddingContentText(def: RelTypeDef, props: Record<string, unknown>): string {
   return def.properties
@@ -79,7 +79,7 @@ const inputSchema = z.object({
     .string()
     .optional()
     .describe(
-      `The relationship type (e.g. 'LOCATED_AT', 'CARRIES', 'LOCATED_IN', or GM-defined). Must be registered in the world schema and writable. Use Disposition nodes for character attitudes instead of relationships. Discover available types via \`${TOOL_NAMES.GET_CONTEXT}\` SCHEMA_DUMP.`,
+      `The relationship type (e.g. 'CHARACTER_AT', 'OBJECT_AT', 'CARRIED_BY', 'LOCATED_IN', or GM-defined). Must be registered in the world schema and writable. Use Disposition nodes for character attitudes instead of relationships. Discover available types via \`${TOOL_NAMES.GET_CONTEXT}\` SCHEMA_DUMP.`,
     ),
   action: z
     .enum(["READ", "UPSERT", "END"])
@@ -161,16 +161,18 @@ existing relationships' schema by \`${TOOL_NAMES.GET_CONTEXT}\` with SCHEMA_DUMP
   receive partial merge. \`created_at\` is preserved (immutable birth time).
 
 ## Temporal relationships
-All state-changing relationships (LOCATED_AT, LOCATED_IN, CARRIES, HAS_DISPOSITION) are
-temporal. Set \`valid_at\` to end a relationship instead of deleting — the relationship
-history is preserved.
+All state-changing relationships (CHARACTER_AT, OBJECT_AT, CARRIED_BY, LOCATED_IN,
+HAS_DISPOSITION) are temporal. Set \`valid_at\` to end a relationship instead of deleting — the
+relationship history is preserved.
 
 ## Spatial/tactical properties
-- LOCATED_AT.brief — spatial position detail (e.g. "hiding behind crates")
+- CHARACTER_AT.brief — spatial position detail for characters (e.g. "hiding behind crates")
+- OBJECT_AT.brief — spatial position detail for objects (e.g. "on the table")
 - LOCATED_IN.brief — access/containment detail (e.g. "accessed through a trapdoor behind the bar")
-- CARRIES.brief — how an item is carried (e.g. "concealed in a boot")
+- CARRIED_BY.brief — how an item is carried (e.g. "concealed in a boot")
 
-Convention: use LOCATED_AT for characters/objects at a specific spot. Use LOCATED_IN for
+Convention: use CHARACTER_AT for characters at a location, OBJECT_AT for objects at a location.
+Use CARRIED_BY (Object→Character) when an object is on a character's person. Use LOCATED_IN for
 sub-locations nested within a larger location (e.g., a basement inside a tavern).
 `.trim(),
   schema: inputSchema,
