@@ -462,75 +462,84 @@ async function main() {
 
   // Main loop
   while (true) {
-    if (state === "IDLE") {
-      const idleChoices: Array<{ name: string; value: string }> = [];
-      if (resumable) {
-        idleChoices.push({ name: chalk.hex("#4fb0c6")("Resume your story"), value: "resume" });
-      }
-      idleChoices.push({ name: "Begin your story", value: "begin" });
-      idleChoices.push({ name: "/help   Show available commands", value: "help" });
-      idleChoices.push({ name: "Quit", value: "quit" });
-
-      const answer = await select({
-        message: "What would you like to do?",
-        choices: idleChoices,
-        loop: false,
-      });
-
-      if (answer === "resume") {
-        const ok = await doResume();
-        if (!ok) {
-          resumable = false;
-          console.log(chalk.red("\nFailed to resume. Starting a new game instead.\n"));
+    try {
+      if (state === "IDLE") {
+        const idleChoices: Array<{ name: string; value: string }> = [];
+        if (resumable) {
+          idleChoices.push({ name: chalk.hex("#4fb0c6")("Resume your story"), value: "resume" });
         }
-      } else if (answer === "begin") {
-        await handleBegin();
-      } else if (answer === "help") {
-        showHelp();
-      } else {
-        break;
-      }
-    } else if (state === "AWAITING_OPTION") {
-      const choice = await presentChoice(currentOptions);
+        idleChoices.push({ name: "Begin your story", value: "begin" });
+        idleChoices.push({ name: "/help   Show available commands", value: "help" });
+        idleChoices.push({ name: "Quit", value: "quit" });
 
-      if (choice === "custom") {
-        const customText = await input({ message: "What do you want to do or say?" });
-        if (!customText.trim()) continue;
-
-        clearInquirerAnswer();
-        emitYouMessage(customText.trim());
-        await postChatStream(customText.trim(), history);
-      } else if (choice === "reset") {
         const answer = await select({
-          message: "Reset will clear the session. Are you sure?",
-          choices: [
-            { name: "Yes, reset", value: "yes" },
-            { name: "Cancel", value: "cancel" },
-          ],
+          message: "What would you like to do?",
+          choices: idleChoices,
           loop: false,
         });
-        if (answer === "yes") {
-          state = "IDLE";
-          history = [];
-          currentOptions = [];
-          streamingMessages = [];
-          _lastStepId = null;
-          messageIdCounter = 0;
-          sseClient?.abort();
-          console.log(chalk.dim("\nSession reset.\n"));
+
+        if (answer === "resume") {
+          const ok = await doResume();
+          if (!ok) {
+            resumable = false;
+            console.log(chalk.red("\nFailed to resume. Starting a new game instead.\n"));
+          }
+        } else if (answer === "begin") {
+          await handleBegin();
+        } else if (answer === "help") {
+          showHelp();
+        } else {
+          break;
         }
-      } else if (choice === "regenerate") {
-        await handleRegenerate();
-      } else if (choice === "help") {
-        showHelp();
-      } else if (choice === "quit") {
-        break;
+      } else if (state === "AWAITING_OPTION") {
+        const choice = await presentChoice(currentOptions);
+
+        if (choice === "custom") {
+          const customText = await input({ message: "What do you want to do or say?" });
+          if (!customText.trim()) continue;
+
+          clearInquirerAnswer();
+          emitYouMessage(customText.trim());
+          await postChatStream(customText.trim(), history);
+        } else if (choice === "reset") {
+          const answer = await select({
+            message: "Reset will clear the session. Are you sure?",
+            choices: [
+              { name: "Yes, reset", value: "yes" },
+              { name: "Cancel", value: "cancel" },
+            ],
+            loop: false,
+          });
+          if (answer === "yes") {
+            state = "IDLE";
+            history = [];
+            currentOptions = [];
+            streamingMessages = [];
+            _lastStepId = null;
+            messageIdCounter = 0;
+            sseClient?.abort();
+            console.log(chalk.dim("\nSession reset.\n"));
+          }
+        } else if (choice === "regenerate") {
+          await handleRegenerate();
+        } else if (choice === "help") {
+          showHelp();
+        } else if (choice === "quit") {
+          break;
+        } else {
+          await handleOptionSelect(currentOptions[choice]);
+        }
       } else {
-        await handleOptionSelect(currentOptions[choice]);
+        // WAITING state: pause briefly to avoid busy-waiting
+        await new Promise((resolve) => setTimeout(resolve, 100));
       }
-    } else {
-      // WAITING state: pause briefly to avoid busy-waiting
-      await new Promise((resolve) => setTimeout(resolve, 100));
+    } catch (err) {
+      if (err instanceof Error && err.name === "ExitPromptError") {
+        sseClient?.abort();
+        console.log(chalk.dim("\n\nFarewell.\n"));
+        process.exit(0);
+      }
+      throw err;
     }
   }
 

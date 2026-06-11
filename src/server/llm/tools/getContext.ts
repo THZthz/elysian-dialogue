@@ -86,32 +86,34 @@ type ContextType = (typeof CONTEXT_TYPES)[number];
 
 const inputSchema = z.object({
   types: z.array(z.enum(CONTEXT_TYPES)).describe("Which context sections to return."),
-  subquery: z.object({
-    prompt: z
-      .string()
-      .optional()
-      .nullable()
-      .describe("For STORYTELLING_GUIDE: a string naming the sub-prompt."),
-    relationshipHistory: z
-      .boolean()
-      .optional()
-      .nullable()
-      .describe(
-        "For RELATIONSHIP_DUMP: when true, includes all relationships including expired ones with time ranges.",
-      ),
-    entityName: z
-      .string()
-      .optional()
-      .nullable()
-      .describe("For ENTITY_PROFILE: the name of the entity to profile."),
-    entityLabel: z
-      .string()
-      .optional()
-      .nullable()
-      .describe(
-        "For ENTITY_PROFILE: the label of the entity to profile (e.g. 'Character', 'Object').",
-      ),
-  }),
+  subquery: z
+    .object({
+      prompt: z
+        .string()
+        .optional()
+        .nullable()
+        .describe("For STORYTELLING_GUIDE: a string naming the sub-prompt."),
+      relationshipHistory: z
+        .boolean()
+        .optional()
+        .nullable()
+        .describe(
+          "For RELATIONSHIP_DUMP: when true, includes all relationships including expired ones with time ranges.",
+        ),
+      entityName: z
+        .string()
+        .optional()
+        .nullable()
+        .describe("For ENTITY_PROFILE: the name of the entity to profile."),
+      entityLabel: z
+        .string()
+        .optional()
+        .nullable()
+        .describe(
+          "For ENTITY_PROFILE: the label of the entity to profile (e.g. 'Character', 'Object').",
+        ),
+    })
+    .optional(),
 });
 
 export const getContext: Tool<typeof inputSchema> = {

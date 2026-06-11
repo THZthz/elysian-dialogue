@@ -335,13 +335,15 @@ export async function buildRelationshipDump(history = false): Promise<string> {
     seenRelTypes.add(relDef.name);
     try {
       const isTemporal = schema.isTemporalRelType(relDef);
+      const hasBrief = relDef.properties.some((p) => p.name === "brief");
       const whereClause = isTemporal ? (history ? "" : " WHERE r.valid_at IS NULL") : "";
       const temporalCols =
         history && isTemporal ? ", r.created_at AS createdAt, r.valid_at AS validAt" : "";
+      const briefCol = hasBrief ? "r.brief AS brief" : "NULL AS brief";
       const r = await db.graph.query(
         `MATCH (a)-[r:\`${relDef.name}\`]->(b)${whereClause}
          RETURN label(a) AS sourceLabel, COALESCE(a.name, a._uid) AS sourceName,
-                '${relDef.name}' AS type, r.brief AS brief${temporalCols},
+                '${relDef.name}' AS type, ${briefCol}${temporalCols},
                 label(b) AS targetLabel, COALESCE(b.name, b._uid) AS targetName
          LIMIT 200`,
       );
