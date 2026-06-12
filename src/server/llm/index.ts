@@ -23,6 +23,7 @@ import type { Message, DialogueOption } from "@/types/dialogue";
 import { TurnEventEmitter } from "@/server/llm/events";
 import { buildSystemPrompt, MAX_GM_STEPS } from "@/server/llm/prompt";
 import { Database } from "@/server/db";
+import { logger } from "@/server/logger";
 import { queryWorld } from "@/server/llm/tools/queryWorld";
 import { searchWorld } from "@/server/llm/tools/searchWorld";
 import { manageNode } from "@/server/llm/tools/manageNode";
@@ -167,7 +168,7 @@ export async function generateTurn(
     const events = new TurnEventEmitter(res);
     const db = Database.getExisting();
 
-    console.log(
+    logger.info(
       `[generateTurn] historyLen=${history.length} userInput="${String(userInput).slice(0, 80)}"`,
     );
 
@@ -196,7 +197,7 @@ export async function generateTurn(
     const promptParts: string[] = [];
     if (check) {
       const rollResult = await performSkillCheck(check).catch((err) => {
-        console.error("[generateTurn] Skill check failed:", err);
+        logger.error("[generateTurn] Skill check failed:", err);
         return null;
       });
       if (rollResult) {
@@ -221,7 +222,7 @@ export async function generateTurn(
             );
           }
         } catch (err) {
-          console.error("[generateTurn] failed to log roll:", err);
+          logger.error("[generateTurn] failed to log roll:", err);
         }
         promptParts.push(
           "## SKILL CHECK RESULT",
@@ -244,7 +245,7 @@ export async function generateTurn(
       const activeScene = await db.scene.getActive();
       if (activeScene) await db.scene.appendPlayerLog(activeScene.name, userInput);
     } catch (err) {
-      console.error("[generateTurn] failed to log player input:", err);
+      logger.error("[generateTurn] failed to log player input:", err);
     }
 
     // ── First turn helper ──
@@ -296,7 +297,7 @@ export async function generateTurn(
           dialogueStepCalled = true;
           nudgeCount = 0;
           if (dialogueStepTool.wasValid()) {
-            console.log(
+            logger.info(
               `[generateTurn] generateDialogueStep validated in ${Date.now() - turnStartMs}ms`,
             );
             return { result, turnComplete: true };
@@ -330,25 +331,25 @@ export async function generateTurn(
 
     if (DEBUG_PRINT_LLM_GENERATIONS) {
       debugToolCalls = new Map();
-      console.log(chalk.bold.magenta("\n══════════════════════════════════════════"));
-      console.log(chalk.bold.magenta("  LLM GENERATION — Turn"), turnNumber);
-      console.log(chalk.bold.magenta("══════════════════════════════════════════"));
+      logger.info(chalk.bold.magenta("\n══════════════════════════════════════════"));
+      logger.info(chalk.bold.magenta("  LLM GENERATION — Turn"), turnNumber);
+      logger.info(chalk.bold.magenta("══════════════════════════════════════════"));
 
       if (turnNumber == 1) {
-        console.log(SEP);
-        console.log(chalk.bold.cyan("[TOOL SCHEMAS]"));
+        logger.info(SEP);
+        logger.info(chalk.bold.cyan("[TOOL SCHEMAS]"));
         for (const spec of prefix.toolSpecs) {
-          console.log(chalk.cyan(`${spec.function.name}`));
-          console.log(highlightJson(JSON.stringify(spec, null, 2)));
+          logger.info(chalk.cyan(`${spec.function.name}`));
+          logger.info(highlightJson(JSON.stringify(spec, null, 2)));
         }
-        console.log(SEP);
-        console.log(chalk.bold.blue("[SYSTEM PROMPT]"));
-        console.log(highlightMarkdown(prefix.system));
+        logger.info(SEP);
+        logger.info(chalk.bold.blue("[SYSTEM PROMPT]"));
+        logger.info(highlightMarkdown(prefix.system));
       }
 
-      console.log(SEP);
-      console.log(chalk.bold.blue("[USER PROMPT]"));
-      console.log(highlightMarkdown(promptText));
+      logger.info(SEP);
+      logger.info(chalk.bold.blue("[USER PROMPT]"));
+      logger.info(highlightMarkdown(promptText));
     }
 
     let hadError = false;
@@ -421,26 +422,26 @@ export async function generateTurn(
           break;
         }
         case "assistant_final": {
-          console.log(
+          logger.info(
             `[generateTurn] cacheHitRatio: ${(event.cacheHitRatio * 100).toFixed(2)}% | promptToken: ${event.usage.promptCacheHitTokens} | completionToken: ${event.usage.completionTokens}`,
           );
           if (debugToolCalls) {
             if (event.reasoning) {
-              console.log(SEP);
-              console.log(chalk.bold.blue("[REASONING]"));
-              console.log(highlightMarkdown(event.reasoning));
+              logger.info(SEP);
+              logger.info(chalk.bold.blue("[REASONING]"));
+              logger.info(highlightMarkdown(event.reasoning));
             }
             if (event.content) {
-              console.log(SEP);
-              console.log(chalk.bold.green("[CONTENT]"));
-              console.log(highlightMarkdown(event.content));
+              logger.info(SEP);
+              logger.info(chalk.bold.green("[CONTENT]"));
+              logger.info(highlightMarkdown(event.content));
             }
             if (debugToolCalls.size > 0) {
-              console.log(SEP);
-              console.log(chalk.bold.cyan("[TOOL CALLS]"));
+              logger.info(SEP);
+              logger.info(chalk.bold.cyan("[TOOL CALLS]"));
               for (const [, tc] of debugToolCalls) {
-                console.log(chalk.cyan(`${tc.name}`));
-                console.log(highlightJson(tc.args));
+                logger.info(chalk.cyan(`${tc.name}`));
+                logger.info(highlightJson(tc.args));
               }
             }
             debugToolCalls.clear();
@@ -452,9 +453,9 @@ export async function generateTurn(
             streamingNeedsReset = true;
           }
           if (DEBUG_PRINT_LLM_GENERATIONS) {
-            console.log(SEP);
-            console.log(chalk.bold.yellow(`[TOOL RESULT: ${event.name}]`));
-            console.log(
+            logger.info(SEP);
+            logger.info(chalk.bold.yellow(`[TOOL RESULT: ${event.name}]`));
+            logger.info(
               detectFormat(event.result) == "markdown"
                 ? highlightMarkdown(event.result)
                 : highlightJson(event.result),
@@ -468,7 +469,7 @@ export async function generateTurn(
           break;
         }
         case "warning": {
-          console.warn(`[generateTurn] ${event.content}`);
+          logger.warn(`[generateTurn] ${event.content}`);
           break;
         }
       }
@@ -500,7 +501,7 @@ export async function generateTurn(
           );
         }
       } catch (err) {
-        console.error("[generateTurn] failed to log GM output:", err);
+        logger.error("[generateTurn] failed to log GM output:", err);
       }
     }
 
@@ -526,7 +527,7 @@ export async function generateTurn(
         const activeScene = await db.scene.getActive();
         if (activeScene) await db.scene.saveOptions(activeScene.name, finalOptions);
       } catch (err) {
-        console.error("[generateTurn] failed to persist options:", err);
+        logger.error("[generateTurn] failed to persist options:", err);
       }
     }
 
@@ -543,7 +544,7 @@ export async function generateTurn(
         },
       );
     } catch (err) {
-      console.error("[generateTurn] failed to save checkpoint:", err);
+      logger.error("[generateTurn] failed to save checkpoint:", err);
     }
   } finally {
     generating = false;
