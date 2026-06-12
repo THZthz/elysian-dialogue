@@ -28,22 +28,11 @@ import { ConsoleSseClient, type SseCallbacks } from "@/console/SseClient";
 import { VOICE_COLORS } from "@/shared/colors";
 import type { SkillName } from "@/shared/constants";
 
-// ── State ──
+// ── Types ──
 
 type GameState = "IDLE" | "WAITING" | "AWAITING_OPTION";
 
-let state: GameState = "IDLE";
-let history: Message[] = [];
-let currentOptions: DialogueOption[] = [];
-let _lastStepId: string | null = null;
-let streamingMessages: Message[] = [];
-let sseClient: ConsoleSseClient | null = null;
-let messageIdCounter = 0;
-
-const BASE_URL = process.env.CHORUS_URL ?? `http://localhost:${process.env.CHORUS_PORT ?? 3000}`;
-const streamRenderer = createStreamRenderer();
-
-// ── Color Helpers ──
+// ── Color Helpers (pure) ──
 
 function hashNpcColor(name: string): number[] {
   let h = 5381;
@@ -74,13 +63,14 @@ function getSpeakerColor(speaker: string, type: string) {
   return chalk.rgb(r, g, b);
 }
 
-// ── Rendering ──
+// ── Rendering (pure) ──
 
 function formatMessage(
   msg: Message | StreamingMessage,
   indent = 0,
   showCursor = false,
   streaming = false,
+  streamRenderer: ReturnType<typeof createStreamRenderer>,
 ): string {
   let output = "";
   const prefix = " ".repeat(indent);
@@ -88,7 +78,6 @@ function formatMessage(
   const speakerName = msg.speaker === msg.type ? msg.type : `${msg.speaker}`;
   const displayName = msg.type === "CHARACTER" ? msg.speaker : speakerName;
 
-  // Check for roll result display
   if ("rollResult" in msg && msg.rollResult) {
     const rr = msg.rollResult;
     const result = rr.success ? chalk.green("SUCCESS") : chalk.red("FAILURE");
@@ -128,20 +117,8 @@ function formatMessage(
   return output;
 }
 
-function formatMessages(msgs: (Message | StreamingMessage)[]): string {
-  return msgs.map((msg) => formatMessage(msg)).join("");
-}
-
-function formatStreamingMessages(): string {
-  if (streamingMessages.length === 0) {
-    return chalk.dim("  Generating story...\n");
-  }
-  let output = "";
-  for (let i = 0; i < streamingMessages.length; i++) {
-    const isLast = i === streamingMessages.length - 1;
-    output += formatMessage(streamingMessages[i], 0, isLast, true);
-  }
-  return output;
+function formatMessages(msgs: (Message | StreamingMessage)[], streamRenderer: ReturnType<typeof createStreamRenderer>): string {
+  return msgs.map((msg) => formatMessage(msg, 0, false, false, streamRenderer)).join("");
 }
 
 function formatOptionLabel(opt: DialogueOption): string {
@@ -159,321 +136,335 @@ function renderBanner() {
   console.log("");
 }
 
-// ── SSE Callbacks ──
-
-function createSseCallbacks(): SseCallbacks {
-  return {
-    onStepStart: (data) => {
-      _lastStepId = data.stepId;
-    },
-    onStreamingMessages: (messages) => {
-      streamingMessages = messages.map((m, i) => ({
-        id: `stream-${i}`,
-        speaker: m.speaker,
-        type: m.type as Message["type"],
-        text: m.text,
-        metadata: m.metadata as Message["metadata"],
-      }));
-      logUpdate(formatStreamingMessages());
-    },
-    onStreamingReset: () => {
-      streamingMessages = [];
-      streamRenderer.reset();
-      logUpdate(formatStreamingMessages());
-    },
-    onOptions: (options) => {
-      currentOptions = options as unknown as DialogueOption[];
-    },
-    onParsed: (data) => {
-      logUpdate.clear();
-      logUpdate.done();
-      streamingMessages = [];
-      streamRenderer.reset();
-
-      const messages: Message[] = data.messages.map((m) => ({
-        id: `console-${messageIdCounter++}`,
-        speaker: m.speaker,
-        type: m.type as Message["type"],
-        text: m.text,
-        metadata: m.metadata as Message["metadata"],
-      }));
-
-      process.stdout.write(formatMessages(messages));
-      history.push(...messages);
-      console.log(""); // blank line before options
-
-      if (data.options && data.options.length > 0) {
-        currentOptions = data.options as unknown as DialogueOption[];
-        state = "AWAITING_OPTION";
-      } else {
-        currentOptions = [];
-        console.log(chalk.dim("(No choices available)"));
-        state = "IDLE";
-      }
-    },
-    onError: (message) => {
-      logUpdate.clear();
-      logUpdate.done();
-      streamingMessages = [];
-      console.log(chalk.red(`\n[ERROR] ${message}\n`));
-      if (currentOptions.length > 0) {
-        state = "AWAITING_OPTION";
-      } else {
-        state = "IDLE";
-      }
-    },
-    onDone: () => {
-      // parsed already transitioned state
-    },
-    onSceneUpdate: (_data) => {
-      // Scene transitions are already conveyed through narrative output
-      // The data is available for display if needed in the future
-    },
-    onRollResult: (data) => {
-      const rollMsg: Message = {
-        id: `console-${messageIdCounter++}`,
-        speaker: data.skill,
-        type: "ROLL",
-        text: `${data.success ? "Success" : "Failure"} — rolled ${data.dice.join("+")} + ${data.statBonus} = ${data.total} vs ${data.difficulty}`,
-        rollResult: {
-          skill: data.skill as SkillName,
-          difficulty: data.difficulty,
-          dice: data.dice,
-          total: data.total,
-          success: data.success,
-        },
-      };
-      history.push(rollMsg);
-      process.stdout.write("\n");
-      process.stdout.write(formatMessage(rollMsg));
-      console.log("");
-    },
-  };
-}
-
-// ── API Calls ──
-
-async function postChatStream(userInput: string, hist: Message[], check?: DialogueOption["check"]) {
-  state = "WAITING";
-  streamingMessages = [];
-  currentOptions = [];
-  sseClient?.abort();
-
-  const client = new ConsoleSseClient();
-  sseClient = client;
-
-  await client.stream(
-    `${BASE_URL}/api/chat/stream`,
-    { userInput, history: hist, check },
-    createSseCallbacks(),
-  );
-}
-
-// ── Game Actions ──
-
-async function handleBegin() {
-  console.log(chalk.dim("Starting story...\n"));
-  await postChatStream("[SYSTEM MESSAGE: Begin the story. Set the scene.]", []);
-}
-
 function clearInquirerAnswer() {
   moveCursor(process.stdout, 0, -1);
   clearLine(process.stdout, 0);
 }
 
-function emitYouMessage(text: string) {
-  const msg: Message = {
-    id: `console-${messageIdCounter++}`,
-    speaker: "YOU",
-    type: "YOU",
-    text,
-  };
-  history = [...history, msg];
-  process.stdout.write(formatMessage(msg));
-  console.log("");
-}
+// ── Main (exported) ──
 
-async function handleOptionSelect(option: DialogueOption) {
-  clearInquirerAnswer();
-  emitYouMessage(option.text);
-  await postChatStream(option.text, history, option.check);
-}
+async function main() {
+  // ── State ──
 
-async function handleRegenerate() {
-  // Save the last player action before restoring
-  const lastPlayerMsg = [...history].reverse().find((m) => m.speaker === "YOU");
-  if (!lastPlayerMsg) {
-    console.log(chalk.dim("Nothing to regenerate.\n"));
-    return;
+  let state: GameState = "IDLE";
+  let history: Message[] = [];
+  let currentOptions: DialogueOption[] = [];
+  let _lastStepId: string | null = null;
+  let streamingMessages: Message[] = [];
+  let sseClient: ConsoleSseClient | null = null;
+  let messageIdCounter = 0;
+
+  const BASE_URL = process.env.CHORUS_URL ?? `http://localhost:${process.env.CHORUS_PORT ?? 3000}`;
+  const streamRenderer = createStreamRenderer();
+
+  // ── Stateful helpers ──
+
+  function formatStreamingMessages(): string {
+    if (streamingMessages.length === 0) {
+      return chalk.dim("  Generating story...\n");
+    }
+    let output = "";
+    for (let i = 0; i < streamingMessages.length; i++) {
+      const isLast = i === streamingMessages.length - 1;
+      output += formatMessage(streamingMessages[i], 0, isLast, true, streamRenderer);
+    }
+    return output;
   }
 
-  // Find previous checkpoint
-  let targetTurn: number;
-  try {
-    const cpRes = await fetch(`${BASE_URL}/api/checkpoints`);
-    if (!cpRes.ok) {
+  function createSseCallbacks(): SseCallbacks {
+    return {
+      onStepStart: (data) => {
+        _lastStepId = data.stepId;
+      },
+      onStreamingMessages: (messages) => {
+        streamingMessages = messages.map((m, i) => ({
+          id: `stream-${i}`,
+          speaker: m.speaker,
+          type: m.type as Message["type"],
+          text: m.text,
+          metadata: m.metadata as Message["metadata"],
+        }));
+        logUpdate(formatStreamingMessages());
+      },
+      onStreamingReset: () => {
+        streamingMessages = [];
+        streamRenderer.reset();
+        logUpdate(formatStreamingMessages());
+      },
+      onOptions: (options) => {
+        currentOptions = options as unknown as DialogueOption[];
+      },
+      onParsed: (data) => {
+        logUpdate.clear();
+        logUpdate.done();
+        streamingMessages = [];
+        streamRenderer.reset();
+
+        const messages: Message[] = data.messages.map((m) => ({
+          id: `console-${messageIdCounter++}`,
+          speaker: m.speaker,
+          type: m.type as Message["type"],
+          text: m.text,
+          metadata: m.metadata as Message["metadata"],
+        }));
+
+        process.stdout.write(formatMessages(messages, streamRenderer));
+        history.push(...messages);
+        console.log("");
+
+        if (data.options && data.options.length > 0) {
+          currentOptions = data.options as unknown as DialogueOption[];
+          state = "AWAITING_OPTION";
+        } else {
+          currentOptions = [];
+          console.log(chalk.dim("(No choices available)"));
+          state = "IDLE";
+        }
+      },
+      onError: (message) => {
+        logUpdate.clear();
+        logUpdate.done();
+        streamingMessages = [];
+        console.log(chalk.red(`\n[ERROR] ${message}\n`));
+        if (currentOptions.length > 0) {
+          state = "AWAITING_OPTION";
+        } else {
+          state = "IDLE";
+        }
+      },
+      onDone: () => {
+        // parsed already transitioned state
+      },
+      onSceneUpdate: (_data) => {
+        // Scene transitions are already conveyed through narrative output
+        // The data is available for display if needed in the future
+      },
+      onRollResult: (data) => {
+        const rollMsg: Message = {
+          id: `console-${messageIdCounter++}`,
+          speaker: data.skill,
+          type: "ROLL",
+          text: `${data.success ? "Success" : "Failure"} — rolled ${data.dice.join("+")} + ${data.statBonus} = ${data.total} vs ${data.difficulty}`,
+          rollResult: {
+            skill: data.skill as SkillName,
+            difficulty: data.difficulty,
+            dice: data.dice,
+            total: data.total,
+            success: data.success,
+          },
+        };
+        history.push(rollMsg);
+        process.stdout.write("\n");
+        process.stdout.write(formatMessage(rollMsg, 0, false, false, streamRenderer));
+        console.log("");
+      },
+    };
+  }
+
+  async function postChatStream(userInput: string, hist: Message[], check?: DialogueOption["check"]) {
+    state = "WAITING";
+    streamingMessages = [];
+    currentOptions = [];
+    sseClient?.abort();
+
+    const client = new ConsoleSseClient();
+    sseClient = client;
+
+    await client.stream(
+      `${BASE_URL}/api/chat/stream`,
+      { userInput, history: hist, check },
+      createSseCallbacks(),
+    );
+  }
+
+  async function handleBegin() {
+    console.log(chalk.dim("Starting story...\n"));
+    await postChatStream("[SYSTEM MESSAGE: Begin the story. Set the scene.]", []);
+  }
+
+  function emitYouMessage(text: string) {
+    const msg: Message = {
+      id: `console-${messageIdCounter++}`,
+      speaker: "YOU",
+      type: "YOU",
+      text,
+    };
+    history = [...history, msg];
+    process.stdout.write(formatMessage(msg, 0, false, false, streamRenderer));
+    console.log("");
+  }
+
+  async function handleOptionSelect(option: DialogueOption) {
+    clearInquirerAnswer();
+    emitYouMessage(option.text);
+    await postChatStream(option.text, history, option.check);
+  }
+
+  async function handleRegenerate() {
+    const lastPlayerMsg = [...history].reverse().find((m) => m.speaker === "YOU");
+    if (!lastPlayerMsg) {
+      console.log(chalk.dim("Nothing to regenerate.\n"));
+      return;
+    }
+
+    let targetTurn: number;
+    try {
+      const cpRes = await fetch(`${BASE_URL}/api/checkpoints`);
+      if (!cpRes.ok) {
+        console.log(chalk.red("Failed to fetch checkpoints.\n"));
+        return;
+      }
+      const checkpoints = (await cpRes.json()) as Array<{ turnNumber: number }>;
+      if (checkpoints.length < 2) {
+        console.log(chalk.dim("Need at least 2 turns before you can regenerate.\n"));
+        return;
+      }
+      targetTurn = checkpoints[checkpoints.length - 2].turnNumber;
+    } catch {
       console.log(chalk.red("Failed to fetch checkpoints.\n"));
       return;
     }
-    const checkpoints = (await cpRes.json()) as Array<{ turnNumber: number }>;
-    if (checkpoints.length < 2) {
-      console.log(chalk.dim("Need at least 2 turns before you can regenerate.\n"));
-      return;
-    }
-    targetTurn = checkpoints[checkpoints.length - 2].turnNumber;
-  } catch {
-    console.log(chalk.red("Failed to fetch checkpoints.\n"));
-    return;
-  }
 
-  // Restore
-  try {
-    const restoreRes = await fetch(`${BASE_URL}/api/checkpoint/restore/${targetTurn}`, {
-      method: "POST",
-    });
-    if (!restoreRes.ok) {
-      const err = (await restoreRes.json()) as { error?: string };
-      console.log(chalk.red(`\nFailed to regenerate: ${err.error ?? restoreRes.statusText}\n`));
-      return;
-    }
-  } catch (err) {
-    console.log(chalk.red(`\nFailed to regenerate: ${err}\n`));
-    return;
-  }
-
-  // Reload history from restored state
-  try {
-    const histRes = await fetch(`${BASE_URL}/api/history`);
-    if (histRes.ok) {
-      history = (await histRes.json()) as Message[];
-    }
-  } catch {
-    // proceed with local history
-  }
-  messageIdCounter = history.length;
-
-  sseClient?.abort();
-  currentOptions = [];
-  streamingMessages = [];
-
-  console.log(chalk.dim("\nRegenerating response...\n"));
-  emitYouMessage(lastPlayerMsg.text);
-  await postChatStream(lastPlayerMsg.text, history);
-}
-
-// ── Resume ──
-
-async function checkResumable(): Promise<boolean> {
-  try {
-    const currRes = await fetch(`${BASE_URL}/api/game/current`);
-    if (!currRes.ok) return false;
-    const current = (await currRes.json()) as { id: string; options: DialogueOption[] };
-    return !!(current && current.options && current.options.length > 0);
-  } catch {
-    return false;
-  }
-}
-
-async function doResume(): Promise<boolean> {
-  try {
-    const histRes = await fetch(`${BASE_URL}/api/history`);
-    if (!histRes.ok) {
-      console.error(`[resume] history fetch failed: ${histRes.status} ${histRes.statusText}`);
-      return false;
-    }
-    const hist = (await histRes.json()) as Message[];
-    if (hist.length === 0) {
-      console.error("[resume] history is empty");
-      return false;
-    }
-
-    const currRes = await fetch(`${BASE_URL}/api/game/current`);
-    if (!currRes.ok) {
-      console.error(`[resume] game/current fetch failed: ${currRes.status} ${currRes.statusText}`);
-      return false;
-    }
-    const current = (await currRes.json()) as { id: string; options: DialogueOption[] };
-    if (!current || !current.options || current.options.length === 0) {
-      console.error("[resume] no current options available");
-      return false;
-    }
-
-    history = hist;
-    _lastStepId = current.id;
-    currentOptions = current.options;
-    messageIdCounter = hist.length;
-
-    console.log(chalk.dim("\n╌╌╌ Resuming story ╌╌╌\n"));
-    process.stdout.write(formatMessages(hist));
-    console.log("");
-
-    state = "AWAITING_OPTION";
-    return true;
-  } catch (err) {
-    console.error("[resume] unexpected error:", err);
-    return false;
-  }
-}
-
-// ── Prompt Helpers ──
-
-async function presentChoice(
-  options: DialogueOption[],
-): Promise<number | "custom" | "reset" | "regenerate" | "help" | "quit"> {
-  const sep = "─".repeat(50);
-  console.log(chalk.dim(sep));
-
-  const choices: Array<
-    | {
-        name: string;
-        value: number | "custom" | "reset" | "regenerate" | "help" | "quit";
-        description?: string;
+    try {
+      const restoreRes = await fetch(`${BASE_URL}/api/checkpoint/restore/${targetTurn}`, {
+        method: "POST",
+      });
+      if (!restoreRes.ok) {
+        const err = (await restoreRes.json()) as { error?: string };
+        console.log(chalk.red(`\nFailed to regenerate: ${err.error ?? restoreRes.statusText}\n`));
+        return;
       }
-    | InstanceType<typeof Separator>
-  > = [
-    ...options.map((opt, i) => ({
-      name: formatOptionLabel(opt),
-      value: i as number,
-      description: opt.check
-        ? `Roll ${opt.check.diceCount}D6 + ${opt.check.skill} vs ${opt.check.difficultyText} (Difficulty ${opt.check.difficulty})`
-        : undefined,
-    })),
-    new Separator(chalk.dim(sep)),
-    { name: chalk.hex("#ff6b35")("[Custom input...]"), value: "custom" as const },
-    {
-      name: chalk.hex("#4fb0c6")("/regenerate  Undo and redo current turn"),
-      value: "regenerate" as const,
-    },
-    { name: chalk.dim("/reset  Clear and restart"), value: "reset" as const },
-    { name: chalk.dim("/help   Show available commands"), value: "help" as const },
-    { name: "Quit", value: "quit" as const },
-  ];
+    } catch (err) {
+      console.log(chalk.red(`\nFailed to regenerate: ${err}\n`));
+      return;
+    }
 
-  return await select<number | "custom" | "reset" | "regenerate" | "help" | "quit">({
-    message: "Choose your action:",
-    choices,
-    pageSize: Math.min(options.length + 6, 12),
-    loop: false,
-  });
-}
+    try {
+      const histRes = await fetch(`${BASE_URL}/api/history`);
+      if (histRes.ok) {
+        history = (await histRes.json()) as Message[];
+      }
+    } catch {
+      // proceed with local history
+    }
+    messageIdCounter = history.length;
 
-// ── Main ──
+    sseClient?.abort();
+    currentOptions = [];
+    streamingMessages = [];
 
-async function main() {
+    console.log(chalk.dim("\nRegenerating response...\n"));
+    emitYouMessage(lastPlayerMsg.text);
+    await postChatStream(lastPlayerMsg.text, history);
+  }
+
+  async function checkResumable(): Promise<boolean> {
+    try {
+      const currRes = await fetch(`${BASE_URL}/api/game/current`);
+      if (!currRes.ok) return false;
+      const current = (await currRes.json()) as { id: string; options: DialogueOption[] };
+      return !!(current && current.options && current.options.length > 0);
+    } catch {
+      return false;
+    }
+  }
+
+  async function doResume(): Promise<boolean> {
+    try {
+      const histRes = await fetch(`${BASE_URL}/api/history`);
+      if (!histRes.ok) {
+        console.error(`[resume] history fetch failed: ${histRes.status} ${histRes.statusText}`);
+        return false;
+      }
+      const hist = (await histRes.json()) as Message[];
+      if (hist.length === 0) {
+        console.error("[resume] history is empty");
+        return false;
+      }
+
+      const currRes = await fetch(`${BASE_URL}/api/game/current`);
+      if (!currRes.ok) {
+        console.error(`[resume] game/current fetch failed: ${currRes.status} ${currRes.statusText}`);
+        return false;
+      }
+      const current = (await currRes.json()) as { id: string; options: DialogueOption[] };
+      if (!current || !current.options || current.options.length === 0) {
+        console.error("[resume] no current options available");
+        return false;
+      }
+
+      history = hist;
+      _lastStepId = current.id;
+      currentOptions = current.options;
+      messageIdCounter = hist.length;
+
+      console.log(chalk.dim("\n╌╌╌ Resuming story ╌╌╌\n"));
+      process.stdout.write(formatMessages(hist, streamRenderer));
+      console.log("");
+
+      state = "AWAITING_OPTION";
+      return true;
+    } catch (err) {
+      console.error("[resume] unexpected error:", err);
+      return false;
+    }
+  }
+
+  // ── Prompt Helpers ──
+
+  async function presentChoice(
+    options: DialogueOption[],
+  ): Promise<number | "custom" | "reset" | "regenerate" | "help" | "quit"> {
+    const sep = "─".repeat(50);
+    console.log(chalk.dim(sep));
+
+    const choices: Array<
+      | {
+          name: string;
+          value: number | "custom" | "reset" | "regenerate" | "help" | "quit";
+          description?: string;
+        }
+      | InstanceType<typeof Separator>
+    > = [
+      ...options.map((opt, i) => ({
+        name: formatOptionLabel(opt),
+        value: i as number,
+        description: opt.check
+          ? `Roll ${opt.check.diceCount}D6 + ${opt.check.skill} vs ${opt.check.difficultyText} (Difficulty ${opt.check.difficulty})`
+          : undefined,
+      })),
+      new Separator(chalk.dim(sep)),
+      { name: chalk.hex("#ff6b35")("[Custom input...]"), value: "custom" as const },
+      {
+        name: chalk.hex("#4fb0c6")("/regenerate  Undo and redo current turn"),
+        value: "regenerate" as const,
+      },
+      { name: chalk.dim("/reset  Clear and restart"), value: "reset" as const },
+      { name: chalk.dim("/help   Show available commands"), value: "help" as const },
+      { name: "Quit", value: "quit" as const },
+    ];
+
+    return await select<number | "custom" | "reset" | "regenerate" | "help" | "quit">({
+      message: "Choose your action:",
+      choices,
+      pageSize: Math.min(options.length + 6, 12),
+      loop: false,
+    });
+  }
+
+  // ── REPL loop ──
+
   console.clear();
   renderBanner();
 
-  // Graceful shutdown
   process.on("SIGINT", () => {
     sseClient?.abort();
     console.log(chalk.dim("\n\nFarewell.\n"));
     process.exit(0);
   });
 
-  // Check if a resumable game exists
   let resumable = await checkResumable();
 
-  // Main loop
   while (true) {
     try {
       if (state === "IDLE") {
@@ -543,7 +534,6 @@ async function main() {
           await handleOptionSelect(currentOptions[choice]);
         }
       } else {
-        // WAITING state: pause briefly to avoid busy-waiting
         await new Promise((resolve) => setTimeout(resolve, 100));
       }
     } catch (err) {
@@ -573,4 +563,4 @@ function showHelp() {
   console.log("");
 }
 
-main();
+export { main as runRepl };
