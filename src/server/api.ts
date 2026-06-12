@@ -240,4 +240,26 @@ apiRouter.post("/checkpoint/restore/:turnNumber", async (req, res) => {
   }
 });
 
+// ── Logs (SSE) ──
+
+apiRouter.get("/logs/stream", (_req, res) => {
+  res.writeHead(200, {
+    "Content-Type": "text/event-stream",
+    "Cache-Control": "no-cache",
+    Connection: "keep-alive",
+  });
+
+  for (const entry of logger.getBuffer()) {
+    res.write(`event: log\ndata: ${JSON.stringify(entry)}\n\n`);
+  }
+
+  const unsub = logger.subscribe((entry) => {
+    res.write(`event: log\ndata: ${JSON.stringify(entry)}\n\n`);
+  });
+
+  res.on("close", () => {
+    unsub();
+  });
+});
+
 export default apiRouter;
