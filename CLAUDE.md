@@ -4,3 +4,4 @@
 - If `// TODO:`, `// WARNING:` or `// NOTE:` is found in code, preserve it.
 - No need to add license header for new files, user will add it manually.
 - No need to consider backward compatibility (anything including database), we always start fresh.
+- Run `npm run lint` when you need to check syntax errors.

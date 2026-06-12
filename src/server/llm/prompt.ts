@@ -47,7 +47,9 @@ Write down notes for unresolved threads. Note is best when it records an unresol
 
 Plots should be written IN ADVANCE. A great moment to write more plots is when the player activates a plot by satisfying its trigger condition.
 
-After you have called \`${TOOL_NAMES.GENERATE_DIALOGUE}\` and it passed validation (turnComplete), your turn ends automatically — you do not need to output text. If the tool returned validation errors, correct and retry. NEVER output text-only as a substitute for calling \`${TOOL_NAMES.GENERATE_DIALOGUE}\`.
+Before you call \`${TOOL_NAMES.GENERATE_DIALOGUE}\`, write **draft** of messages so that you can amend it when invoking the real tool.
+
+After you have called \`${TOOL_NAMES.GENERATE_DIALOGUE}\` and it passed validation (turnComplete), your turn ends immediately. If the tool returned validation errors, correct and retry.
 
 Tools to use:
 - \`${TOOL_NAMES.GENERATE_DIALOGUE}\`
@@ -56,7 +58,7 @@ Tools to use:
 
 ### PHASE 3. SCENE END
 
-Persist world changes: movement, items, dispositions, plot flags, etc. Use UPDATE on relationships to set \`valid_at\` when relationships end. Relationships are never deleted — their history is preserved via \`valid_at\`. When the scene concludes (location change, significant time passing, narrative break), call \`${TOOL_NAMES.MANAGE_SCENE}\` to transition. 
+Persist world changes: movement, items, dispositions, plot flags, etc. Use UPDATE on relationships to set \`valid_at\` when relationships end. Relationships are never deleted — their history is preserved via \`valid_at\`. When the scene concludes (location change, significant time passing, narrative break), call \`${TOOL_NAMES.MANAGE_SCENE}\` to transition.
 
 Tools to use:
 - \`${TOOL_NAMES.MANAGE_SCHEMA}\` (if new types to add)

@@ -1,11 +1,11 @@
 id = "express-cult"
 
 toneDescription = """
-A Victorian express train, all polished brass and steam, carrying hundreds of souls through the night. The world is one of gas-lamps and subtle magic — gentlemen detectives carry enchanted lockets, and occult symbols are not merely superstition. The mood is one of quiet elegance laced with creeping dread.
+A Victorian express train, all polished brass and steam, carrying hundreds of souls through the night. The world is one of gas-lamps and subtle magic. The mood is one of quiet elegance laced with creeping dread.
 """
 
 settingDescription = """
-The Grand Continental Express — a steam locomotive pulling a long chain of carriages through a moonless countryside. The year is 1891. Magic is real but restrained; most passengers possess a minor charm or a family ward, and the educated classes know that the old gods left echoes in the world. The train cuts through thick fog, headlamp barely piercing the gloom. There are no stops for several hours.
+The Grand Continental Express — a steam locomotive pulling a long chain of carriages through a moonless countryside. The year is 1891. Magic is real but restrained. The train cuts through thick fog, headlamp barely piercing the gloom. There are no stops for several hours.
 """
 
 [initialScene]
@@ -89,7 +89,7 @@ type = "LOCATION"
 name = "First-Class Sleeper Car"
 brief = "First-class accommodation with twelve private compartments."
 description = """
-A corridor panelled in polished mahogany, lit by brass gas-lamps. Twelve numbered doors line the passage, each opening into a private compartment with a fold‑down bed, a small vanity, and plush upholstery. The car is quiet and well‑kept.
+A corridor panelled in polished mahogany, lit by brass gas-lamps. Twelve numbered doors line the passage, each opening into a private compartment with a fold-down bed, a small vanity, and plush upholstery. The car is quiet and well-kept.
 """
 
 [[entities]]
@@ -97,7 +97,7 @@ type = "LOCATION"
 name = "First-Class Compartment 12"
 brief = "A private first-class compartment, last on the right, where the body lies."
 description = """
-A compact but comfortable compartment at the far end of the first-class sleeper. Contains a fold‑down bed, a small mahogany vanity with a mirror, an upholstered seat, and a window curtained in heavy velvet. The gas-lamp on the wall casts a warm, steady glow. The door locks from the inside with a brass bolt.
+A compact but comfortable compartment at the far end of the first-class sleeper. Contains a fold-down bed, a small mahogany vanity with a mirror, an upholstered seat, and a window curtained in heavy velvet. The gas-lamp on the wall casts a warm, steady glow. The door locks from the inside with a brass bolt.
 """
 
 [[entities]]
