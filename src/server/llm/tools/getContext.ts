@@ -148,7 +148,12 @@ Pull pre-built context from the world. Nothing is auto-loaded — you choose wha
       SCHEMA_DUMP: buildSchemaDump,
       RELATIONSHIP_DUMP: () => buildRelationshipDump(!!sq?.relationshipHistory),
       TIMELINE: buildTimeline,
-      ENTITY_PROFILE: () => buildEntityProfile(sq?.entityName!, sq?.entityLabel!),
+      ENTITY_PROFILE: () => {
+        if (!sq?.entityName || !sq?.entityLabel) {
+          return Promise.resolve("## ENTITY_PROFILE\n\nERROR: entityName and entityLabel are required when ENTITY_PROFILE is requested.");
+        }
+        return buildEntityProfile(sq.entityName, sq.entityLabel);
+      },
       CYPHER_COOKBOOK: async () => loadPrompt("CYPHER_COOKBOOK"),
     };
 

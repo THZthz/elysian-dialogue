@@ -1608,7 +1608,7 @@ describe("enrichment — editNode", () => {
 
     expect(enriched).toContain("[Context]");
     expect(enriched).toContain("CHARACTER_AT Silver Tankard");
-    expect(enriched).toContain("Rusty Dagger now CARRIED_BY");
+    expect(enriched).toContain("Rusty Dagger is CARRIED_BY Orin Fell (incoming)");
   });
 
   it("skips enrichment for DELETE action", async () => {
@@ -2033,11 +2033,35 @@ describe("getContext TIMELINE", () => {
 // getContext ENTITY_PROFILE
 // ===========================================================================
 describe("getContext ENTITY_PROFILE", () => {
+  beforeAll(async () => {
+    const db = getTestDb();
+    try {
+      await db.entities.create("Character", { name: "EndTest", brief: "ENTITY_PROFILE test character" });
+    } catch {
+      /* may already exist */
+    }
+    try {
+      await db.entities.create("Location", { name: "EndLocation", brief: "ENTITY_PROFILE test location" });
+    } catch {
+      /* may already exist */
+    }
+    try {
+      await db.graph.query(
+        `MATCH (c:Character {name: 'EndTest'}), (l:Location {name: 'EndLocation'})
+         MERGE (c)-[r:CHARACTER_AT]->(l)`,
+      );
+    } catch {
+      /* may already exist */
+    }
+  });
+
   it("returns full entity profile for a character", async () => {
     const result = await exec(getContext, {
       types: ["ENTITY_PROFILE"],
-      entityName: "EndTest",
-      entityLabel: "Character",
+      subquery: {
+        entityName: "EndTest",
+        entityLabel: "Character",
+      },
     });
     expect(result).toContain("ENTITY_PROFILE");
     expect(result).toContain("EndTest");
@@ -2053,8 +2077,10 @@ describe("getContext ENTITY_PROFILE", () => {
   it("ENTITY_PROFILE with unknown entity returns not found", async () => {
     const result = await exec(getContext, {
       types: ["ENTITY_PROFILE"],
-      entityName: "NoSuchEntity",
-      entityLabel: "Character",
+      subquery: {
+        entityName: "NoSuchEntity",
+        entityLabel: "Character",
+      },
     });
     expect(result).toContain("not found");
   });

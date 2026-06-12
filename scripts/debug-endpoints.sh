@@ -78,3 +78,6 @@ curl -s -X POST "http://localhost:3000/api/debug/tools/getContext" -H "Content-T
 
 # Reset database
 curl -s -X POST "http://localhost:3000/api/reset"
+
+# Logs (SSE) — stream all server logs (past + live)
+curl -N -s "http://localhost:3000/api/logs/stream"
