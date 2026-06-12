@@ -7,6 +7,8 @@
     "server": "tsx src/server/main.ts",
     "server:dev": "tsx --watch src/server/main.ts",
     "console": "tsx src/console/main.ts",
+    "start": "tsx src/main.ts",
+    "start:dev": "tsx --watch src/main.ts",
     "lint": "eslint . && tsc --noEmit",
     "lint:eslint": "eslint .",
     "lint:eslint:fix": "eslint --fix .",
