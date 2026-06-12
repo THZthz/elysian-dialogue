@@ -18,47 +18,67 @@
 
 import "dotenv/config";
 import express from "express";
+import type { Server } from "node:http";
 import apiRouter from "@/server/api";
 import { Database } from "@/server/db";
 import { seedDatabase } from "@/server/stories/seed";
+import { logger } from "@/server/logger";
 
-async function start() {
+export interface ServerHandle {
+  app: express.Express;
+  shutdown: () => Promise<void>;
+}
+
+export async function startServer(): Promise<ServerHandle> {
+  const app = express();
+  const port = Number(process.env.CHORUS_PORT ?? 3000);
+
+  app.use(express.json());
+  app.use("/api", apiRouter);
+
   try {
-    const app = express();
-    const port = Number(process.env.CHORUS_PORT ?? 3000);
-
-    app.use(express.json());
-    app.use("/api", apiRouter);
-
-    console.log("[db] initializing...");
+    logger.info("[db] initializing...");
     await Database.getInstance();
-    console.log("[db] ready");
+    logger.info("[db] ready");
 
     await seedDatabase();
 
-    app.listen(port, "0.0.0.0", () => {
-      console.log(`[start] server running on http://localhost:${port}`);
+    const server: Server = await new Promise((resolve, reject) => {
+      const s = app.listen(port, "0.0.0.0", () => {
+        logger.info(`[start] server running on http://localhost:${port}`);
+        resolve(s);
+      });
+      s.on("error", reject);
     });
 
     const shutdown = async () => {
-      console.log("\nShutting down...");
+      logger.info("Shutting down...");
       await Database.closeInstance();
-      process.exit(0);
+      server.close();
     };
-    process.on("SIGINT", shutdown);
-    process.on("SIGTERM", shutdown);
 
-    process.on("uncaughtException", (error) => {
-      console.error("[process] uncaughtException — exiting:", error);
-      process.exit(1);
-    });
-    process.on("unhandledRejection", (reason) => {
-      console.error("[process] unhandledRejection:", reason);
-    });
+    return { app, shutdown };
   } catch (error) {
-    console.error("[start] fatal startup error:", error);
+    logger.error("[start] fatal startup error:", error);
     process.exit(1);
   }
 }
 
-start();
+const _isMain = process.argv[1]?.endsWith("main.ts");
+if (_isMain) {
+  startServer().then(({ shutdown }) => {
+    const graceful = async () => {
+      await shutdown();
+      process.exit(0);
+    };
+    process.on("SIGINT", graceful);
+    process.on("SIGTERM", graceful);
+    process.on("uncaughtException", (error) => {
+      logger.error("[process] uncaughtException — exiting:", error);
+      process.exit(1);
+    });
+    process.on("unhandledRejection", (reason) => {
+      logger.error("[process] unhandledRejection:", reason);
+    });
+  });
+}
