@@ -16,36 +16,153 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+import MarkdownIt from "markdown-it-ts";
+import type { Token } from "markdown-it-ts";
 import chalk from "chalk";
+
+const md = MarkdownIt({ experimental: { stream: true } });
 
 export function renderMarkdown(text: string): string {
   if (!text) return "";
-  const codeSpans: string[] = [];
+  const tokens = md.parse(text);
+  return renderTokens(tokens);
+}
 
-  // Extract inline code spans first (they take precedence over all other formatting)
-  let result = text.replace(/`([^`]+)`/g, (_match, content) => {
-    const idx = codeSpans.length;
-    codeSpans.push(chalk.cyan(content));
-    return `\x00C${idx}\x00`;
-  });
+export function createStreamRenderer() {
+  return {
+    render(text: string): string {
+      if (!text) return "";
+      const tokens = md.stream.parse(text);
+      return renderTokens(tokens);
+    },
+    reset() {
+      md.stream.reset();
+    },
+  };
+}
 
-  // Bold: **text** or __text__
-  result = result.replace(/\*\*([^*\n]+?)\*\*|__([^_\n]+?)__/g, (_m, star, under) =>
-    chalk.bold(star ?? under),
-  );
+function renderTokens(tokens: Token[]): string {
+  let output = "";
+  let inHeading = false;
+  let inBlockquote = false;
+  let listDepth = 0;
+  let ordered = false;
+  let itemIndex = 0;
 
-  // Italic: *text* or _text_ (but not ** or __)
-  result = result.replace(/(?<!\*)\*([^*\n]+?)\*(?!\*)|\b_([^_\n]+?)_\b/g, (_m, star, under) =>
-    chalk.italic(star ?? under),
-  );
+  for (const token of tokens) {
+    switch (token.type) {
+      case "inline": {
+        let inlineOutput = renderInline(token.children ?? []);
+        if (inHeading) inlineOutput = chalk.bold(inlineOutput);
+        if (inBlockquote) inlineOutput = chalk.dim("│ ") + inlineOutput;
+        output += inlineOutput;
+        break;
+      }
+      case "heading_open":
+        inHeading = true;
+        break;
+      case "heading_close":
+        inHeading = false;
+        output += "\n";
+        break;
+      case "paragraph_open":
+        break;
+      case "paragraph_close":
+        output += "\n";
+        break;
+      case "blockquote_open":
+        inBlockquote = true;
+        break;
+      case "blockquote_close":
+        inBlockquote = false;
+        break;
+      case "bullet_list_open":
+        listDepth++;
+        break;
+      case "bullet_list_close":
+        listDepth--;
+        break;
+      case "ordered_list_open":
+        ordered = true;
+        itemIndex = 0;
+        listDepth++;
+        break;
+      case "ordered_list_close":
+        ordered = false;
+        listDepth--;
+        break;
+      case "list_item_open": {
+        itemIndex++;
+        const indent = "  ".repeat(listDepth - 1);
+        const marker = ordered ? `${itemIndex}. ` : "• ";
+        output += indent + marker;
+        break;
+      }
+      case "list_item_close":
+        break;
+      case "fence":
+      case "code_block":
+        output += chalk.dim(token.content.trimEnd()) + "\n";
+        break;
+      case "hr":
+        output += chalk.dim("─".repeat(40)) + "\n";
+        break;
+    }
+  }
 
-  // Strikethrough: ~~text~~
-  result = result.replace(/~~([^~\n]+?)~~/g, (_m, inner) => chalk.strikethrough(inner));
+  return output.replace(/\n$/, "");
+}
 
-  // Restore code spans
-  // \x00 used as sentinel delimiter to protect code spans from formatting
-  // eslint-disable-next-line no-control-regex
-  result = result.replace(/\x00C(\d+)\x00/g, (_m, idx) => codeSpans[Number(idx)] ?? "");
+function renderInline(tokens: Token[]): string {
+  let output = "";
+  const formatStack: Array<(s: string) => string> = [];
 
+  for (const token of tokens) {
+    switch (token.type) {
+      case "text":
+        output += applyFormat(token.content, formatStack);
+        break;
+      case "code_inline":
+        output += chalk.cyan(token.content);
+        break;
+      case "strong_open":
+        formatStack.push(chalk.bold);
+        break;
+      case "strong_close":
+        formatStack.pop();
+        break;
+      case "em_open":
+        formatStack.push(chalk.italic);
+        break;
+      case "em_close":
+        formatStack.pop();
+        break;
+      case "s_open":
+        formatStack.push(chalk.strikethrough);
+        break;
+      case "s_close":
+        formatStack.pop();
+        break;
+      case "softbreak":
+      case "hardbreak":
+        output += "\n";
+        break;
+      case "link_open":
+      case "link_close":
+        break;
+      case "image":
+        output += chalk.dim(`[${token.content || "image"}]`);
+        break;
+    }
+  }
+
+  return output;
+}
+
+function applyFormat(text: string, stack: Array<(s: string) => string>): string {
+  let result = text;
+  for (let i = stack.length - 1; i >= 0; i--) {
+    result = stack[i](result);
+  }
   return result;
 }

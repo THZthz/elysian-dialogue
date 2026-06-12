@@ -21,7 +21,7 @@ import { select, input, Separator } from "@inquirer/prompts";
 import chalk from "chalk";
 import logUpdate from "log-update";
 import wrapAnsi from "wrap-ansi";
-import { renderMarkdown } from "@/console/markdown";
+import { renderMarkdown, createStreamRenderer } from "@/console/markdown";
 import type { Message, DialogueOption } from "@/types/dialogue";
 import type { StreamingMessage } from "@/server/llm/events";
 import { ConsoleSseClient, type SseCallbacks } from "@/console/SseClient";
@@ -41,6 +41,7 @@ let sseClient: ConsoleSseClient | null = null;
 let messageIdCounter = 0;
 
 const BASE_URL = process.env.CHORUS_URL ?? `http://localhost:${process.env.CHORUS_PORT ?? 3000}`;
+const streamRenderer = createStreamRenderer();
 
 // ── Color Helpers ──
 
@@ -75,7 +76,12 @@ function getSpeakerColor(speaker: string, type: string) {
 
 // ── Rendering ──
 
-function formatMessage(msg: Message | StreamingMessage, indent = 0, showCursor = false): string {
+function formatMessage(
+  msg: Message | StreamingMessage,
+  indent = 0,
+  showCursor = false,
+  streaming = false,
+): string {
   let output = "";
   const prefix = " ".repeat(indent);
   const speakerColor = getSpeakerColor(msg.speaker, msg.type);
@@ -100,20 +106,25 @@ function formatMessage(msg: Message | StreamingMessage, indent = 0, showCursor =
     return output;
   }
 
-  output += prefix + speakerColor(displayName) + "\n";
+  const isNarrator = msg.speaker === "NARRATOR";
+
+  if (!isNarrator) {
+    output += prefix + speakerColor(displayName) + "\n";
+  }
 
   const termWidth = process.stdout.columns ?? 80;
-  const textWidth = Math.max(40, termWidth - indent - 2);
+  const textWidth = Math.max(40, termWidth - (isNarrator ? 0 : indent + 2));
 
-  const rendered = renderMarkdown(msg.text);
+  const rendered = streaming ? streamRenderer.render(msg.text) : renderMarkdown(msg.text);
   const wrapped = wrapAnsi(rendered, textWidth, { hard: true });
   const wrappedLines = wrapped.split("\n");
   for (let i = 0; i < wrappedLines.length; i++) {
     const line = wrappedLines[i];
     const isLastLine = i === wrappedLines.length - 1;
     const cursor = showCursor && isLastLine ? chalk.hex("#ff6b35")("▌") : "";
-    output += prefix + "  " + line + cursor + "\n";
+    output += (isNarrator ? "" : prefix + "  ") + line + cursor + "\n";
   }
+  output += "\n";
   return output;
 }
 
@@ -128,7 +139,7 @@ function formatStreamingMessages(): string {
   let output = "";
   for (let i = 0; i < streamingMessages.length; i++) {
     const isLast = i === streamingMessages.length - 1;
-    output += formatMessage(streamingMessages[i], 0, isLast);
+    output += formatMessage(streamingMessages[i], 0, isLast, true);
   }
   return output;
 }
@@ -143,8 +154,8 @@ function formatOptionLabel(opt: DialogueOption): string {
 
 function renderBanner() {
   console.log("");
-  console.log(chalk.bold("                      CHORUS                       "));
-  console.log(chalk.dim("               A Narrative RPG Engine               "));
+  console.log(chalk.bold("           CHORUS"));
+  console.log(chalk.dim("A Cinematic Storytelling Engine"));
   console.log("");
 }
 
@@ -167,6 +178,7 @@ function createSseCallbacks(): SseCallbacks {
     },
     onStreamingReset: () => {
       streamingMessages = [];
+      streamRenderer.reset();
       logUpdate(formatStreamingMessages());
     },
     onOptions: (options) => {
@@ -176,6 +188,7 @@ function createSseCallbacks(): SseCallbacks {
       logUpdate.clear();
       logUpdate.done();
       streamingMessages = [];
+      streamRenderer.reset();
 
       const messages: Message[] = data.messages.map((m) => ({
         id: `console-${messageIdCounter++}`,

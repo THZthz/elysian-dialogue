@@ -34,6 +34,7 @@
     "express": "^4.21.2",
     "jsonrepair": "^3.14.0",
     "log-update": "^8.0.0",
+    "markdown-it-ts": "^1.0.0",
     "partial-json": "^0.1.7",
     "smol-toml": "^1.6.1",
     "uuid": "^11.1.0",

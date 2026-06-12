@@ -48,7 +48,12 @@ const messageSchema = z.object({
       >[],
     )
     .describe(""),
-  text: z.string().max(MAX_MESSAGE_TEXT_LENGTH).describe(`The dialogue text, supports markdown. Dialogue of characters should be italics wrapped in quotes: *"There's no problem that can't be solved with the proper application of high explosives."*`),
+  text: z
+    .string()
+    .max(MAX_MESSAGE_TEXT_LENGTH)
+    .describe(
+      `The dialogue text, supports markdown. Dialogue of characters should be italics wrapped in quotes: *"There's no problem that can't be solved with the proper application of high explosives."*`,
+    ),
   metadata: z
     .object({
       notificationType: z.enum(NOTIFICATION_TYPES).optional(),
@@ -113,9 +118,7 @@ const inputSchema = z.object({
     .array(optionSchema)
     .nullable()
     .optional()
-    .describe(
-      `The choices presented to the player (2-4 options, 3 is preferred).`,
-    ),
+    .describe(`The choices presented to the player (2-4 options, 3 is preferred).`),
   isCorrection: z
     .boolean()
     .optional()

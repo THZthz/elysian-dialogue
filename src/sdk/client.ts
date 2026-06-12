@@ -314,8 +314,15 @@ export class DeepSeekClient {
                 : undefined,
             };
           }
-          if (json.usage || isUsageObject(json)) {
-            chunk.usage = Usage.fromApi((json.usage ?? json) as RawUsage);
+
+          if (json && typeof json === "object" && "usage" in json && isUsageObject(json.usage)) {
+            // First: try the { usage: RawUsage } shape
+            chunk.usage = Usage.fromApi(json.usage);
+          } else if (isUsageObject(json)) {
+            // Second: try the direct RawUsage shape
+            chunk.usage = Usage.fromApi(json);
+          } else {
+            // invalid usage data
           }
           queue.push(chunk);
         } catch {

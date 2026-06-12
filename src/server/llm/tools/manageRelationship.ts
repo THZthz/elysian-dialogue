@@ -131,14 +131,10 @@ export const manageRelationship: Tool<typeof inputSchema> = {
   name: TOOL_NAMES.MANAGE_RELATIONSHIP,
   description: `
 ## Brief
-READ, UPSERT, or END relationships between nodes. UPSERT creates-or-updates a single relationship
-with auto-set temporal props and JSON partial merge. READ looks up relationships without
-writing Cypher — find all outgoing/incoming rels for a node, or a specific relationship.
-END terminates a temporal relationship at a specified time.
+READ, UPSERT, or END relationships between nodes. UPSERT creates-or-updates a single relationship with auto-set temporal props and JSON partial merge. READ looks up relationships without writing Cypher — find all outgoing/incoming rels for a node, or a specific relationship. END terminates a temporal relationship at a specified time.
 
 ## Actions
-- **UPSERT**: Create-or-update a single relationship. Both endpoint nodes must exist.
-  Auto-sets \`created_at\`/\`valid_at\` for temporal relationships. JSON partial merge on update.
+- **UPSERT**: Create-or-update a single relationship. Both endpoint nodes must exist. Auto-sets \`created_at\`/\`valid_at\` for temporal relationships. JSON partial merge on update.
 - **READ**: Look up relationships. Modes (detected from which fields are provided):
   - sourceMatch + targetMatch + relationshipType → specific relationship details
   - sourceMatch + relationshipType → all outgoing rels of that type from source
@@ -148,22 +144,15 @@ END terminates a temporal relationship at a specified time.
   - sourceMatch + targetMatch (no rel type) → all rels between the two nodes, grouped by type
 - **END**: Terminate a temporal relationship at a specified time. Sets \`valid_at\` to the provided \`time\` value. Only works on temporal relationships (those with \`created_at\` and \`valid_at\` properties). The relationship must be currently active (\`valid_at IS NULL\`). Requires \`sourceMatch\`, \`targetMatch\`, \`relationshipType\`, and \`time\`.
 
-It is not recommended to use this tool to directly **edit** ABOUT_CHARACTER/ABOUT_OBJECT/
-ABOUT_LOCATION/ABOUT_SCENE/ABOUT_PLOT (managed by \`${TOOL_NAMES.EDIT_NOTE}\`),
-STARTED_AT/COMPLETED_AT/BRANCHES_TO (managed by \`${TOOL_NAMES.EDIT_PLOT}\`).
+It is not recommended to use this tool to directly **edit** ABOUT_CHARACTER/ABOUT_OBJECT/ ABOUT_LOCATION/ABOUT_SCENE/ABOUT_PLOT (managed by \`${TOOL_NAMES.EDIT_NOTE}\`), STARTED_AT/COMPLETED_AT/BRANCHES_TO (managed by \`${TOOL_NAMES.EDIT_PLOT}\`).
 
 ## Upsert behavior
-The relationship type must be registered by \`${TOOL_NAMES.MANAGE_SCHEMA}\`. You can get
-existing relationships' schema by \`${TOOL_NAMES.GET_CONTEXT}\` with SCHEMA_DUMP.
-- **New relationship**: \`created_at\` is auto-set to the active scene time and \`valid_at\`
-  starts NULL for temporal relationships. Endpoint nodes must both exist.
-- **Existing relationship**: properties are partially updated. Properties tagged "json"
-  receive partial merge. \`created_at\` is preserved (immutable birth time).
+The relationship type must be registered by \`${TOOL_NAMES.MANAGE_SCHEMA}\`. You can get existing relationships' schema by \`${TOOL_NAMES.GET_CONTEXT}\` with SCHEMA_DUMP.
+- **New relationship**: \`created_at\` is auto-set to the active scene time and \`valid_at\` starts NULL for temporal relationships. Endpoint nodes must both exist.
+- **Existing relationship**: properties are partially updated. Properties tagged "json" receive partial merge. \`created_at\` is preserved (immutable birth time).
 
 ## Temporal relationships
-All state-changing relationships (CHARACTER_AT, OBJECT_AT, CARRIED_BY, LOCATED_IN,
-HAS_DISPOSITION) are temporal. Set \`valid_at\` to end a relationship instead of deleting — the
-relationship history is preserved.
+All state-changing relationships (CHARACTER_AT, OBJECT_AT, CARRIED_BY, LOCATED_IN, HAS_DISPOSITION) are temporal. Set \`valid_at\` to end a relationship instead of deleting — the relationship history is preserved.
 
 ## Spatial/tactical properties
 - CHARACTER_AT.brief — spatial position detail for characters (e.g. "hiding behind crates")
@@ -171,9 +160,7 @@ relationship history is preserved.
 - LOCATED_IN.brief — access/containment detail (e.g. "accessed through a trapdoor behind the bar")
 - CARRIED_BY.brief — how an item is carried (e.g. "concealed in a boot")
 
-Convention: use CHARACTER_AT for characters at a location, OBJECT_AT for objects at a location.
-Use CARRIED_BY (Object→Character) when an object is on a character's person. Use LOCATED_IN for
-sub-locations nested within a larger location (e.g., a basement inside a tavern).
+Convention: use CHARACTER_AT for characters at a location, OBJECT_AT for objects at a location. Use CARRIED_BY (Object→Character) when an object is on a character's person. Use LOCATED_IN for sub-locations nested within a larger location (e.g., a basement inside a tavern).
 `.trim(),
   schema: inputSchema,
   execute: wrapSafe(async (args: z.infer<typeof inputSchema>) => {

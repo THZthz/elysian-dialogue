@@ -121,7 +121,9 @@ export async function seedDatabase(): Promise<void> {
   for (const rel of story.relationships) {
     const srcLabel = nameToLabel.get(rel.sourceName) ?? "Character";
     const tgtLabel = nameToLabel.get(rel.targetName) ?? "Location";
-    console.log(`[seed] REL: (${rel.sourceName} [${srcLabel}])-[${rel.type}]->(${rel.targetName} [${tgtLabel}])`);
+    console.log(
+      `[seed] REL: (${rel.sourceName} [${srcLabel}])-[${rel.type}]->(${rel.targetName} [${tgtLabel}])`,
+    );
     await db.graph.mergeRelationship(
       srcLabel,
       "name",
@@ -141,7 +143,13 @@ export async function seedDatabase(): Promise<void> {
   // for consistency with runtime-created relationships.
   const initialTime = story.initialScene.start_time;
   const now = new Date().toISOString();
-  const temporalRelTypes = ["CHARACTER_AT", "OBJECT_AT", "CARRIED_BY", "LOCATED_IN", "HAS_DISPOSITION"];
+  const temporalRelTypes = [
+    "CHARACTER_AT",
+    "OBJECT_AT",
+    "CARRIED_BY",
+    "LOCATED_IN",
+    "HAS_DISPOSITION",
+  ];
   for (const relType of temporalRelTypes) {
     try {
       await db.graph.query(

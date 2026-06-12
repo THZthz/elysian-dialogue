@@ -230,7 +230,10 @@ async function queryEntityRelationships(
   }
 
   if (branches.length === 0) return [];
-  const result = await withTimeout(db.graph.query(branches.join("\nUNION ALL\n"), { val: name }), 2000);
+  const result = await withTimeout(
+    db.graph.query(branches.join("\nUNION ALL\n"), { val: name }),
+    2000,
+  );
   return result.rows as Array<{ relType: string; targetName: string }>;
 }
 
@@ -249,9 +252,7 @@ async function enrichEntityBatch(db: Database, entities: EntityBatchEntry[]): Pr
         ),
         2000,
       );
-      const metaRow = metaResult.rows[0] as
-        | { _label?: string; brief?: string | null }
-        | undefined;
+      const metaRow = metaResult.rows[0] as { _label?: string; brief?: string | null } | undefined;
       if (!metaRow) continue;
       const label = metaRow._label || "";
       if (!label) continue;

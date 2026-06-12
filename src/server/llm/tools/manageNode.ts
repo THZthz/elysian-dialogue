@@ -103,41 +103,15 @@ export const manageNode: Tool<typeof inputSchema> = {
   name: TOOL_NAMES.MANAGE_NODE,
   description: `
 ## Brief
-READ, UPSERT, or DELETE nodes. UPSERT creates-or-updates a single node with JSON partial merge
-and embedding updates. DELETE removes a node and all its relationships. READ looks up one or
-more nodes by a single property key without writing Cypher.
+READ, UPSERT, or DELETE nodes. UPSERT creates-or-updates a single node with JSON partial merge and embedding updates. DELETE removes a node and all its relationships. READ looks up one or more nodes by a single property key without writing Cypher.
 
 ## Actions
-- **READ**: Look up nodes by a single match key. Accepts array values for batch lookup
-  (e.g. { name: ["Player", "Bartender"] }). Returns all visible properties for each match.
-  Does NOT route through the entity model — uses raw Cypher for efficiency on batch reads.
-- **UPSERT**: Create-or-update a single node. If it exists, properties are partially updated
-  (JSON partial merge). If not, it's created using both \`match\` keys and \`properties\`.
+- **READ**: Look up nodes by a single match key. Accepts array values for batch lookup (e.g. { name: ["Player", "Bartender"] }). Returns all visible properties for each match. Does NOT route through the entity model — uses raw Cypher for efficiency on batch reads.
+- **UPSERT**: Create-or-update a single node. If it exists, properties are partially updated (JSON partial merge). If not, it's created using both \`match\` keys and \`properties\`.
 - **DELETE**: Remove a node and all its relationships (DETACH DELETE).
 
 ## Node types
-Can be used for Character, Object, Location, Disposition, and any GM-defined node type
-registered by \`${TOOL_NAMES.MANAGE_SCHEMA}\`. It is not recommended to use this tool to
-directly edit Note or Plot (use \`${TOOL_NAMES.EDIT_NOTE}\` / \`${TOOL_NAMES.EDIT_PLOT}\`).
-
-## Disposition
-Stored as a NODE (not a relationship), linked via (npc:Character)-[:HAS_DISPOSITION]->(d:Disposition).
-Sentiment keywords can be protective, trusting, fearful, hostile, attracted, suspicious, resentful, grateful, indifferent, etc.
-Set or update disposition when an NPC's feelings shift due to player actions.
-
-## Example (UPSERT)
-Since \`metadata\` is tagged as "json" of node Character in SCHEMA_DUMP, you can partial update player's stats like:
-\`\`\`
-{
-  "nodeLabel": "Character",
-  "action": "UPSERT",
-  "match": { "_uid": "00000000-0000-0000-0000-000000000000" },
-  "properties": {
-    "metadata": {
-      "stats": { "logic": 3, "rhetoric": 2 }
-    }
-  }
-}
+Can be used for Character, Object, Location, Disposition, and any GM-defined node type registered by \`${TOOL_NAMES.MANAGE_SCHEMA}\`. It is not recommended to use this tool to directly edit Note or Plot (use \`${TOOL_NAMES.EDIT_NOTE}\` / \`${TOOL_NAMES.EDIT_PLOT}\` instead).
 \`\`\`
 `.trim(),
   schema: inputSchema,

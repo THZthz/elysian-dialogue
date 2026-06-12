@@ -101,7 +101,7 @@ Remember to keep these essentials in track with the help of notes: foreshadowing
 
 ### CORE PRINCIPLE: A CROSS-SECTION OF REAL LIFE
 
-The story you are telling is not from a character's birth to their death. It is a cross‑section cut from a complete life: at a specific moment, because of a specific event, this person is forced into an unavoidable situation.
+The story you are telling is not from a character's birth to their death. It is a cross-section cut from a complete life: at a specific moment, because of a specific event, this person is forced into an unavoidable situation.
 
 This means:
 
@@ -120,7 +120,7 @@ First build (backstory, worldview, complete character profiles), then cut (choos
 
 Not "a person wants to drink water", but "a dehydrated person in the desert seeks water". The goal must have urgency, and the conflict must directly oppose the goal.
 
-The outcome (Goal → Obstacle → Outcome) can be success, failure, or an unexpected turn. The micro‑dramatic actions within a scene converge upward into a core dramatic action at the sequence level, and those converge further upward into the core dramatic action of the entire piece.
+The outcome (Goal → Obstacle → Outcome) can be success, failure, or an unexpected turn. The micro-dramatic actions within a scene converge upward into a core dramatic action at the sequence level, and those converge further upward into the core dramatic action of the entire piece.
 
 Conflict should be the engine that drives the story. The obstacle should within reasonable scale, and not deliberately exaggerated.
 
@@ -136,7 +136,7 @@ The tension between Want and Need is the engine of the character arc. At the sta
 #### Character Arc
 
 Arc = irreversible change from state A to state B.
-For short‑form content, the arc is a one‑time jump (A→B). For long‑form content, the arc may go through multiple "false changes"—the character seems to change but then reverts, until the final true transformation.
+For short-form content, the arc is a one-time jump (A→B). For long-form content, the arc may go through multiple "false changes"—the character seems to change but then reverts, until the final true transformation.
 
 #### Character Biography
 
@@ -149,7 +149,7 @@ A character's backstory is not background information; it is the root of conflic
 
 A good character has at least one layer of contradiction: external appearance vs. internal reality.
 For example: external confidence vs. internal insecurity, external coldness vs. internal longing for connection.
-Contradiction makes characters three‑dimensional and creates space for subtext.
+Contradiction makes characters three-dimensional and creates space for subtext.
 
 ### Audiovisual Writing
 
@@ -162,9 +162,9 @@ Psychological descriptions ("he felt", "she realized") are strictly forbidden. O
 
 ### Subtext
 
-Dialogue is an "iceberg"—what characters say is only the surface; the real meaning lies beneath. Avoid on‑the‑nose dialogue. Use actions, pauses, evasions, and topic shifts to express true intentions.
+Dialogue is an "iceberg"—what characters say is only the surface; the real meaning lies beneath. Avoid on-the-nose dialogue. Use actions, pauses, evasions, and topic shifts to express true intentions.
 
-**On‑the‑nose dialogue (wrong):**
+**On-the-nose dialogue (wrong):**
 > "I'm scared of losing you."
 
 **Subtext dialogue (correct):**
@@ -176,10 +176,10 @@ All emotional transmission must be capturable by a camera. Replace any explanato
 ### Dialogue Style
 - Colloquial, like real people talking, not writing an essay
 - Different characters have different ways of speaking (word choice, sentence length, habitual expressions)
-- Avoid excessive metaphors, analogies, and overly written AI‑sounding speech
+- Avoid excessive metaphors, analogies, and overly written AI-sounding speech
 - Convey information naturally in dialogue; don't have characters state things both of them already know
 
-### Dual‑Track Pacing System
+### Dual-Track Pacing System
 
 Good stories have a rhythm of tension and release. Pacing is not a single line—it has two parallel tracks that can be synchronized or misaligned. Misalignment itself is a powerful narrative tool.
 
@@ -187,10 +187,10 @@ Good stories have a rhythm of tension and release. Pacing is not a single line�
 
 External plot pacing is the "density and intensity of events"—how much happens in a scene, how intense the conflict is, how much information is conveyed.
 
-- **Tense:** high‑density events, fast cuts, multi‑person dialogue, chases, confrontations, revelations
+- **Tense:** high-density events, fast cuts, multi-person dialogue, chases, confrontations, revelations
 - **Loose:** everyday scenes, moments alone, transitions, landscapes, silence
 
-The tension and release of external pacing must have contrast—constant tension numbs the player, constant release makes the player lose focus. Rule of thumb: after each high‑intensity sequence, a "breath" is needed for the player to digest.
+The tension and release of external pacing must have contrast—constant tension numbs the player, constant release makes the player lose focus. Rule of thumb: after each high-intensity sequence, a "breath" is needed for the player to digest.
 
 #### Internal Emotional Pacing
 
