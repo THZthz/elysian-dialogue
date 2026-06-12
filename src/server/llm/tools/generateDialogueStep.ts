@@ -18,6 +18,7 @@
 
 import { z } from "zod";
 import type { Tool } from "@/sdk";
+import { logger } from "@/server/logger";
 import type { SpeakerType } from "@/types/dialogue";
 import { NOTIFICATION_TYPES, SPEAKER_TYPES } from "@/types/dialogue";
 import { TOOL_NAMES, SKILL_NAMES } from "@/shared/constants";
@@ -112,13 +113,13 @@ const inputSchema = z.object({
     .nullable()
     .optional()
     .describe(
-      `The sequence of messages presented to player. 1-3 sentences / 1 paragraph for each message.`,
+      `The sequence of messages presented to player. 1-3 sentences / 1 paragraph for each message. '\\n' should never appear.`,
     ),
   options: z
     .array(optionSchema)
     .nullable()
     .optional()
-    .describe(`The choices presented to the player (2-4 options, 3 is preferred).`),
+    .describe(`The choices presented to the player (1-4 options).`),
   isCorrection: z
     .boolean()
     .optional()
@@ -327,7 +328,7 @@ async function executeAndPersist(
         });
         persisted++;
       } catch (err) {
-        console.warn(
+        logger.warn(
           `[${TOOL_NAMES.GENERATE_DIALOGUE}] Failed to persist message from "${msg.speaker}":`,
           err,
         );

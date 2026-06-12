@@ -16,6 +16,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+import { logger } from "@/server/logger";
+
 export interface Embedder {
   embed(text: string): Promise<number[]>;
   embedBatch(texts: string[]): Promise<number[][]>;
@@ -102,7 +104,7 @@ export function getEmbedder(): Embedder {
 
   // initEmbedder() should be called during startup. If not, fall back to stub
   // so the server can function (with degraded search) without llama-server.
-  console.warn("[embedder] not initialized — using StubEmbedder (4d)");
+  logger.warn("[embedder] not initialized — using StubEmbedder (4d)");
   embedder = new StubEmbedder();
   return embedder;
 }
@@ -114,9 +116,9 @@ export async function initEmbedder(): Promise<void> {
   const healthy = await checkEmbedderHealth(url);
   if (healthy) {
     embedder = new LlamaEmbedder(url, dims);
-    console.log(`[embedder] ${dims}d at ${url}`);
+    logger.info(`[embedder] ${dims}d at ${url}`);
   } else {
     embedder = new StubEmbedder();
-    console.log("[embedder] server unavailable, using StubEmbedder (4d)");
+    logger.info("[embedder] server unavailable, using StubEmbedder (4d)");
   }
 }

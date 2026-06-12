@@ -18,6 +18,7 @@
 
 import { z } from "zod";
 import type { Tool } from "@/sdk";
+import { logger } from "@/server/logger";
 import { Database } from "@/server/db";
 import { SchemaRegistry, type RelTypeDef, getSchemaRegistry } from "@/server/db/schema";
 import { extractInternalAndUnknownKeys, wrapSafe } from "@/server/llm/tools/shared";
@@ -562,7 +563,7 @@ Convention: use CHARACTER_AT for characters at a location, OBJECT_AT for objects
               payload,
             );
           } catch (err) {
-            console.warn(
+            logger.warn(
               `[manageRelationship] Vector upsert failed for "${args.relationshipType}":`,
               err instanceof Error ? err.message : String(err),
             );
@@ -607,7 +608,7 @@ Convention: use CHARACTER_AT for characters at a location, OBJECT_AT for objects
           const conflictCount = autoExpireResult.rows[0]?.cnt as number;
           if (conflictCount > 0) {
             if (conflictCount > 1) {
-              console.warn(
+              logger.warn(
                 `[manageRelationship] auto-expiry: ${conflictCount} active "${args.relationshipType}" relationships found for source — expiring all`,
               );
             }
@@ -617,7 +618,7 @@ Convention: use CHARACTER_AT for characters at a location, OBJECT_AT for objects
             );
           }
         } catch (err) {
-          console.warn(
+          logger.warn(
             `[manageRelationship] auto-expiry failed for "${args.relationshipType}":`,
             err instanceof Error ? err.message : String(err),
           );
@@ -691,7 +692,7 @@ Convention: use CHARACTER_AT for characters at a location, OBJECT_AT for objects
             payload,
           );
         } catch (err) {
-          console.warn(
+          logger.warn(
             `[manageRelationship] Vector upsert failed for "${args.relationshipType}":`,
             err instanceof Error ? err.message : String(err),
           );

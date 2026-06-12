@@ -16,6 +16,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+import { logger } from "@/server/logger";
+
 export interface Reranker {
   rerank(
     query: string,
@@ -90,7 +92,7 @@ export function getReranker(): Reranker | null {
   }
 
   reranker = new HttpReranker(url);
-  console.log(`[reranker] ${url}`);
+  logger.info(`[reranker] ${url}`);
   return reranker;
 }
 

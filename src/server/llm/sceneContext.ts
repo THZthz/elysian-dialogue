@@ -17,6 +17,7 @@
  */
 
 import { Database } from "@/server/db";
+import { logger } from "@/server/logger";
 import type { RelTypeDef } from "@/server/db/schema";
 import { SchemaRegistry } from "@/server/db/schema";
 import { formatTime } from "@/server/db/utils";
@@ -366,7 +367,7 @@ export async function buildRelationshipDump(history = false): Promise<string> {
         }
       }
     } catch (err) {
-      console.warn(
+      logger.warn(
         `[buildRelationshipDump] query failed for ${relDef.name}:`,
         err instanceof Error ? err.message : String(err),
       );

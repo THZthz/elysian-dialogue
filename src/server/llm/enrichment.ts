@@ -17,6 +17,7 @@
  */
 
 import { Database } from "@/server/db";
+import { logger } from "@/server/logger";
 import { getSchemaRegistry } from "@/server/db/schema";
 import { TOOL_NAMES } from "@/shared/constants";
 
@@ -315,7 +316,7 @@ async function manageNodeEnricher(args: string, result: string): Promise<string>
     const entityName = match.name || Object.values(match)[0];
     return formatEntityContext(rows, entityName);
   } catch (err) {
-    console.warn(
+    logger.warn(
       "[enrichment] manageNode enrichment failed:",
       err instanceof Error ? err.message : String(err),
     );
@@ -370,7 +371,7 @@ async function manageRelationshipEnricher(args: string, result: string): Promise
 
     return partList.join("\n");
   } catch (err) {
-    console.warn(
+    logger.warn(
       "[enrichment] manageRelationship enrichment failed:",
       err instanceof Error ? err.message : String(err),
     );
@@ -424,7 +425,7 @@ async function queryWorldEnricher(args: string, result: string): Promise<string>
     const db = Database.getExisting();
     return await enrichEntityBatch(db, entities.slice(0, 10));
   } catch (err) {
-    console.warn(
+    logger.warn(
       "[enrichment] queryWorld enrichment failed:",
       err instanceof Error ? err.message : String(err),
     );
@@ -462,7 +463,7 @@ async function searchWorldEnricher(_args: string, result: string): Promise<strin
     const db = Database.getExisting();
     return await enrichEntityBatch(db, entities.slice(0, 10));
   } catch (err) {
-    console.warn(
+    logger.warn(
       "[enrichment] searchWorld enrichment failed:",
       err instanceof Error ? err.message : String(err),
     );
@@ -494,7 +495,7 @@ export async function enrichResult(
     if (!enrichment) return rawResult;
     return rawResult + enrichment;
   } catch (err) {
-    console.warn(
+    logger.warn(
       `[enrichment] enrichResult failed for ${toolName}:`,
       err instanceof Error ? err.message : String(err),
     );

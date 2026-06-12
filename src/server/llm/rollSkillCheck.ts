@@ -17,6 +17,7 @@
  */
 
 import { Database } from "@/server/db";
+import { logger } from "@/server/logger";
 import type { SkillName } from "@/shared/constants";
 
 // TODO: This skill check system should be reworked since current skill check will always succeed.
@@ -135,7 +136,7 @@ export async function performSkillCheck(args: SkillCheckParams): Promise<SkillCh
   if (playerStats && typeof playerStats[statKey] === "number") {
     statBonus = playerStats[statKey];
   } else {
-    console.error("[performSkillCheck] Invalid player stats.");
+    logger.error("[performSkillCheck] Invalid player stats.");
   }
 
   const dice = Array.from({ length: args.diceCount }, () => Math.floor(Math.random() * 6 + 1));

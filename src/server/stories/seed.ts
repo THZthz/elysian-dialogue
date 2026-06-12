@@ -19,6 +19,7 @@
 import { v4 as uuidv4 } from "uuid";
 import { getActiveSeedStory } from "@/server/stories";
 import { Database } from "@/server/db";
+import { logger } from "@/server/logger";
 
 type EntityLabel = "Character" | "Object" | "Location";
 
@@ -35,7 +36,7 @@ export async function seedDatabase(): Promise<void> {
     "MATCH (e) WHERE label(e) = 'Character' OR label(e) = 'Object' OR label(e) = 'Location' RETURN count(e) AS count",
   );
   if ((existing.rows[0]?.count as number) > 0) {
-    console.log(`[seedDatabase] database already has ${existing.rows[0].count} entities, skipping`);
+    logger.info(`[seedDatabase] database already has ${existing.rows[0].count} entities, skipping`);
     return;
   }
 
@@ -47,11 +48,11 @@ export async function seedDatabase(): Promise<void> {
     characters: story.initialScene.characters,
     reason: "Opening scene",
   });
-  console.log(
+  logger.info(
     `[seedDatabase] initial scene created at time ${story.initialScene.start_time} in "${story.initialScene.location_name}"`,
   );
 
-  console.log(`[seedDatabase] seeding ${story.entities.length} entities from "${story.id}"`);
+  logger.info(`[seedDatabase] seeding ${story.entities.length} entities from "${story.id}"`);
 
   // Register relationship types from seed story before creating instances
   if (story.relationshipTypes) {
@@ -68,7 +69,7 @@ export async function seedDatabase(): Promise<void> {
         ],
       });
     }
-    console.log(
+    logger.info(
       `[seedDatabase] registered ${story.relationshipTypes.length} relationship types from "${story.id}"`,
     );
     // Execute DDL and persist for seed story's custom relationship types
@@ -121,7 +122,7 @@ export async function seedDatabase(): Promise<void> {
   for (const rel of story.relationships) {
     const srcLabel = nameToLabel.get(rel.sourceName) ?? "Character";
     const tgtLabel = nameToLabel.get(rel.targetName) ?? "Location";
-    console.log(
+    logger.info(
       `[seed] REL: (${rel.sourceName} [${srcLabel}])-[${rel.type}]->(${rel.targetName} [${tgtLabel}])`,
     );
     await db.graph.mergeRelationship(
@@ -174,7 +175,7 @@ export async function seedDatabase(): Promise<void> {
       { name: srcName },
     );
     if (npcCheck.rows.length === 0) {
-      console.warn(`[seed] disposition skipped: NPC entity "${srcName}" not found`);
+      logger.warn(`[seed] disposition skipped: NPC entity "${srcName}" not found`);
       dispositionCount++;
       continue;
     }
@@ -247,7 +248,7 @@ export async function seedDatabase(): Promise<void> {
     noteCount++;
   }
 
-  console.log(
+  logger.info(
     `[seedDatabase] done — ${story.entities.length} entities, ${story.relationships.length} relationships, ${dispositionCount} dispositions, ${noteCount} notes`,
   );
 }
