@@ -17,6 +17,7 @@
  */
 
 import express from "express";
+import { logger } from "@/server/logger";
 import { generateTurn, isGenerating } from "@/server/llm";
 import { chatStreamSchema } from "@/server/validation";
 import { Database } from "@/server/db";
@@ -64,13 +65,13 @@ apiRouter.post("/chat/stream", async (req, res) => {
   }
   try {
     const { userInput, history, check } = parsed.data;
-    console.log(
+    logger.info(
       `[chat/stream] userInput="${String(userInput).slice(0, 80)}" historyLen=${history?.length ?? 0} hasCheck=${!!check}`,
     );
     await generateTurn(userInput, history ?? [], res, check as DialogueOption["check"] | undefined);
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
-    console.error("Chat stream error:", message);
+    logger.error("Chat stream error:", message);
     if (!res.headersSent) {
       const httpStatus = error instanceof DeepSeekError ? mapUpstreamStatus(error.status) : 500;
       res.status(httpStatus).json({ error: message });
@@ -118,7 +119,7 @@ apiRouter.get("/history", async (_req, res) => {
     }
     res.json(history);
   } catch (error: unknown) {
-    console.error("History fetch error:", error);
+    logger.error("History fetch error:", error);
     res.json([]);
   }
 });
@@ -136,7 +137,7 @@ apiRouter.get("/game/current", async (_req, res) => {
     }
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
-    console.error("Session state fetch error:", message);
+    logger.error("Session state fetch error:", message);
     res.json(null);
   }
 });
@@ -176,7 +177,7 @@ apiRouter.post("/debug/tools/:toolName", async (req, res) => {
     res.status(404).json({ error: `Unknown tool: ${req.params.toolName}` });
     return;
   }
-  console.log(`[/debug/tools/${req.params.toolName}] accept request`);
+  logger.info(`[/debug/tools/${req.params.toolName}] accept request`);
   try {
     const result = await tool.execute(req.body ?? {});
     res.set("Content-Type", "text/plain; charset=utf-8").send(result);
