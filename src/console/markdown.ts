@@ -22,9 +22,18 @@ import chalk from "chalk";
 
 const md = MarkdownIt({ experimental: { stream: true } });
 
+/**
+ * CommonMark: a trailing * or _ preceded by punctuation cannot close emphasis
+ * unless followed by whitespace or punctuation (§6.2 right-flanking rule).
+ * Append a space so the delimiter becomes valid, then trim it from output.
+ */
+function safeForEmphasisClose(text: string): string {
+  return /[^\w\s][*_]$/.test(text) ? text + " " : text;
+}
+
 export function renderMarkdown(text: string): string {
   if (!text) return "";
-  const tokens = md.parse(text);
+  const tokens = md.parse(safeForEmphasisClose(text));
   return renderTokens(tokens);
 }
 
@@ -32,7 +41,7 @@ export function createStreamRenderer() {
   return {
     render(text: string): string {
       if (!text) return "";
-      const tokens = md.stream.parse(text);
+      const tokens = md.stream.parse(safeForEmphasisClose(text));
       return renderTokens(tokens);
     },
     reset() {
@@ -110,7 +119,7 @@ function renderTokens(tokens: Token[]): string {
     }
   }
 
-  return output.replace(/\n$/, "");
+  return output.trimEnd();
 }
 
 function renderInline(tokens: Token[]): string {

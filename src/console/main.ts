@@ -125,11 +125,26 @@ function formatMessages(
 }
 
 function formatOptionLabel(opt: DialogueOption): string {
-  if (opt.check) {
-    const checkColor = chalk.hex("#4fb0c6");
-    return `${checkColor(`[${opt.check.skill} - ${opt.check.difficultyText}]`)} ${opt.text}`;
+  const parts: string[] = [];
+
+  // hintBefore: dim/colored prefix, e.g. "[Perception]"
+  if (opt.hintBefore) {
+    parts.push(chalk.hex("#9081e3")(opt.hintBefore));
   }
-  return opt.text;
+
+  // check: colored prefix like "[Sorcery - Challenging]"
+  if (opt.check) {
+    parts.push(chalk.hex("#4fb0c6")(`[${opt.check.skill} - ${opt.check.difficultyText}]`));
+  }
+
+  parts.push(opt.text);
+
+  // hintAfter: dim suffix, e.g. "[Check]"
+  if (opt.hintAfter) {
+    parts.push(chalk.dim(opt.hintAfter));
+  }
+
+  return parts.join(" ");
 }
 
 function renderBanner() {
