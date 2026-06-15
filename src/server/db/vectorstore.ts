@@ -124,6 +124,12 @@ export class VectorStore {
     this.db.exec("DELETE FROM vectors");
   }
 
+  /** Expose the underlying better-sqlite3 database for use by other modules (e.g. id counter). */
+  getDb(): Database.Database {
+    if (!this.db) throw new Error("VectorStore not initialized");
+    return this.db;
+  }
+
   close(): void {
     if (this.db) {
       this.db.close();

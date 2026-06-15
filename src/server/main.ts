@@ -60,25 +60,29 @@ export async function startServer(): Promise<ServerHandle> {
     return { app, shutdown };
   } catch (error) {
     logger.error("[start] fatal startup error:", error);
-    process.exit(1);
+    throw error;
   }
 }
 
-const _isMain = process.argv[1]?.endsWith("main.ts");
+const _isMain = process.argv[1]?.replace(/\\/g, "/").endsWith("src/server/main.ts");
 if (_isMain) {
-  startServer().then(({ shutdown }) => {
-    const graceful = async () => {
-      await shutdown();
-      process.exit(0);
-    };
-    process.on("SIGINT", graceful);
-    process.on("SIGTERM", graceful);
-    process.on("uncaughtException", (error) => {
-      logger.error("[process] uncaughtException — exiting:", error);
+  startServer()
+    .then(({ shutdown }) => {
+      const graceful = async () => {
+        await shutdown();
+        process.exit(0);
+      };
+      process.on("SIGINT", graceful);
+      process.on("SIGTERM", graceful);
+      process.on("uncaughtException", (error) => {
+        logger.error("[process] uncaughtException — exiting:", error);
+        process.exit(1);
+      });
+      process.on("unhandledRejection", (reason) => {
+        logger.error("[process] unhandledRejection:", reason);
+      });
+    })
+    .catch(() => {
       process.exit(1);
     });
-    process.on("unhandledRejection", (reason) => {
-      logger.error("[process] unhandledRejection:", reason);
-    });
-  });
 }

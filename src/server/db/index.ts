@@ -120,7 +120,7 @@ export class Database {
     this.entities = new EntityModel(this.graph, this.vectors, embedder);
     this.notes = new NoteModel(this.graph, this.vectors, embedder);
     this.plots = new PlotModel(this.graph, this.vectors, embedder);
-    this.scene = new SceneModel(this.graph);
+    this.scene = new SceneModel(this.graph, this.vectors.getDb());
   }
 
   async close(): Promise<void> {

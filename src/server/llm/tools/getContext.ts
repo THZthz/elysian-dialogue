@@ -150,7 +150,9 @@ Pull pre-built context from the world. Nothing is auto-loaded — you choose wha
       TIMELINE: buildTimeline,
       ENTITY_PROFILE: () => {
         if (!sq?.entityName || !sq?.entityLabel) {
-          return Promise.resolve("## ENTITY_PROFILE\n\nERROR: entityName and entityLabel are required when ENTITY_PROFILE is requested.");
+          return Promise.resolve(
+            "## ENTITY_PROFILE\n\nERROR: entityName and entityLabel are required when ENTITY_PROFILE is requested.",
+          );
         }
         return buildEntityProfile(sq.entityName, sq.entityLabel);
       },

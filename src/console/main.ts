@@ -117,7 +117,10 @@ function formatMessage(
   return output;
 }
 
-function formatMessages(msgs: (Message | StreamingMessage)[], streamRenderer: ReturnType<typeof createStreamRenderer>): string {
+function formatMessages(
+  msgs: (Message | StreamingMessage)[],
+  streamRenderer: ReturnType<typeof createStreamRenderer>,
+): string {
   return msgs.map((msg) => formatMessage(msg, 0, false, false, streamRenderer)).join("");
 }
 
@@ -261,7 +264,11 @@ async function main() {
     };
   }
 
-  async function postChatStream(userInput: string, hist: Message[], check?: DialogueOption["check"]) {
+  async function postChatStream(
+    userInput: string,
+    hist: Message[],
+    check?: DialogueOption["check"],
+  ) {
     state = "WAITING";
     streamingMessages = [];
     currentOptions = [];
@@ -384,7 +391,9 @@ async function main() {
 
       const currRes = await fetch(`${BASE_URL}/api/game/current`);
       if (!currRes.ok) {
-        console.error(`[resume] game/current fetch failed: ${currRes.status} ${currRes.statusText}`);
+        console.error(
+          `[resume] game/current fetch failed: ${currRes.status} ${currRes.statusText}`,
+        );
         return false;
       }
       const current = (await currRes.json()) as { id: string; options: DialogueOption[] };
@@ -561,6 +570,11 @@ function showHelp() {
   console.log(chalk.dim("  /help       ") + "  Show this help message");
   console.log(chalk.dim("  /exit       ") + "  Quit the console client");
   console.log("");
+}
+
+const _isMain = process.argv[1]?.replace(/\\/g, "/").endsWith("src/console/main.ts");
+if (_isMain) {
+  main();
 }
 
 export { main as runRepl };

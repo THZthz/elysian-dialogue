@@ -10,13 +10,9 @@ export class Logger {
   private buffer: LogEntry[] = [];
   private maxBuffer: number;
   private emitter = new EventEmitter();
-  private stdout: NodeJS.WriteStream;
-  private stderr: NodeJS.WriteStream;
 
   constructor(maxBuffer = 2000) {
     this.maxBuffer = maxBuffer;
-    this.stdout = process.stdout;
-    this.stderr = process.stderr;
   }
 
   info(...args: unknown[]): void {
@@ -58,9 +54,6 @@ export class Logger {
       this.buffer = this.buffer.slice(-this.maxBuffer);
     }
     this.emitter.emit("entry", entry);
-
-    const dest = entry.level === "info" ? this.stdout : this.stderr;
-    dest.write(entry.message + "\n");
   }
 }
 

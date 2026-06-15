@@ -2036,12 +2036,18 @@ describe("getContext ENTITY_PROFILE", () => {
   beforeAll(async () => {
     const db = getTestDb();
     try {
-      await db.entities.create("Character", { name: "EndTest", brief: "ENTITY_PROFILE test character" });
+      await db.entities.create("Character", {
+        name: "EndTest",
+        brief: "ENTITY_PROFILE test character",
+      });
     } catch {
       /* may already exist */
     }
     try {
-      await db.entities.create("Location", { name: "EndLocation", brief: "ENTITY_PROFILE test location" });
+      await db.entities.create("Location", {
+        name: "EndLocation",
+        brief: "ENTITY_PROFILE test location",
+      });
     } catch {
       /* may already exist */
     }

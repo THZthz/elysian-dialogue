@@ -18,6 +18,7 @@
 
 import { nextId } from "@/server/db/idGenerator";
 import type { LadybugClient } from "@/server/db/ladybug";
+import type Database from "better-sqlite3";
 
 export interface SceneData {
   name: string;
@@ -72,7 +73,10 @@ function parseJsonField<T>(value: unknown, fallback: T): T {
 }
 
 export class SceneModel {
-  constructor(private readonly graph: LadybugClient) {}
+  constructor(
+    private readonly graph: LadybugClient,
+    private readonly sqlite: Database.Database,
+  ) {}
 
   async getActive(): Promise<SceneData | null> {
     const result = await this.graph.query("MATCH (s:Scene) WHERE s.end_time IS NULL RETURN s");
@@ -294,7 +298,7 @@ export class SceneModel {
       );
 
       // Create placeholder
-      const phName = `scene_${await nextId(this.graph)}`;
+      const phName = `scene_${await nextId(this.sqlite)}`;
       await this.graph.query(
         `CREATE (s:Scene {
            name: $name, start_time: $end_time, end_time: NULL,

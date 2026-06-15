@@ -16,7 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import type { LadybugClient } from "@/server/db/ladybug";
+import type Database from "better-sqlite3";
 
 /**
  * 32-bit Feistel cipher – maps an unsigned integer < 2^32
@@ -90,41 +90,66 @@ function encodeBase62(n: number): string {
 }
 
 /**
- * Generate the next short ID for a given counter key.
- * Uses an :IdCounter node in Neo4j to atomically increment a counter
+ * Ensure the id_counter table exists in the SQLite database.
+ */
+function ensureCounterTable(db: Database.Database): void {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS id_counter (
+      key    TEXT PRIMARY KEY,
+      value  INTEGER NOT NULL DEFAULT 0
+    );
+  `);
+}
+
+/**
+ * Generate the next short ID for the default counter key.
+ * Uses a SQLite table to atomically increment a counter
  * and returns its base62-encoded value as a 4-character string.
  * This is used especially for :Message, since GM may reference its ID, 4 characters is easy to remember.
  */
-export async function nextId(graph: LadybugClient): Promise<string> {
-  const result = await graph.query(
-    `MERGE (c:IdCounter {_uid: 'counter'})
-       ON CREATE SET c.value = 0
-       SET c.value = c.value + 1
-       RETURN c.value AS value`,
-  );
-  const value = Number(result.rows[0]?.value);
-  if (!Number.isFinite(value)) {
-    throw new Error(`nextId: invalid counter value ${result.rows[0]?.value}`);
+export async function nextId(db: Database.Database, key = "counter"): Promise<string> {
+  ensureCounterTable(db);
+
+  const nextValue = db.transaction(() => {
+    const row = db.prepare("SELECT value FROM id_counter WHERE key = ?").get(key) as
+      | { value: number }
+      | undefined;
+    const current = row ? row.value : 0;
+    const next = current + 1;
+    db.prepare("INSERT OR REPLACE INTO id_counter (key, value) VALUES (?, ?)").run(key, next);
+    return next;
+  })();
+
+  if (!Number.isFinite(nextValue)) {
+    throw new Error(`nextId: invalid counter value ${nextValue}`);
   }
-  return encodeBase62(feistelEncrypt(value - 1, SECRET));
+  return encodeBase62(feistelEncrypt(nextValue - 1, SECRET));
 }
 
 // NOTE: Do not remove this function.
 /**
- * Generate a batch of short IDs for a given counter key. Atomically reserves `count` values and
+ * Generate a batch of short IDs for the given counter key. Atomically reserves `count` values and
  * returns them.
  */
-export async function nextIdBatch(graph: LadybugClient, count: number): Promise<string[]> {
-  const result = await graph.query(
-    `MERGE (c:IdCounter {_uid: 'counter'})
-       ON CREATE SET c.value = 0
-       SET c.value = c.value + $count
-       RETURN c.value AS value`,
-    { count },
-  );
-  const endValue = Number(result.rows[0]?.value);
+export async function nextIdBatch(
+  db: Database.Database,
+  count: number,
+  key = "counter",
+): Promise<string[]> {
+  ensureCounterTable(db);
+
+  const endValue = db.transaction(() => {
+    const row = db.prepare("SELECT value FROM id_counter WHERE key = ?").get(key) as
+      | { value: number }
+      | undefined;
+    const current = row ? row.value : 0;
+    const next = current + count;
+    db.prepare("INSERT OR REPLACE INTO id_counter (key, value) VALUES (?, ?)").run(key, next);
+    return next;
+  })();
+
   if (!Number.isFinite(endValue)) {
-    throw new Error(`nextIdBatch: invalid counter value ${result.rows[0]?.value}`);
+    throw new Error(`nextIdBatch: invalid counter value ${endValue}`);
   }
   const startValue = endValue - count;
   const ids: string[] = [];
