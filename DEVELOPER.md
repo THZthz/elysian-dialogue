@@ -1,146 +1,132 @@
 # Chorus — Developer Guide
 
-Cinematic dialogue engine with branching paths, skill checks, and LLM Game Master.
-**Stack:** TypeScript, Express, LadybugDB (graph), SQLite (vectors), DeepSeek SDK (custom, no AI SDK dependency).
+Cinematic dialogue engine: AI Game Master generates branching narrative via LLM tool-calling, streamed to an interactive terminal over SSE.
+
+**Stack:** TypeScript (ESM, `tsx` runner), Express, LadybugDB (embedded Cypher graph DB), SQLite via better-sqlite3 (vectors), custom DeepSeek SDK (`src/sdk/`), Zod v4 for tool schemas. No build step.
 
 ---
 
-## Project Overview
-
-Chorus is a cinematic dialogue engine — an AI Game Master that generates branching narrative via LLM tool-calling, streamed to an interactive terminal client through SSE. The LLM uses a LadybugDB (Cypher) database to read/write world state (characters, locations, objects, plots, notes, dispositions). Hybrid search (dense + BM25 + optional cross-encoder reranking) runs locally via llama-server.
-
----
-
-## Architecture
-
-### Two-process model
-
-**Server** (`src/server/`) — Express API (port default 3000, configurable via `CHORUS_PORT`). Serves JSON API and SSE — no static file middleware. Manages the LadybugDB graph database, vector store (better-sqlite3), LLM orchestration via custom DeepSeek SDK, and SSE event streaming.
-
-**Console** (`src/console/`) — Interactive terminal client using `@inquirer/prompts`. Connects to server via SSE, renders markdown with chalk colors. Supports resume from saved game state.
-
-### Data flow
+## Architecture (mermaid graph)
 
 ```mermaid
 flowchart TD
-    %% Main Architecture Flow
     Console["Console (SSE client)"] -->|POST /api/chat/stream| Express["Express API (port 3000)"]
     Express --> GenTurn["generateTurn()"]
     GenTurn --> Loop
 
-    %% The Generator Loop Subgraph
     subgraph Loop ["createGameLoop() — Generator Loop"]
         direction TB
         Iter["Next iteration"] --> Check{"Tool call?"}
-        
-        %% Path A: Dialogue
+
         Check -->|generateDialogueStep| Dialogue["Parse partial JSON\n→ Emit content SSE"]
         Dialogue --> Done["Turn complete"]
-        
-        %% Path B: Tools
+
         Check -->|Other tool| Execute["runTool callback\n(Cypher / search)"]
         Execute --> Enrich["enrichResult()\n(post-tool context)"]
         Enrich -->|Feed back as user msg| Iter
-        
-        %% Path C: Idle/Nudge
+
         Check -->|Storm / idle| Nudge["onIterStart:\ninject reminder"]
         Nudge --> Iter
     end
 
-    %% External Infrastructure & Services
     subgraph Infrastructure ["Data & Embedding Layer"]
         DB[("LadybugDB\n(Graph Database)")]
         Vector[("SQLite VectorStore\n+ llama-server")]
     end
 
-    %% Connections to Services
     Execute -->|Cypher| DB
     Execute -->|Embedding| Vector
     Enrich -.->|Extra entity context| Execute
 
-    %% Output
     Loop -->|Stream| SSE["TurnEventEmitter\n(SSE events to client)"]
 ```
 
-### SDK turn loop
+### How it works
 
-`generateTurn()` calls `createGameLoop()` — a generator-based turn loop:
+**Two-process model** (or combined via `src/main.ts`):
+- **Server** (`src/server/`) — Express API on port 3000. Manages LadybugDB, vector store, LLM orchestration, and SSE streaming.
+- **Console** (`src/console/`) — Terminal REPL (`@inquirer/prompts`). SSE client with chalk + markdown rendering.
 
-- **Generator loop**: Yields `LoopEvent` objects (tool_call, content_delta, usage, complete, error). Caller iterates via `for await` dispatching events to SSE.
-- **ImmutablePrefix**: System prompt + initial messages are wrapped in a prefix to enable prompt caching — the prefix hash is included in API requests so the provider only recomputes from the first differing token.
-- **Tool definitions via bridge.ts**: The 10 tool files use the SDK's built-in `Tool<ZodSchema>` type, converted to `ToolSpec` (OpenAI-compatible JSON Schema) via `toolToSpec()`. Zod v4 provides native `toJSONSchema()`. No external AI SDK dependency.
-- **Streaming dialogue**: Partial JSON from `generateDialogueStep` arguments is parsed via `partial-json` parser to emit progressive content events.
-- **Nudge via `onIterStart`**: Injects reminder messages when the GM has been processing too many iterations without calling `generateDialogueStep`.
-- **ContextManager**: Token estimation triggers automatic history folding at configurable thresholds.
-- **Message healing**: Pipeline repairs malformed messages before sending to the API.
-- **Cache diagnostics**: Exposes hit/miss tokens and estimated cost savings.
-- **Debug logging**: `DEBUG_PRINT_LLM_GENERATIONS` prints full LLM I/O to server console with chalk syntax highlighting.
+**Generator-based turn loop** (`createGameLoop()` in `src/sdk/loop.ts`):
+- Yields `LoopEvent`s (content_delta, tool_call, usage, complete, error) — caller iterates via `for await` and dispatches to SSE.
+- The LLM either emits dialogue via `generateDialogueStep` (partial JSON parsed → progressive SSE), or calls tools (Cypher, hybrid search, CRUD).
+- **ImmutablePrefix** wraps system prompt + initial messages for prompt caching (prefix hash sent to API).
+- **ContextManager** triggers history folding at configurable token thresholds.
+- **Nudge** via `onIterStart` injects reminders when GM stalls without producing dialogue.
+- **Message healing** repairs malformed messages before API calls.
+- **Post-tool enrichment** (`enrichResult()`) injects entity context into tool results without extra API calls.
 
-### LLM tool system
+**10 LLM tools** (`src/server/llm/tools/`):
 
-The GM is given 10 tools, each with a specific responsibility:
+| Tool                   | Purpose                                                    |
+|------------------------|------------------------------------------------------------|
+| `queryWorld`           | Raw Cypher queries (READ/WRITE split)                      |
+| `searchWorld`          | Hybrid vector + BM25 + optional cross-encoder rerank       |
+| `manageNode`           | Node UPSERT/DELETE with embedding updates                  |
+| `manageRelationship`   | Relationship UPSERT with JSON partial merge                |
+| `editNote`             | GM scratchpad notes (ABOUT_CHARACTER/OBJECT/LOCATION/PLOT) |
+| `editPlot`             | Story arc lifecycle, status, conditions                    |
+| `manageSchema`         | Register node/rel types (schema-first DB)                  |
+| `getContext`            | One-shot context bundle (schema, entities, relationships)  |
+| `generateDialogueStep` | Streaming dialogue + player options output                 |
+| `manageScene`          | Scene transitions, time tracking, location changes         |
 
-| Tool                   | Purpose                                                                                 |
-|------------------------|-----------------------------------------------------------------------------------------|
-| `queryWorld`           | Raw Cypher queries (multi-hop traversals, aggregations, bulk ops) with READ/WRITE split |
-| `searchWorld`          | Hybrid vector + BM25 + optional rerank search                                           |
-| `manageNode`           | Node UPSERT / DELETE with embedding updates and JSON partial merge                      |
-| `manageRelationship`   | Relationship UPSERT (auto-detects create vs update, JSON partial merge)                 |
-| `editNote`             | GM scratchpad notes (ABOUT_CHARACTER/OBJECT/LOCATION/SCENE/PLOT)                        |
-| `editPlot`             | Story arc management with status lifecycle and conditions                               |
-| `manageSchema`         | Register new node/rel types (must run before data insertion)                            |
-| `getContext`           | One-shot context bundle (schema dump, entity summaries, relationship dump)              |
-| `generateDialogueStep` | Streaming output: produces messages and dialogue options for the player                 |
-| `manageScene`          | Scene transitions with time tracking, location/character changes                        |
+**Key tech choices:**
+- **LadybugDB** — embedded, schema-first Cypher graph DB. Nodes/rels registered before insert. No APOC, single-label nodes, `id()` not `elementId()`. Cypher cookbook in system prompt (`src/server/llm/prompt.ts`).
+- **Vector search** — `llama-server` (Qwen3-Embedding-0.6B, port 8080) + brute-force cosine in SQLite. Optional reranker (Qwen3-Reranker-0.6B, port 8081). 3-way RRF fusion: name dense + content dense + BM25+ sparse.
+- **Custom SDK** — no AI SDK dependency for core LLM loop. `Tool<ZodSchema>` → `ToolSpec` conversion via `toolToSpec()` using Zod v4 native `toJSONSchema()`.
+- **IDs** — Feistel cipher (32-bit) + base62 → 4-char human-readable IDs (e.g. `"aB3k"`).
+- **Time** — `day * 48 + half_hour` for half-hour granularity. Relationships have `created_at`/`valid_at`; never deleted, only ended.
+- **Stories** — TOML files in `src/server/stories/` seed the graph idempotently at startup. Active: `express-cult`.
 
-### Tool result enrichment
+---
 
-After tool execution, results pass through `enrichResult()` (`src/server/llm/enrichment.ts`) which adds entity context and disposition data for `manageNode`, `manageRelationship`, `queryWorld`, and `searchWorld`. This gives the LLM richer situational awareness without extra API calls.
-
-### File map
+## File map (ASCII graph)
 
 ```
 src/
-├── console/                        # REPL client
-│   ├── main.ts                     # Entry, SSE listener, chalk rendering, REPL loop
+├── main.ts                         # Combined server + console entry
+│
+├── console/                        # Terminal REPL client
+│   ├── main.ts                     # SSE listener, chalk rendering, REPL loop
 │   ├── SseClient.ts                # SSE stream parser
 │   └── markdown.ts                 # Terminal markdown rendering
 │
 ├── server/
-│   ├── main.ts                     # Express entry (default port 3000)
-│   ├── api.ts                      # Routes: /chat/stream, /history, /reset, /checkpoints, /game/current, /checkpoint/restore/:turnNumber, /debug/tools/*
+│   ├── main.ts                     # Express entry (port 3000)
+│   ├── api.ts                      # Routes: /chat/stream, /history, /reset, checkpoints, debug
 │   ├── validation.ts               # Zod schemas for API input
+│   ├── logger.ts                   # In-memory ring-buffer logger
 │   │
 │   ├── db/                         # Persistence (LadybugDB + SQLite)
-│   │   ├── index.ts                # Database singleton facade (graph, vectors, schema, models)
-│   │   ├── ladybug.ts              # LadybugDB client wrapper (Cypher queries)
+│   │   ├── index.ts                # Database singleton facade
+│   │   ├── ladybug.ts              # LadybugDB client wrapper
 │   │   ├── vectorstore.ts          # SQLite-backed vector store (brute-force cosine)
-│   │   ├── schema.ts               # SchemaRegistry: node/rel DDL, embedding text, search helpers
-│   │   ├── checkpoint.ts           # CheckpointManager: turn-level save/restore (file copy)
+│   │   ├── schema.ts               # SchemaRegistry: DDL, embedding text, search helpers
+│   │   ├── checkpoint.ts           # CheckpointManager: turn-level save/restore
 │   │   ├── idGenerator.ts          # Short ID generation (Feistel cipher + base62)
-│   │   ├── utils.ts                # Time formatting (day/half-hour → human-readable)
+│   │   ├── utils.ts                # Time formatting helpers
 │   │   └── models/                 # Domain models
-│   │       ├── entities.ts         # EntityModel: Character/Object/Location CRUD + embedding
-│   │       ├── plots.ts            # PlotModel: lifecycle, branching, flags, progression
-│   │       ├── notes.ts            # NoteModel: GM notes with entity/scene/plot linking
-│   │       ├── messages.ts         # MessageModel: GM turn message persistence
-│   │       └── scene.ts            # SceneModel: scene lifecycle, log append, history, chaining
+│   │       ├── entities.ts         # Character/Object/Location CRUD + embedding
+│   │       ├── plots.ts            # Plot lifecycle, branching, progression
+│   │       ├── notes.ts            # GM notes with entity/scene/plot linking
+│   │       └── scene.ts            # Scene lifecycle, log, history
 │   │
 │   ├── search/                     # In-process hybrid vector search
-│   │   ├── hybridSearch.ts         # 3-way RRF fusion (name dense + content dense + sparse)
+│   │   ├── hybridSearch.ts         # 3-way RRF fusion (name + content dense + sparse)
 │   │   ├── embedder.ts             # llama-server client (Qwen3-Embedding-0.6B)
-│   │   ├── bm25.ts                 # BM25+ keyword scorer (English-only, no CJK)
+│   │   ├── bm25.ts                 # BM25+ keyword scorer (English-only)
 │   │   ├── sparseEncoder.ts        # FNV-1a token hashing for sparse retrieval
-│   │   └── reranker.ts             # Optional cross-encoder rerank (separate llama-server)
+│   │   └── reranker.ts             # Optional cross-encoder rerank
 │   │
 │   ├── llm/                        # Game Master AI
-│   │   ├── index.ts                # generateTurn(): creates game loop, emits SSE, persists
-│   │   ├── prompt.ts               # System prompt: toolbox, turn rhythm, memory, plots, Cypher cookbook
+│   │   ├── index.ts                # generateTurn(): creates loop, emits SSE, persists
+│   │   ├── prompt.ts               # System prompt (toolbox, rhythm, memory, Cypher cookbook)
 │   │   ├── events.ts               # TurnEventEmitter — SSE event emission
-│   │   ├── sceneContext.ts          # Builds scene context, entity briefs, plot trees
-│   │   ├── enrichment.ts           # Post-tool result enrichment (entity context injection)
-│   │   ├── rollSkillCheck.ts       # 2d6 + stat vs difficulty resolution + condition evaluation
-│   │   └── tools/                  # LLM tool implementations (10 tools + shared.ts)
+│   │   ├── sceneContext.ts          # Scene context, entity briefs, plot trees
+│   │   ├── enrichment.ts           # Post-tool result enrichment
+│   │   ├── rollSkillCheck.ts       # 2d6 + stat vs difficulty resolution
+│   │   └── tools/                  # 10 LLM tools + shared helpers
 │   │       ├── queryWorld.ts
 │   │       ├── searchWorld.ts
 │   │       ├── manageNode.ts
@@ -151,88 +137,74 @@ src/
 │   │       ├── getContext.ts
 │   │       ├── generateDialogueStep.ts
 │   │       ├── manageScene.ts
-│   │       └── shared.ts           # wrapSafe, checkText (CJK filter), validateAndExecute
+│   │       └── shared.ts
 │   │
 │   └── stories/                    # World seeding (TOML)
-│       ├── index.ts                # Active story selection (currently express-cult)
-│       ├── seed.ts                 # seedDatabase(): idempotent seed via domain models
+│       ├── index.ts                # Active story selection
+│       ├── seed.ts                 # Idempotent seed via domain models
 │       ├── types.ts                # TOML format types
-│       ├── glass-cage.toml         # Seed story: Glass Cage
-│       └── express-cult.toml       # Seed story: Express Cult (active)
+│       ├── glass-cage.toml
+│       └── express-cult.toml       # Active
 │
 ├── shared/                         # Shared constants & types
-│   ├── constants.ts                # TOOL_NAMES, SKILL_NAMES, DEBUG_PRINT_LLM_GENERATIONS
+│   ├── constants.ts                # TOOL_NAMES, SKILL_NAMES, debug flags
 │   ├── events.ts                   # SSE event type definitions
 │   ├── sse.ts                      # SSE formatting helpers
-│   ├── colors.ts                   # Chalk wrappers for console output
-│   └── highlight.ts               # JSON/markdown syntax highlighting (cli-highlight)
+│   ├── colors.ts                   # Chalk wrappers
+│   └── highlight.ts               # JSON/markdown syntax highlighting
 │
-├── sdk/                            # DeepSeek API SDK (replaces AI SDK providers)
-│   ├── types.ts                    # Shared types: ChatMessage, ToolSpec, Usage, LoopEvent
+├── sdk/                            # Custom DeepSeek API SDK
+│   ├── types.ts                    # ChatMessage, ToolSpec, Usage, LoopEvent, etc.
 │   ├── client.ts                   # DeepSeekClient — HTTP, auth, SSE parsing
 │   ├── prefix.ts                   # ImmutablePrefix — cacheable request prefix
 │   ├── log.ts                      # AppendOnlyLog — message history + JSONL persistence
 │   ├── healing.ts                  # Message healing pipeline
 │   ├── diagnostics.ts              # Cache telemetry
 │   ├── context.ts                  # ContextManager — token estimation, fold decisions
+│   ├── tokenizer.ts                # Token estimation utilities
 │   ├── loop.ts                     # createGameLoop() — generator turn loop
 │   ├── bridge.ts                   # Tool() → ToolSpec converter (Zod → JSON Schema)
 │   └── index.ts                    # Re-exports
 │
 └── types/                          # Frontend types
-    └── dialogue.ts                 # Message, DialogueOption
+    └── dialogue.ts                 # Message, DialogueOption, SpeakerType
 ```
 
-### Database: LadybugDB (not Neo4j)
+---
 
-This project uses **LadybugDB** (`@ladybugdb/core`), an embedded, schema-first, strongly-typed Cypher database. Critical differences from Neo4j:
+## Tests
 
-- **Schema-first**: every node label and relationship type must be registered as a table (`CREATE NODE TABLE` / `CREATE REL TABLE`) before inserting data
-- **No APOC**: use `CALL show_tables()`, `CALL show_xxx()` instead of `SHOW` commands
-- **`id()` not `elementId()`**, **`label()` not `labels()`** (single label only), **`current_timestamp()` not `datetime()`**
-- **Walk semantics** for pattern matching (repeated edges allowed). Use `TRAIL`/`ACYCLIC` path modifiers or `is_trail()`/`is_acyclic()` to constrain
-- **Variable-length paths require upper bound** (defaults to 30)
-- **`null = null` → `NULL`** (not `true`), use `IS NULL` / `IS NOT NULL`
-- No `FOREACH` — use `UNWIND` instead
-- No `REMOVE` — use `SET n.prop = NULL` to delete properties
+```
+tests/
+├── helpers.ts                      # Test DB setup/teardown, embedder stub (4-dim)
+├── unit/
+│   ├── sdk/                        # context, diagnostics, healing, log, prefix, usage
+│   ├── hybridSearch.test.ts
+│   ├── logger.test.ts
+│   ├── schema.test.ts
+│   └── vectorstore.test.ts
+└── integration/
+    ├── sdk/loop.test.ts            # SDK loop integration
+    ├── tools.test.ts               # All 10 LLM tools
+    ├── checkpoint.test.ts
+    ├── entity-crud.test.ts
+    ├── note-model.test.ts
+    ├── plot-model.test.ts
+    └── scene-model.test.ts
+```
 
-The full Cypher cookbook is embedded in the system prompt at `src/server/llm/prompt.ts`. Read `CYPHER.md` for more details.
+- **Runner:** `vitest` — sequential (`fileParallelism: false`), `testTimeout: 30000`.
+- **Isolation:** temporary LadybugDB + SQLite per test via `os.tmpdir()`.
+- **Stubs:** 4-dimensional embedder when llama-server unavailable.
 
-### Vector search pipeline
+---
 
-1. `llama-server` (port 8080) provides embeddings via `Qwen3-Embedding-0.6B`
-2. Optionally, a second `llama-server` (port 8081) provides cross-encoder reranking via `Qwen3-Reranker-0.6B`
-3. `VectorStore` (better-sqlite3) stores vectors locally with `(node_type, kind)` filtering
-4. `HybridSearcher` fuses dense cosine + BM25+ via RRF (3-way: name dense, content dense, sparse), optionally reranks top candidates
+## Running
 
-### ID generation
-
-Entity IDs use a Feistel cipher (32-bit) + base62 encoding to produce short, human-readable 4-character IDs (e.g., `"aB3k"`). An `:IdCounter` node in LadybugDB atomically increments counters for uniqueness. Used primarily for messages so the GM can reference them easily.
-
-### Skill checks
-
-The `rollSkillCheck.ts` module handles 2d6 + stat bonus vs. difficulty resolution. Condition expressions (from plot branching) are evaluated via a whitelisted character set + `Function` constructor — no `eval()`. Currently the system always succeeds (known TODO), pending a proper extension system.
-
-### Story seeding
-
-Stories are defined as TOML files in `src/server/stories/`. The active story is set in `src/server/stories/index.ts` (`ACTIVE_SEED_STORY`). Seeding populates the graph with characters, locations, objects, plots, notes, and relationships. The story's setting and tone descriptions are injected into the system prompt via template variables. Currently two stories: `glass-cage` and `express-cult` (active).
-
-### Time representation
-
-In-game time uses the formula `day * 48 + half_hour` (48 half-hours per day). Day 1 at 08:00 = `1 * 48 + 16 = 64`. Relationships have `created_at` (birth) and `valid_at` (death, NULL = still active) — never deleted, only ended.
-
-### Test infrastructure
-
-- Tests use temporary directories (`os.tmpdir()`), isolated LadybugDB + SQLite per test
-- `tests/helpers.ts` provides `setupTestDb()`, `teardownTestDb()`, `resetDb()`, `exec()`
-- Embedder stub (4-dimensional) used when llama-server is unavailable
-- `fileParallelism: false` — tests run sequentially (shared global `Database` singleton)
-- `testTimeout: 30000` — some integration tests need this for DB operations
-- `tests/unit/sdk/` — unit tests for SDK modules (context, diagnostics, healing, log, prefix, usage)
-- `tests/integration/sdk/loop.test.ts` — SDK loop integration tests
-- `tests/integration/tools.test.ts` — comprehensive tests for all 10 LLM tools
-- `tests/scenarios/` — scenario-level tests (planned, directory is empty)
-
-### License
-
-AGPLv3 — see header in source files.
+```bash
+npm start           # Both server + console in one process, this is preferred
+npm test            # Full test suite
+npm run lint        # ESLint + tsc --noEmit
+npm run server      # Express only (port 3000, or $CHORUS_PORT)
+npm run console     # Terminal client (connects to running server)
+```

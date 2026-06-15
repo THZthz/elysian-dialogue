@@ -99,7 +99,7 @@ Adjust a scene. Defaults to the active scene if \`scene_name\` is omitted.
 - \`end_hour\`: Optional. Hour in 24h with optional .5 for half-past. Close the scene at this time. Creates a placeholder for the next scene.
 
 ## READ
-Get information about a scene. Defaults to the active scene if \`scene_name\` is omitted.
+Always use this tool to get information about a scene. Defaults to the active scene if \`scene_name\` is omitted.
 - \`scene_name\`: Optional. Target a specific scene by name. If omitted, returns the active scene.
 Returns: scene name, time, location, characters, and log entry count.
 
