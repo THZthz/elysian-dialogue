@@ -59,17 +59,13 @@ const inputSchema = z.object({
 export const queryWorld: Tool<typeof inputSchema> = {
   name: TOOL_NAMES.QUERY_WORLD,
   description: `
-## Brief
 READ or WRITE the world archive using Cypher.
 
-READ — MATCH...RETURN. Use READ for: entities at other locations, message history, scene history, or entity details not shown in the scene context. Auto-limited to 50 rows.
+READ — MATCH...RETURN. Use for entities, message/scene history, or details not in scene context. Auto-limited to 50 rows. Internal "_"-prefixed properties are hidden from results.
 
-WRITE — CREATE, MERGE, SET, DELETE. The archive IS the world — if you don't WRITE it, it didn't happen. Every world mutation you narrate MUST be persisted. Use MERGE for upserts, SET for property updates, DETACH DELETE for removal. Must include WHERE when deleting. Register new types via manageSchema before creating nodes/relationships with new types in your Cypher.
+WRITE — CREATE, MERGE, SET, DELETE. The archive IS the world — if you don't WRITE it, it didn't happen. Use MERGE for upserts, SET for updates, DETACH DELETE for removal. Must include WHERE when deleting. Register new types via \`${TOOL_NAMES.MANAGE_SCHEMA}\` before using new labels in Cypher.
 
-Internal properties prefixed with "_" are hidden from READ results.
-
-## Forbidden
-- Do not call this tool multiple times when the queries are similar in structure, combine queries.
+Do not call multiple times for similar queries — combine them.
 `.trim(),
   schema: inputSchema,
   execute: wrapSafe(async (args: z.infer<typeof inputSchema>) => {

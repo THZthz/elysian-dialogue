@@ -98,18 +98,7 @@ const inputSchema = z.object({
 
 export const searchWorld: Tool<typeof inputSchema> = {
   name: TOOL_NAMES.SEARCH_WORLD,
-  description: `
-## Brief
-Search the archive by semantic MEANING (vector similarity search with reranking).
-
-Use \`target\` to restrict to only nodes or only relationships. Pass one or more domains (node labels or relationship types) via \`domains\` to scope the search (e.g. ["Character", "Location", "Message"], ["CHARACTER_AT"]). Omit to search all searchable types.
-
-In most cases, use of \`${TOOL_NAMES.QUERY_WORLD}\` is preferred to exploit the advantage of graph database.
-
-## Forbidden
-- Do not combine multiple search attempts into a single call.
-- Do not forget to use parameter \`limit\` wisely, if the search should be exact, set it to 1.
-`.trim(),
+  description: `Semantic vector search with reranking. Prefer \`${TOOL_NAMES.QUERY_WORLD}\` for structured queries. Use \`target\` to restrict to NODE or RELATIONSHIP. Pass \`domains\` to scope by type (e.g. ["Character", "Location"]). Omit to search all. Set \`limit\` to 1 for exact lookups.`,
   schema: inputSchema,
   execute: wrapSafe(async (args: z.infer<typeof inputSchema>) => {
     const target = args.target ?? ["NODE", "RELATIONSHIP"];

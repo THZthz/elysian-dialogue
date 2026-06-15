@@ -102,17 +102,14 @@ function getMatchValues(match: Record<string, string | string[]>): string[] {
 export const manageNode: Tool<typeof inputSchema> = {
   name: TOOL_NAMES.MANAGE_NODE,
   description: `
-## Brief
-READ, UPSERT, or DELETE nodes. UPSERT creates-or-updates a single node with JSON partial merge and embedding updates. DELETE removes a node and all its relationships. READ looks up one or more nodes by a single property key without writing Cypher.
+READ, UPSERT, or DELETE nodes.
 
 ## Actions
-- **READ**: Look up nodes by a single match key. Accepts array values for batch lookup (e.g. { name: ["Player", "Bartender"] }). Returns all visible properties for each match. Does NOT route through the entity model — uses raw Cypher for efficiency on batch reads.
-- **UPSERT**: Create-or-update a single node. If it exists, properties are partially updated (JSON partial merge). If not, it's created using both \`match\` keys and \`properties\`.
+- **READ**: Look up nodes by a single match key. Accepts array values for batch lookup. Returns all visible properties. Uses raw Cypher (not entity model).
+- **UPSERT**: Create-or-update a single node. Existing: partial update (JSON partial merge). New: created using \`match\` keys + \`properties\`.
 - **DELETE**: Remove a node and all its relationships (DETACH DELETE).
 
-## Node types
-Can be used for Character, Object, Location, Disposition, and any GM-defined node type registered by \`${TOOL_NAMES.MANAGE_SCHEMA}\`. It is not recommended to use this tool to directly edit Note or Plot (use \`${TOOL_NAMES.EDIT_NOTE}\` / \`${TOOL_NAMES.EDIT_PLOT}\` instead).
-\`\`\`
+Works on Character, Object, Location, Disposition, and GM-defined types. Do not use for Note/Plot — use \`${TOOL_NAMES.EDIT_NOTE}\` / \`${TOOL_NAMES.EDIT_PLOT}\` instead.
 `.trim(),
   schema: inputSchema,
   execute: wrapSafe(async (args: z.infer<typeof inputSchema>) => {
@@ -128,11 +125,11 @@ Can be used for Character, Object, Location, Disposition, and any GM-defined nod
         .map((n) => n.name),
     );
     if (!nodeDef) {
-      return `ERROR: Node label "${args.nodeLabel}" is not registered. Available labels: ${[...available].join(", ")}.`;
+      return `ERROR: Node label \`${args.nodeLabel}\` is not registered. Available labels: ${[...available].join(", ")}.`;
     }
 
     if (!available.has(args.nodeLabel)) {
-      return `ERROR: Node label "${args.nodeLabel}" is internal and cannot be written to.`;
+      return `ERROR: Node label \`${args.nodeLabel}\` is internal and cannot be written to.`;
     }
 
     // Build allowed property names from the schema.

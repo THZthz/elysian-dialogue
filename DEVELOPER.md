@@ -67,7 +67,7 @@ flowchart TD
 | `editNote`             | GM scratchpad notes (ABOUT_CHARACTER/OBJECT/LOCATION/PLOT) |
 | `editPlot`             | Story arc lifecycle, status, conditions                    |
 | `manageSchema`         | Register node/rel types (schema-first DB)                  |
-| `getContext`            | One-shot context bundle (schema, entities, relationships)  |
+| `getContext`           | One-shot context bundle (schema, entities, relationships)  |
 | `generateDialogueStep` | Streaming dialogue + player options output                 |
 | `manageScene`          | Scene transitions, time tracking, location changes         |
 

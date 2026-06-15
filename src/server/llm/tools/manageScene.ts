@@ -76,36 +76,21 @@ export function createManageSceneTool(events: EventEmitter): Tool<typeof inputSc
   return {
     name: TOOL_NAMES.MANAGE_SCENE,
     description: `
-## Brief
-Manage scene transitions. CREATE starts a new scene, MODIFY adjusts or closes the active scene, READ returns info about the active scene, FIX confirms pending creation after discrepancies.
+Manage scene transitions.
 
 ## CREATE
-Start a new scene. Before creating, validates that all specified characters have active CHARACTER_AT pointing to the given location. If discrepancies are found (characters not at the location, or extra characters at the location not in the list), the scene is NOT created. Instead the parameters are held pending and the discrepancies are reported. Call FIX to apply automatic CHARACTER_AT fixes and continue.
-- \`scene_name\`: Mandatory. Unique name for this scene (e.g. "inn_arrival", "forest_ambush").
-- \`start_day\`: Mandatory. Integer day number. Required for CREATE.
-- \`start_hour\`: Mandatory. Hour in 24h with optional .5 for half-past (e.g. 9, 14.5). Required for CREATE.
-- \`location_name\`: Mandatory. Must match an existing Location.name.
-- \`characters\`: Mandatory. Array of character names. Must include the player's name.
-- \`reason\`: Mandatory. Why the scene is changing (e.g. "Player traveled to the forest").
+Start a new scene. Validates that all specified characters have active CHARACTER_AT pointing to the given location. If discrepancies are found (characters not at location, extra characters at location not in list), the scene is NOT created — parameters are held pending and discrepancies reported. Call FIX to apply automatic CHARACTER_AT fixes and continue.
 
 ## FIX
-Confirm the pending CREATE. Applies automatic CHARACTER_AT fixes (update character locations) and creates the scene with the previously held parameters. Call after reviewing the discrepancies reported by CREATE. Has no parameters.
+Confirm a pending CREATE. Applies automatic CHARACTER_AT fixes and creates the scene. No parameters. Call after reviewing CREATE discrepancy report.
 
 ## MODIFY
-Adjust a scene. Defaults to the active scene if \`scene_name\` is omitted.
-- \`scene_name\`: Optional. Target a specific scene by name. If omitted, modifies the active scene.
-- \`add_characters\`: Optional. Append characters to the scene's character list.
-- \`end_day\`: Optional. Integer day number to close the scene at.
-- \`end_hour\`: Optional. Hour in 24h with optional .5 for half-past. Close the scene at this time. Creates a placeholder for the next scene.
+Adjust or close a scene. Defaults to the active scene if \`scene_name\` omitted. Use \`add_characters\` to append, \`end_day\` + \`end_hour\` to close (creates placeholder for next scene).
 
 ## READ
-Always use this tool to get information about a scene. Defaults to the active scene if \`scene_name\` is omitted.
-- \`scene_name\`: Optional. Target a specific scene by name. If omitted, returns the active scene.
-Returns: scene name, time, location, characters, and log entry count.
+Return active scene info (name, time, location, characters, log entries). Defaults to active scene.
 
-## Inner details
-At most one Scene has \`end_time = NULL\` (the active scene). When CREATE is called, the old scene's
-\`end_time\` is automatically set when you do not manually MODIFY it, and a NEXT_SCENE relationship links them.
+At most one scene has \`end_time = NULL\` (active). When CREATE is called, the old scene's \`end_time\` is auto-set (unless manually MODIFY'd), linked via NEXT_SCENE.
 `.trim(),
     schema: inputSchema,
     execute: (() => {

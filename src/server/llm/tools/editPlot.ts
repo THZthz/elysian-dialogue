@@ -28,17 +28,15 @@ const PLOT_ACTIONS = ["CREATE", "UPDATE", "DELETE"] as const;
 // NB: .nullable() on optional fields prevents Zod rejection when the LLM
 // outputs "field": null for fields it intends to omit.
 const inputSchema = z.object({
-  plotName: z.string().describe("Plot name (used as lookup key)."),
+  plotName: z.string().describe("The unique name of the plot."),
   action: z.enum(PLOT_ACTIONS).default("CREATE").describe("Action taken for the plot."),
   description: z
     .string()
     .nullable()
     .optional()
-    .describe(
-      "Plot description. CREATE: required. UPDATE: optional (set to overwrite — should be rare). DELETE: omit.",
-    ),
+    .describe("Plot description."),
   brief: z.string().nullable().optional().describe("Short one-line summary of the plot."),
-  status: z.enum(PLOT_STATUSES).nullable().optional().describe("Plot status."),
+  status: z.enum(PLOT_STATUSES).nullable().optional().describe("Plot status, PENDING → ACTIVE → COMPLETED / ABANDONED."),
   triggerCondition: z
     .string()
     .nullable()
@@ -68,17 +66,7 @@ const inputSchema = z.object({
 
 export const editPlot: Tool<typeof inputSchema> = {
   name: TOOL_NAMES.EDIT_PLOT,
-  description: `
-## Brief
-Manage narrative arcs — CREATE, UPDATE (partial overwrite), or DELETE a plot.
-
-## Status flow
-> PENDING → ACTIVE → COMPLETED / ABANDONED
-Status transitions auto-wire scene relationships (STARTED_AT, COMPLETED_AT) to the active Scene — just set the \`status\` parameter.
-
-## Flags and branches
-Use \`setFlag\` or \`removeFlags\` to track story milestones within a plot. Use \`branchTo\` or \`unbranch\` to connect or disconnect child plots. A branch describes a course of action or allegiance, not a single line of dialogue.
-`.trim(),
+  description: `CREATE, UPDATE (partial overwrite), or DELETE a plot. Plots is modeled as multiple trees. Use \`status\` to transition the plot status and auto-wire scene relationships (STARTED_AT, COMPLETED_AT) to the active Scene. Use \`setFlag\` or \`removeFlags\` to track story milestones within a plot. Use \`branchTo\` or \`unbranch\` to connect or disconnect child plots.`,
   schema: inputSchema,
   execute: wrapSafe(async (args: z.infer<typeof inputSchema>) => {
     const db = Database.getExisting();
@@ -88,8 +76,9 @@ Use \`setFlag\` or \`removeFlags\` to track story milestones within a plot. Use 
     }
 
     if (args.action == "CREATE") {
-      if (!args.description)
+      if (!args.description) {
         return `ERROR: Parameter \`description\` is required for action CREATE.`;
+      }
       await db.plots.create(
         args.plotName,
         args.description,
@@ -97,18 +86,18 @@ Use \`setFlag\` or \`removeFlags\` to track story milestones within a plot. Use 
         args.status ?? "PENDING",
         args.triggerCondition ?? undefined,
       );
-      return `Plot "${args.plotName}" (status: ${args.status ?? "PENDING"}) is successfully created.`;
+      return `\`(:Plot {name: "${args.plotName}", status: "${args.status ?? "PENDING"}"})\` is successfully created.`;
     }
 
     if (args.action == "DELETE") {
       const existing = await db.plots.getByName(args.plotName);
-      if (!existing) return `ERROR: Plot "${args.plotName}" is not found.`;
+      if (!existing) return `ERROR: \`(:Plot {name: "${args.plotName}"})\` is not found.`;
       await db.plots.delete(args.plotName);
-      return `Plot "${args.plotName}" is successfully deleted.`;
+      return `\`(:Plot {name: "${args.plotName}"})\` is successfully deleted.`;
     }
 
     const existing = await db.plots.getByName(args.plotName);
-    if (!existing) return `ERROR: Plot "${args.plotName}" is not found.`;
+    if (!existing) return `ERROR: \`(:Plot {name: "${args.plotName}"})\` is not found.`;
 
     const oldStatus = existing.status;
     const newStatus = (args.status ?? oldStatus) as typeof oldStatus;
@@ -171,6 +160,6 @@ Use \`setFlag\` or \`removeFlags\` to track story milestones within a plot. Use 
     }
 
     const summary = changes.length > 0 ? ` (${changes.join(", ")})` : "";
-    return `Plot "${args.plotName}" is successfully updated${summary}.`;
+    return `\`(:Plot {name: "${args.plotName}"})\` is successfully updated${summary}.`;
   }, TOOL_NAMES.EDIT_PLOT),
 };

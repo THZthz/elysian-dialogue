@@ -79,24 +79,15 @@ const inputSchema = z.object({
 export const manageSchema: Tool<typeof inputSchema> = {
   name: TOOL_NAMES.MANAGE_SCHEMA,
   description: `
-## Brief
-Register or unregister node types and relationship types in the world schema.
+Register or unregister node and relationship types. Must be called BEFORE creating nodes/relationships with new types. PREDEFINED types (Character, Object, Location, Plot, Note, Disposition, etc.) are already registered.
 
-Must be called BEFORE creating a node with a new label or a relationship with a new type. PREDEFINED types (Character, Object, Location, Plot, Note, Disposition, etc.) are already registered — you don't need to re-register them.
-
-Node types — provide name (PascalCase) + optional property schema with tags.
-
-Relationship types — provide name (UPPER_SNAKE) + required sourceLabel/targetLabel to constrain which node types can sit at each endpoint. Tags: same as node tags except 'unique' (not supported for relationship properties).
+Node types: name (PascalCase) + optional property schema.
+Relationship types: name (UPPER_SNAKE) + required sourceLabel/targetLabel.
 
 Only GM_DEFINED types can be unregistered. PREDEFINED and INTERNAL types are permanent.
 
-## Tags dictionary
-- \`string\`: normal string
-- \`number\`: normal number
-- \`number[]\`: list of numbers
-- \`json\`: Saved as a JSON string. But when used in tools supporting partial update, will automatically unfold the JSON string property to avoid the whole string being overwritten
-- \`embedded\`: property text will be embedded into the dense vector for semantic search and used in the reranker
-- \`unique\`: will create a unique constraint on this property, not available for relationship
+## Property tags
+\`string\` | \`number\` | \`number[]\` | \`json\` (stored as JSON string, auto-unfolded on partial update) | \`embedded\` (dense-vector indexed for search) | \`unique\` (nodes only, creates uniqueness constraint)
 `.trim(),
   schema: inputSchema,
   execute: wrapSafe(async (args: z.infer<typeof inputSchema>) => {

@@ -25,20 +25,20 @@ import { TOOL_NAMES } from "@/shared/constants";
 const NOTE_ACTIONS = ["CREATE", "UPDATE", "DELETE"] as const;
 
 const inputSchema = z.object({
-  noteName: z.string().describe("The unique name of the note (used as lookup key)."),
+  noteName: z.string().describe("The unique name of the note."),
   action: z.enum(NOTE_ACTIONS).default("CREATE").describe("Action taken for the note."),
   // .nullable() is needed because LLMs often output null for omitted optional fields
   content: z
     .string()
     .nullable()
     .optional()
-    .describe(`Note text. CREATE: required. UPDATE: optional (set to overwrite). DELETE: omit.`),
+    .describe("Note content."),
   aboutEntities: z
     .array(z.string())
     .nullable()
     .optional()
     .describe(
-      "Entity names to link this note to. Replaces existing ABOUT_CHARACTER / ABOUT_OBJECT / ABOUT_LOCATION links — pass [] to clear all.",
+      "Entity (Character/Object/Location) names to link this note to. Replaces existing ABOUT_CHARACTER / ABOUT_OBJECT / ABOUT_LOCATION links — pass [] to clear all.",
     ),
   aboutScenes: z
     .array(z.string())
@@ -58,25 +58,16 @@ const inputSchema = z.object({
 
 export const editNote: Tool<typeof inputSchema> = {
   name: TOOL_NAMES.EDIT_NOTE,
-  description: `
-## Brief
-Your scratchpad — CREATE, UPDATE (partial overwrite), or DELETE a note. Notes can be linked to entities via \`aboutEntities\` (ABOUT_CHARACTER / ABOUT_OBJECT / ABOUT_LOCATION), scenes via \`aboutScenes\` (ABOUT_SCENE), and plots via \`aboutPlots\` (ABOUT_PLOT) for cross-referencing to the world, timeline, and story arcs.
-
-## Write a note
-Write a note when tracking a suspicion or theory, an NPC made a promise/plan/threat, a clue appeared but its meaning is unresolved, a player choice deserves future consequence, characters' biography/backstory, etc.
-
-## Search a note
-Do not readily use \`${TOOL_NAMES.SEARCH_WORLD}\`, consider relationships ABOUT_CHARACTER, ABOUT_OBJECT, ABOUT_LOCATION, ABOUT_PLOT or ABOUT_SCENE first if you have a clear target. \`${TOOL_NAMES.SEARCH_WORLD}\` often return unrelated results and will pollute your context.
-`.trim(),
+  description: `CREATE, UPDATE (partial overwrite), or DELETE a note. Write a note when tracking a unresolved threads, characters' biography/backstory, etc.`,
   schema: inputSchema,
   execute: wrapSafe(async (args: z.infer<typeof inputSchema>) => {
     const db = Database.getExisting();
 
     if (args.action == "DELETE") {
       const existing = await db.notes.getByName(args.noteName);
-      if (!existing) return `ERROR: Note "${args.noteName}" is not found.`;
+      if (!existing) return `ERROR: \`(:Note {name: "${args.noteName}"})\` is not found.`;
       await db.notes.delete(args.noteName);
-      return `Note "${args.noteName}" is successfully deleted.`;
+      return `\`(:Note {name: "${args.noteName}"})\` is successfully deleted.`;
     }
 
     if (args.action == "CREATE") {
@@ -91,11 +82,11 @@ Do not readily use \`${TOOL_NAMES.SEARCH_WORLD}\`, consider relationships ABOUT_
       if (args.aboutPlots) {
         for (const name of args.aboutPlots) await db.notes.linkToPlot(args.noteName, name);
       }
-      return `Note "${args.noteName}" is successfully created with ${args.content.length} characters (currently ${args.aboutEntities?.length ?? 0} entities linked, ${args.aboutScenes?.length ?? 0} scenes linked, ${args.aboutPlots?.length ?? 0} plots linked).`;
+      return `\`(:Note {name: "${args.noteName}"})\` is successfully created (${args.content.length} chars, currently linked to ${args.aboutEntities?.length ?? 0} entities, ${args.aboutScenes?.length ?? 0} scenes, and ${args.aboutPlots?.length ?? 0} plots).`;
     }
 
     const existing = await db.notes.getByName(args.noteName);
-    if (!existing) return `ERROR: Note "${args.noteName}" not found.`;
+    if (!existing) return `ERROR: \`(:Note {name: "${args.noteName}"})\` is not found.`;
 
     let flags = 0x0;
     // != null catches both null and undefined (LLM may output null for omitted fields).
@@ -122,10 +113,10 @@ Do not readily use \`${TOOL_NAMES.SEARCH_WORLD}\`, consider relationships ABOUT_
     }
 
     const updatedFields = [];
-    if (flags & 0x1) updatedFields.push("content");
+    if (flags & 0x1) updatedFields.push("note content");
     if (flags & 0x2) updatedFields.push("all entities links");
     if (flags & 0x4) updatedFields.push("all scenes links");
     if (flags & 0x8) updatedFields.push("all plots links");
-    return `Note "${args.noteName}" is successfully updated (overwritten ${updatedFields.join(", ")}).`;
+    return `\`(:Note {name: "${args.noteName}"})\` is successfully updated (overwritten ${updatedFields.join(", ")}).`;
   }, TOOL_NAMES.EDIT_NOTE),
 };

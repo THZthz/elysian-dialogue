@@ -37,7 +37,6 @@ const messageSchema = z.object({
     ),
   speaker: z
     .string()
-    .max(60)
     .describe(
       `Name of the speaker (e.g. 'Orin Fell' if the speaker has a clear name, 'NARRATOR' for narration, 'INSTINCT' or other inner voices if this is happen inside player's head).`,
     ),
@@ -47,8 +46,7 @@ const messageSchema = z.object({
         SpeakerType,
         "YOU" | "ROLL"
       >[],
-    )
-    .describe(""),
+    ),
   text: z
     .string()
     .max(MAX_MESSAGE_TEXT_LENGTH)
@@ -355,32 +353,27 @@ export function createGenerateDialogueStepTool(persistMessage?: PersistMessageFn
   const dialogueTool: Tool<typeof inputSchema> = {
     name: TOOL_NAMES.GENERATE_DIALOGUE,
     description: `
-## Brief
-SPEAK to the player. Each turn must include a valid call here. Once this call passes validation, your turn ends immediately — no further tool calls or text replies are needed.
-
-During correction (isCorrection: true), you may call this multiple times until validation passes — the turn continues.
-
 ## Speaker names and their type
 | type         | speaker name                   |
 |--------------|--------------------------------|
 | SYSTEM       | NARRATOR                       |
 | CHARACTER    | NPC's name                     |
-| INNER_VOICE  | skill names like LOGIC/EMPATHY |
+| INNER_VOICE  | skill names (LOGIC, EMPATHY…)  |
 | NOTIFICATION | rarely used                    |
 
 ## Inner voice personalities
-- LOGIC — cold, deductive, spots inconsistencies in arguments and mechanisms
-- RHETORIC — political, reads ideologies, loyalties, and agendas
-- EMPATHY — senses emotions, suffering; detects lies through feeling
+- LOGIC — cold deduction, spots inconsistencies
+- RHETORIC — reads ideologies, loyalties, agendas
+- EMPATHY — senses emotions, detects lies through feeling
 - PERCEPTION — notices environmental details; sees, hears, smells
-- VOLITION — willpower, sanity, moral compass; holds psyche together
-- ENDURANCE — physical stamina, pain tolerance; the body's last word
-- SORCERY — arcane intuition; senses magic, ley-lines, supernatural presences
+- VOLITION — willpower, sanity, moral compass
+- ENDURANCE — physical stamina, pain tolerance
+- SORCERY — arcane intuition; senses magic, ley-lines
 - SUGGESTION — charm, persuasion; knows what people want to hear
-- INSTINCT — primal survival sense; detects threats, urges fight-or-flight
-- MIGHT — raw strength, intimidation, brute force
-- CLOCKWORK — mechanical intuition; understands gears, steam-pressure, alchemical engines
-- ALCHEMY — appetite for transmutation; craves alchemical substances, vice, transformation
+- INSTINCT — primal survival; detects threats, fight-or-flight
+- MIGHT — raw strength, intimidation
+- CLOCKWORK — mechanical intuition; gears, steam, engines
+- ALCHEMY — transmutation; craves alchemical substances, vice
 `.trim(),
     schema: inputSchema,
     execute: async (args: DialogueArgs) => {
