@@ -7,15 +7,9 @@ $reset = "$([char]27)[0m"
 while ($true) {
     curl.exe -N -s "http://localhost:3000/api/logs/stream" 2>$null | ForEach-Object {
         if ($_ -match '^data: (.+)') {
-            $line = $matches[1] | jq -r --unbuffered '"[" + .level + "] " + "(" + (.timestamp / 1000 | strftime("%Y-%m-%d %H:%M:%S")) + ") " + .message'
-            if ($line -match '^(\[[^\]]+\]\s+\([^)]+\)\s+)') {
-                $prefix = $matches[1]
-                $message = $line.Substring($prefix.Length)
-                Write-Host "${gray}${prefix}${reset}"
-                Write-Host $message
-            } else {
-                Write-Host $line
-            }
+            # Format: [level] (timestamp)\nmessage — message starts on a new line
+            $line = $matches[1] | jq -r --unbuffered --arg gray "$gray" --arg reset "$reset" '($gray + "[" + .level + "] (" + (.timestamp/1000 | strftime("%Y-%m-%d %H:%M:%S")) + ")" + $reset + "\n" + .message)' | Out-String
+            Write-Host $line.TrimEnd()
         }
     }
     if ($LASTEXITCODE -ne 0) {
