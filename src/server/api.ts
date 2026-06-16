@@ -35,6 +35,16 @@ import type { Message, DialogueOption } from "@/types/dialogue";
 import { getContext } from "@/server/llm/tools/getContext";
 import { seedDatabase } from "@/server/stories/seed";
 import { DeepSeekError } from "@/sdk";
+import { buildSystemPrompt } from "@/server/llm/prompt";
+import { validateToolsPreset, TOOLS_PRESETS, type ToolsPreset } from "@/shared/constants";
+
+function resolvePresetFromQuery(reqQuery: any): ToolsPreset {
+  const raw = typeof reqQuery?.preset === "string" ? reqQuery.preset : undefined;
+  if (raw && (TOOLS_PRESETS as readonly string[]).includes(raw)) {
+    return raw as ToolsPreset;
+  }
+  return validateToolsPreset(process.env.TOOLS_PRESET);
+}
 
 const debugToolRegistry: Record<string, { execute: (args: any) => Promise<string> }> = {
   queryWorld: queryWorld as any,
@@ -157,16 +167,43 @@ const allTools = [
   createManageSceneTool({} as any),
 ];
 
-apiRouter.get("/debug/tools", async (_req, res) => {
-  const specs = allTools.map((t) => {
-    try {
-      return toolToSpec(t as any);
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      return { error: `Failed to convert tool: ${msg}`, name: (t as any)?.name ?? "(unnamed)" };
-    }
-  });
-  res.json(specs);
+const presetTools: Record<ToolsPreset, string[]> = {
+  full: [
+    "queryWorld", "searchWorld", "manageNode", "manageRelationship",
+    "editNote", "editPlot", "manageSchema", "getContext",
+    "generateDialogueStep", "manageScene",
+  ],
+  story: ["editNote", "editPlot", "generateDialogueStep", "manageScene"],
+  pure: ["generateDialogueStep"],
+};
+
+apiRouter.get("/debug/tools", async (req, res) => {
+  const preset = resolvePresetFromQuery(req.query);
+  const names = new Set(presetTools[preset]);
+  const specs = allTools
+    .filter((t) => names.has((t as any)?.name ?? ""))
+    .map((t) => {
+      try {
+        return toolToSpec(t as any);
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        return { error: `Failed to convert tool: ${msg}`, name: (t as any)?.name ?? "(unnamed)" };
+      }
+    });
+  res.json({ preset, tools: specs });
+});
+
+// ── Debug: render system prompt ──
+
+apiRouter.get("/debug/prompt", async (req, res) => {
+  const preset = resolvePresetFromQuery(req.query);
+  try {
+    const prompt = await buildSystemPrompt(preset);
+    res.set("Content-Type", "text/plain; charset=utf-8").send(prompt);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    res.status(500).json({ error: message });
+  }
 });
 
 // ── Debug tool invocation ──

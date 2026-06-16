@@ -52,3 +52,15 @@ export const ROLE_NAMES = {
   STORYTELLER: "Storyteller",
   SCRIBE: "Scribe",
 } as const;
+
+export const TOOLS_PRESETS = ["full", "story", "pure"] as const;
+export type ToolsPreset = (typeof TOOLS_PRESETS)[number];
+
+export const TOOLS_PRESET_DEFAULT: ToolsPreset = "full";
+
+export function validateToolsPreset(raw: string | undefined): ToolsPreset {
+  if (raw && (TOOLS_PRESETS as readonly string[]).includes(raw)) {
+    return raw as ToolsPreset;
+  }
+  return TOOLS_PRESET_DEFAULT;
+}

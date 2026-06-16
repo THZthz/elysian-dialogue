@@ -44,6 +44,8 @@ import {
   TOOL_NAMES,
   DEBUG_PRINT_LLM_GENERATIONS,
   ROLE_NAMES,
+  type ToolsPreset,
+  validateToolsPreset,
 } from "@/shared/constants";
 
 const SEP = chalk.dim("─".repeat(48));
@@ -75,25 +77,39 @@ function getDeepSeekClient(): DeepSeekClient {
   return _cachedClient;
 }
 
-export async function getPrefix(): Promise<ImmutablePrefix> {
+function resolveToolsPreset(): ToolsPreset {
+  const raw = process.env.TOOLS_PRESET;
+  const preset = validateToolsPreset(raw);
+  if (raw && preset !== raw) {
+    console.warn(`[tools-preset] Unknown TOOLS_PRESET "${raw}" — falling back to "${preset}"`);
+  }
+  return preset;
+}
+
+function getToolsForPreset(preset: ToolsPreset) {
+  switch (preset) {
+    case "full":
+      return [queryWorld, searchWorld, manageSchema, manageNode, manageRelationship, editNote, editPlot, getContext];
+    case "story":
+      return [editNote, editPlot];
+    case "pure":
+      return [];
+  }
+}
+
+export async function getPrefix(preset: ToolsPreset): Promise<ImmutablePrefix> {
   if (_cachedPrefix) return _cachedPrefix;
-  const systemPrompt = await buildSystemPrompt();
-  const dbTools = [
-    queryWorld,
-    searchWorld,
-    manageSchema,
-    manageNode,
-    manageRelationship,
-    editNote,
-    editPlot,
-    getContext,
-  ];
+  const systemPrompt = await buildSystemPrompt(preset);
+  const dbTools = getToolsForPreset(preset);
   const toolSpecs: ToolSpec[] = dbTools.map((t) => toolToSpec(t));
 
-  // Per-turn tools have factory-created state, but their schemas are static —
-  // register specs here so the LLM knows the exact parameter names.
+  // Per-turn tools: always register generateDialogueStep spec
   toolSpecs.push(toolToSpec(createGenerateDialogueStepTool().tool));
-  toolSpecs.push(toolToSpec(createManageSceneTool(null!)));
+
+  // manageScene only for full and story modes
+  if (preset !== "pure") {
+    toolSpecs.push(toolToSpec(createManageSceneTool(null!)));
+  }
 
   _cachedPrefix = new ImmutablePrefix({ system: systemPrompt, toolSpecs });
   return _cachedPrefix;
@@ -237,6 +253,9 @@ export async function generateTurn(
       }
     }
 
+    // ── Resolve tool preset ──
+    const toolsPreset = resolveToolsPreset();
+
     // ── Player action ──
     promptParts.push("## PLAYER ACTION", `The player just said/did: "${userInput}"`, "", "---", "");
 
@@ -250,23 +269,36 @@ export async function generateTurn(
 
     // ── First turn helper ──
     if (turnNumber === 1) {
-      promptParts.push(
-        "## BEGIN FIRST TURN",
-        `This is first turn, you should call \`${TOOL_NAMES.GET_CONTEXT}\` with ["SCHEMA_DUMP", "CHARACTERS_BRIEF", "LOCATIONS_BRIEF", "OBJECTS_BRIEF", "PLOTS_BRIEF", "RELATIONSHIP_DUMP"].`,
-        `Explore with \`${TOOL_NAMES.QUERY_WORLD}\`.`,
-        `Check notes/plots by \`${TOOL_NAMES.SEARCH_WORLD}\`. Search note with "Opening Scene" (limit: 1) is recommended.`,
-        `Call \`${TOOL_NAMES.GET_CONTEXT}\` with \`STORYTELLING_GUIDE\` to see the storytelling curriculum — load any guides you need before narrating.`,
-        "",
-        "---",
-        "",
-      );
+      if (toolsPreset === "full") {
+        promptParts.push(
+          "## BEGIN FIRST TURN",
+          `This is first turn, you should call \`${TOOL_NAMES.GET_CONTEXT}\` with ["SCHEMA_DUMP", "CHARACTERS_BRIEF", "LOCATIONS_BRIEF", "OBJECTS_BRIEF", "PLOTS_BRIEF", "RELATIONSHIP_DUMP"].`,
+          `Explore with \`${TOOL_NAMES.QUERY_WORLD}\`.`,
+          `Check notes/plots by \`${TOOL_NAMES.SEARCH_WORLD}\`. Search note with "Opening Scene" (limit: 1) is recommended.`,
+          `Call \`${TOOL_NAMES.GET_CONTEXT}\` with \`STORYTELLING_GUIDE\` to see the storytelling curriculum — load any guides you need before narrating.`,
+          "",
+          "---",
+          "",
+        );
+      } else if (toolsPreset === "story") {
+        promptParts.push(
+          "## BEGIN FIRST TURN",
+          "This is first turn. You are in story mode — world state is read-only.",
+          "Focus on narration. Use `generateDialogueStep` for every response.",
+          `Track threads with \`${TOOL_NAMES.EDIT_NOTE}\` and \`${TOOL_NAMES.EDIT_PLOT}\`.`,
+          "",
+          "---",
+          "",
+        );
+      }
+      // pure: no first-turn guidance needed — the model only has generateDialogueStep
     }
 
     promptParts.push("Generate the narrative response following the output format.", "");
     const promptText = promptParts.join("\n");
 
     // ── Set up SDK loop ──
-    const prefix = await getPrefix();
+    const prefix = await getPrefix(toolsPreset);
     const client = getDeepSeekClient();
     const dialogueStepTool = createGenerateDialogueStepTool();
     const manageSceneTool = createManageSceneTool(events);
@@ -317,7 +349,7 @@ export async function generateTurn(
         nudgeCount++;
         return `BLOCKED: You must call ${TOOL_NAMES.GENERATE_DIALOGUE} to speak to the player before ending your turn. Text replies are not shown to the player — only ${TOOL_NAMES.GENERATE_DIALOGUE} output is visible. Call ${TOOL_NAMES.GENERATE_DIALOGUE} now.`;
       },
-      rebuildSystem: () => buildSystemPrompt() as unknown as string,
+      rebuildSystem: () => buildSystemPrompt(toolsPreset) as unknown as string,
     });
 
     // ── Stream events to SSE ──
